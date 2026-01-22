@@ -11,6 +11,7 @@ export default defineConfig({
   use: {
     baseURL: "http://localhost:4173",
     headless: true,
+    video: "on",
   },
-  reporter: [["html", { outputFolder: "playwright-report", open: "never" }]],
+  reporter: [["html"], ["json", { outputFile: "test-results/report.json" }]],
 });
