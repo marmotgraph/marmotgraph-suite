@@ -1,0 +1,37 @@
+:root {
+    /* Light theme variables */
+    --bg-primary: #171D26;
+    --bg-secondary: #f8f9fa;
+    --bg-color-ui-contrast1: #FFFFFF;
+    --text-primary: #000000;
+    --text-secondary: #6c757d;
+    --border-color: #dee2e6;
+    --button-bg: #007bff;
+    --button-hover: #0056b3;
+    --accent-color: #E67634;
+    --navbar-bg: #ffffff;
+    --card-bg: #ffffff;
+    --shadow: rgba(0, 0, 0, 0.1);
+}
+
+.dark-mode {
+    /* Dark theme variables */
+    --bg-primary: #171D26;
+    --bg-secondary: #2c2c2c;
+    --bg-color-ui-contrast1: #171D26;
+    --text-primary: #e0e0e0;
+    --text-secondary: #a0a0a0;
+    --border-color: #404040;
+    --button-bg: #0d6efd;
+    --button-hover: #0b5ed7;
+    --accent-color: #E67634;
+    --navbar-bg: #171D26;
+    --card-bg: #252525;
+    --shadow: rgba(255, 255, 255, 0.1);
+}
+
+body {
+    background-color: var(--bg-primary);
+    color: var(--text-primary);
+    transition: background-color 0.3s ease, color 0.3s ease;
+}
