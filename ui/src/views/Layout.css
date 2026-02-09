@@ -1,0 +1,84 @@
+/* -------------------------------------------------------------
+ * Grid container – three columns:
+ *   1️⃣ toggle column (auto width, ~40 px)
+ *   2️⃣ sidebar column (260 px when open, 0 otherwise)
+ *   3️⃣ main content (flexible)
+ * ------------------------------------------------------------- */
+.layout-grid {
+    display: grid;
+    grid-template-columns: auto 0 1fr; /* start with sidebar collapsed */
+    min-height: calc(100vh - 56px); /* adjust if you have a fixed navbar */
+}
+
+/* -------------------------------------------------------------
+ * Column 0 – the button holder
+ * ------------------------------------------------------------- */
+.toggle-col {
+    display: flex;
+    align-items: flex-start; /* top‑align the button */
+    justify-content: center;
+    padding-top: 0.75rem; /* vertical spacing from top */
+}
+
+/* Make the button fill the column width nicely */
+.sidebar-toggle-btn {
+    width: 36px;
+    height: 36px;
+    padding: 0;
+    line-height: 1;
+}
+
+/* -------------------------------------------------------------
+ * Column 1 – the offcanvas sidebar.
+ * When the sidebar is open we force the middle grid column to 260px.
+ * ------------------------------------------------------------- */
+.custom-sidebar {
+    /* Remove the default max‑width that Bootstrap applies */
+    max-width: none;
+}
+
+/* When the sidebar is visible we update the grid template.
+   This rule is applied via a tiny inline style in the component,
+   but we also add a class for clarity if you ever need to toggle it
+   from CSS only. */
+.layout-grid.show-sidebar {
+    grid-template-columns: auto 260px 1fr;
+}
+
+/* -------------------------------------------------------------
+ * Column 2 – main content area.
+ * Add a subtle left‑margin when the sidebar is open so the content
+ * doesn’t sit flush against the off‑canvas edge.
+ * ------------------------------------------------------------- */
+.main-col {
+    padding: 1rem;
+    transition: margin-left 0.25s ease-in-out;
+}
+
+/* When the sidebar is open, push the main area a bit left.
+   The amount matches the sidebar width (260 px). */
+.layout-grid.show-sidebar .main-col {
+    margin-left: 0; /* grid already gave us space; keep margin 0 */
+}
+
+/* -------------------------------------------------------------
+ * Responsive tweak – on small screens the offcanvas behaves as a
+ * modal overlay, so we don’t need the extra column width.
+ * ------------------------------------------------------------- */
+@media (max-width: 767.98px) {
+    .layout-grid {
+        grid-template-columns: auto 0 1fr; /* keep sidebar column collapsed */
+    }
+}
+
+.toggle-col {
+    align-self: flex-start; /* keep it at the top of the row */
+}
+
+.custom-sidebar {
+    top: var(--navbar-height);
+}
+
+.powered-by-logo {
+    height: 2em;
+}

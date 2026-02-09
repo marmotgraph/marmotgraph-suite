@@ -1,19 +1,22 @@
-import React, { useState } from "react";
+import React from "react";
+import { Route, Routes } from "react-router-dom";
 import "./App.css";
+import "bootstrap/dist/css/bootstrap.min.css";
+import Layout from "./views/Layout";
+
+import QueryHome from "./modules/query-builder/QueryHome";
 
 function App() {
-  const [count, setCount] = useState(0);
-
   return (
     <>
-      <div>
-        <header>/* TO DO */</header>
-        <main>/* TO DO */</main>
-        <footer>
-          {/*<PoweredBy />*/}
-          {/*<Copyright />*/}
-          {/*<Commit />*/}
-        </footer>
+      <div className="app-wrapper">
+        <Layout>
+          <Routes>
+            <Route index element={<h3 className="text-center">Welcome!</h3>} />
+            <Route path="queries/*" element={<QueryHome />} />
+            <Route path="*" element={<h4>Page not found</h4>} />
+          </Routes>
+        </Layout>
       </div>
     </>
   );

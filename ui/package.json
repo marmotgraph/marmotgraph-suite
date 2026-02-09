@@ -14,8 +14,13 @@
     "testCI": "vitest run --coverage --dir src"
   },
   "dependencies": {
+    "bootstrap": "^5.3.8",
+    "mobx-react-lite": "^4.1.1",
     "react": "^19.2.0",
-    "react-dom": "^19.2.0"
+    "react-bootstrap": "^2.10.10",
+    "react-dom": "^19.2.0",
+    "react-jss": "^10.10.0",
+    "react-router-dom": "^7.13.0"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.1",
@@ -35,6 +40,7 @@
     "jsdom": "^27.4.0",
     "prettier": "^3.7.4",
     "vite": "^7.2.4",
+    "vite-plugin-svgr": "^4.5.0",
     "vitest": "^4.0.17"
   }
 }
