@@ -1,0 +1,142 @@
+/* Sidebar Container */
+.sidebar-mg {
+    height: 100vh;
+    background-color: #ffffff;
+    border-right: 1px solid #e5e7eb;
+    transition: width 0.3s ease;
+    flex-shrink: 0;
+    overflow-y: hidden;
+}
+
+.sidebar-collapsed {
+    width: 70px;
+}
+
+.sidebar-expanded {
+    width: 280px;
+}
+
+/* Logo Section */
+.sidebar-logo {
+    cursor: pointer;
+}
+
+.sidebar-logo-icon {
+    width: 32px;
+    height: 32px;
+    display: block;
+    margin: 0 auto;
+}
+
+.sidebar-logo-full {
+    width: 100%;
+    height: auto;
+    max-width: 200px;
+}
+
+/* Search Bar */
+.sidebar-search-container {
+    position: relative;
+}
+
+.sidebar-search-icon {
+    position: absolute;
+    left: 10px;
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: 1rem;
+    color: #6b7280;
+}
+
+.sidebar-search-input {
+    padding-left: 36px;
+    background-color: #f3f4f6;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    font-size: 0.875rem;
+}
+
+.sidebar-search-button {
+    text-decoration: none;
+}
+
+/* Navigation Links */
+.sidebar-nav-link {
+    text-decoration: none;
+    transition: background-color 0.2s ease;
+    font-size: 0.875rem;
+}
+
+.sidebar-nav-link:hover {
+    background-color: #f3f4f6 !important;
+}
+
+.sidebar-nav-link.active {
+    background-color: #f3f4f6 !important;
+    font-weight: 600 !important;
+}
+
+.sidebar-nav-link ion-icon {
+    font-size: 1.1rem;
+    width: 22px;
+}
+
+/* Bottom Section */
+.sidebar-bottom {
+    border-top: 1px solid #e5e7eb;
+}
+
+/* User Switcher */
+.sidebar-user-avatar {
+    width: 32px;
+    height: 32px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    flex-shrink: 0;
+}
+
+.sidebar-user-toggle {
+    background-color: transparent !important;
+    border: none !important;
+    padding: 0.5rem !important;
+    border-radius: 8px;
+    font-size: 0.875rem;
+}
+
+.sidebar-user-toggle:hover {
+    background-color: #f3f4f6 !important;
+}
+
+.sidebar-user-toggle::after {
+    display: none !important;
+}
+
+/* Collapse Button Container */
+.sidebar-collapse-container {
+    display: flex;
+    align-items: center;
+    padding: 0 1rem;
+}
+
+.sidebar-collapse-container-expanded {
+    justify-content: space-between;
+    padding-bottom: 1rem;
+}
+
+.sidebar-collapse-container-collapsed {
+    justify-content: center;
+    flex-direction: column;
+    gap: 0.75rem;
+    padding-bottom: 1rem;
+}
+
+.sidebar-collapse-button {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    color: #6b7280;
+    font-size: 1rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}

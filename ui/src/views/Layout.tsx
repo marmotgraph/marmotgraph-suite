@@ -1,64 +1,51 @@
-// src/layout/Layout.tsx
 import React, { useState } from "react";
-import { Button, Nav, Offcanvas } from "react-bootstrap";
-
-import NavbarMG from "../components/NavbarMG";
+import SidebarMG from "../components/SidebarMG";
+import AppSubNav from "../components/composites/AppSubNav";
 import Footer from "../components/composites/Footer";
+import { useAppSubNav } from "../hooks/useAppSubNav";
 import "./Layout.css";
 
 interface LayoutProps {
+  subNav?: {
+    title?: React.ReactNode;
+    ctas: {
+      label: string;
+      href: string;
+      icon?: React.ReactNode;
+      variant?: "primary" | "secondary" | "outline-primary" | "outline-secondary";
+      size?: "sm" | "md" | "lg";
+    }[];
+  };
   children: React.ReactNode;
 }
 
-export default function Layout({ children }: LayoutProps) {
-  const [showSidebar, setShowSidebar] = useState(false);
-  const handleClose = () => setShowSidebar(false);
-  const handleShow = () => setShowSidebar(true);
+export default function Layout({ subNav, children }: LayoutProps) {
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
+  const routeSubNav = useAppSubNav();
+  const effectiveSubNav = subNav ?? routeSubNav;
 
   return (
-    <>
-      <NavbarMG />
-      <div className="app-root d-flex flex-column min-vh-100 pt-5">
-        <div className="content-inner flex-grow-1 d-flex">
-          <div className="toggle-col me-2">
-            <Button
-              variant="outline-primary"
-              className="sidebar-toggle-btn"
-              onClick={handleShow}
-              aria-label="Open navigation menu"
-            >
-              ☰
-            </Button>
+    <div className="d-flex layout-container">
+      <SidebarMG
+        isCollapsed={isSidebarCollapsed}
+        onToggle={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
+      />
+
+      <div className="d-flex flex-column layout-content">
+        {effectiveSubNav && (
+          <div className="layout-subnav-wrapper">
+            <AppSubNav title={effectiveSubNav.title} ctas={effectiveSubNav.ctas} />
           </div>
+        )}
 
-          {showSidebar && (
-            <Offcanvas
-              show={showSidebar}
-              onHide={handleClose}
-              placement="start"
-              backdrop={false}
-              className="custom-sidebar"
-              style={{ width: "260px" }}
-            >
-              <Offcanvas.Header closeButton>
-                <Offcanvas.Title>Navigation</Offcanvas.Title>
-              </Offcanvas.Header>
+        <main className="p-4 layout-main">
+          {children}
+        </main>
 
-              <Offcanvas.Body>
-                <Nav className="flex-column">
-                  <Nav.Link href="#/dashboard">Dashboard</Nav.Link>
-                  <Nav.Link href="#/queries">Query Builder</Nav.Link>
-                  <Nav.Link href="#/visualizer">Visualizer</Nav.Link>
-                </Nav>
-              </Offcanvas.Body>
-            </Offcanvas>
-          )}
-
-          <main className="flex-grow-1 main-col">{children}</main>
+        <div className="layout-footer-wrapper">
+          <Footer />
         </div>
-
-        <Footer />
       </div>
-    </>
+    </div>
   );
 }

@@ -23,16 +23,15 @@
 
 import { observer } from "mobx-react-lite";
 import React from "react";
-import logo from "../assets/marmotgraph_light.svg";
 
 const Copyright = observer(() => {
-  //const {appStore} = useStores();
   return (
-    <div>
-      <span>PoweredBy </span>
-      <img src={logo} alt="" className="powered-by-logo" />
+    <div
+      className="d-flex align-items-center"
+      style={{ fontSize: "0.75rem", color: "#6b7280" }}
+    >
+      <span className="me-2">Powered by MarmotGraph, 2024 - Present</span>
     </div>
-    // <div className="copyright">Copyright &copy; {new Date().getFullYear()} {appStore.copyright}</div>
   );
 });
 
