@@ -1,0 +1,155 @@
+.instance-detail-container {
+    max-width: 800px;
+}
+
+/* Header Section */
+.instance-header {
+    padding: 20px 0;
+    border-bottom: 1px solid #dee2e6;
+    margin-bottom: 30px;
+}
+
+.instance-type-color-icon {
+    font-size: 0.8rem;
+    vertical-align: middle;
+}
+
+.instance-type-label {
+    font-size: 0.75rem;
+    color: #6c757d;
+    text-transform: uppercase;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+    margin-bottom: 5px;
+    display: flex;
+    align-items: center;
+}
+
+.instance-name {
+    font-size: 1.75rem;
+    font-weight: 600;
+    margin-bottom: 10px;
+    color: #333;
+}
+
+.instance-meta {
+    font-size: 0.9rem;
+    color: #6c757d;
+}
+
+.instance-meta strong {
+    color: #333;
+    font-weight: 500;
+}
+
+/* Form Section */
+.instance-form {
+    padding: 20px 0;
+}
+
+.instance-form .form-label {
+    font-weight: 500;
+    color: #333;
+    margin-bottom: 8px;
+}
+
+.instance-form .form-control {
+    border: 1px solid #dee2e6;
+    border-radius: 6px;
+    padding: 10px 14px;
+    font-size: 0.95rem;
+}
+
+.instance-form .form-control:focus {
+    border-color: #6c8ebf;
+    box-shadow: 0 0 0 0.2rem rgba(108, 142, 191, 0.25);
+}
+
+/* Tag Container */
+.tag-container {
+    border: 1px solid #dee2e6;
+    border-radius: 6px;
+    padding: 12px;
+    min-height: 50px;
+    background-color: #fff;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-start;
+}
+
+/* Tag Badge */
+.tag-badge {
+    background-color: #f8f9fa !important;
+    border: 1px solid #dee2e6 !important;
+    color: #333 !important;
+    padding: 6px 12px !important;
+    font-weight: 400 !important;
+    font-size: 0.9rem !important;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    border-radius: 4px;
+}
+
+.tag-remove-btn {
+    background: none;
+    border: none;
+    color: #6c757d;
+    font-size: 1.2rem;
+    line-height: 1;
+    padding: 0;
+    cursor: pointer;
+    margin-left: 4px;
+}
+
+.tag-remove-btn:hover {
+    color: #333;
+}
+
+/* Edit Icon Button */
+.edit-icon-btn {
+    color: #6c757d !important;
+    padding: 8px 12px !important;
+    border-radius: 6px;
+    transition: all 0.2s ease;
+    text-decoration: none !important;
+}
+
+.edit-icon-btn:hover {
+    color: #333 !important;
+    background-color: #f8f9fa !important;
+}
+
+.edit-icon-btn:focus {
+    box-shadow: 0 0 0 0.2rem rgba(108, 117, 125, 0.25);
+}
+
+/* View Mode */
+.instance-view {
+    padding: 20px 0;
+}
+
+.view-label {
+    font-weight: 500;
+    color: #6c757d;
+    font-size: 0.85rem;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+    margin-bottom: 8px;
+}
+
+.view-value {
+    font-size: 0.95rem;
+    color: #333;
+    padding: 10px 0;
+}
+
+.view-badge {
+    background-color: #f8f9fa !important;
+    border: 1px solid #dee2e6 !important;
+    color: #333 !important;
+    padding: 6px 12px !important;
+    font-weight: 400 !important;
+    font-size: 0.9rem !important;
+    border-radius: 4px;
+}

@@ -1,0 +1,189 @@
+.query-home-btn-group {
+  display: inline-flex;
+  gap: 0;
+}
+
+.query-home-btn-group .btn {
+  border-color: #333;
+  color: #333;
+  background-color: transparent;
+  transition: all 0.2s ease;
+}
+
+.query-home-btn-group .btn:hover {
+  background-color: #555;
+  border-color: #333;
+  color: white;
+}
+
+.query-home-btn-group .btn.active {
+  background-color: #333;
+  border-color: #333;
+  color: white;
+}
+
+.query-home-btn-group .btn:focus,
+.query-home-btn-group .btn:active {
+  box-shadow: 0 0 0 0.2rem rgba(51, 51, 51, 0.25);
+}
+
+.query-home-submit-btn {
+  background-color: #333;
+  border-color: #333;
+  color: white;
+}
+
+.query-home-submit-btn:hover {
+  background-color: #555;
+  border-color: #555;
+}
+
+/* Query Builder Panels */
+.query-builder-panel {
+  background-color: #f8f9fa;
+  padding: 20px;
+  border-radius: 8px;
+  height: 100%;
+  overflow-y: auto;
+}
+
+.panel-title {
+  font-size: 1.1rem;
+  font-weight: 600;
+  margin-bottom: 8px;
+}
+
+.panel-subtitle {
+  font-size: 0.9rem;
+  color: #6c757d;
+  margin-bottom: 20px;
+}
+
+/* Tree Structure with Bootstrap ListGroup */
+.tree-item-root {
+  background-color: #e8e9f3 !important;
+  border: none !important;
+  padding: 12px !important;
+  display: flex;
+  align-items: center;
+}
+
+.tree-item-property {
+  background-color: white !important;
+  border: 1px solid #dee2e6 !important;
+  border-top: none !important;
+  padding: 12px 12px 12px 40px !important;
+  display: flex;
+  align-items: center;
+}
+
+.tree-item-relation {
+  background-color: white !important;
+  border: 1px solid #dee2e6 !important;
+  border-top: none !important;
+  padding: 12px 12px 12px 60px !important;
+  display: flex;
+  align-items: center;
+}
+
+.tree-toggle {
+  cursor: pointer;
+  font-size: 0.8rem;
+  color: #333;
+}
+
+.tree-icon-circle {
+  font-size: 0.8rem;
+  color: #6c8ebf;
+}
+
+.tree-icon-arrow {
+  font-size: 0.8rem;
+  color: #6c757d;
+}
+
+.tree-label {
+  font-weight: 500;
+  color: #333;
+}
+
+.tree-url {
+  color: #6c757d;
+  font-size: 0.85rem;
+  font-style: italic;
+}
+
+.property-icon {
+  font-size: 0.9rem;
+  color: #ffc107;
+}
+
+.property-label {
+  color: #ff8800;
+  font-weight: 500;
+}
+
+.property-type {
+  color: #6c757d;
+  font-size: 0.85rem;
+}
+
+.property-url {
+  color: #ff8800;
+  font-size: 0.85rem;
+}
+
+.tree-actions {
+  margin-left: auto;
+  display: flex;
+  gap: 4px;
+}
+
+.tree-actions .action-btn {
+  background-color: #bec5f3 !important;
+  border-color: #bec5f3 !important;
+  color: #333 !important;
+  padding: 4px 8px !important;
+}
+
+.tree-actions .action-btn:hover {
+  background-color: #a0a8e8 !important;
+  border-color: #a0a8e8 !important;
+}
+
+/* Attributes Section */
+.attributes-title {
+  font-size: 1rem;
+  font-weight: 600;
+  margin-bottom: 12px;
+  margin-top: 20px;
+}
+
+.attribute-item {
+  border: 1px solid #dee2e6 !important;
+  border-top: none !important;
+  padding: 12px !important;
+}
+
+.attribute-item:first-child {
+  border-top: 1px solid #dee2e6 !important;
+}
+
+.add-btn {
+  width: 32px !important;
+  height: 32px !important;
+  padding: 0 !important;
+  font-size: 1.2rem !important;
+  flex-shrink: 0;
+}
+
+.attribute-label {
+  font-weight: 500;
+  color: #333;
+}
+
+.attribute-url {
+  color: #6c757d;
+  font-size: 0.85rem;
+  font-style: italic;
+}

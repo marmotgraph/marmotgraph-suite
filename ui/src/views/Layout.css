@@ -1,27 +1,61 @@
 /* Layout Container */
 .layout-container {
-  height: 100vh;
-  overflow: hidden;
+    height: 100vh;
+    overflow: hidden;
 }
 
 /* Main Content Area */
 .layout-content {
-  flex: 1;
-  height: 100vh;
-  overflow: hidden;
+    flex: 1;
+    overflow: hidden;
+    margin: 10px;
+    border-radius: 20px;
+    background-color: white;
+    height: 98vh;
 }
 
 .layout-subnav-wrapper {
-  flex-shrink: 0;
+    flex-shrink: 0;
+}
+
+.layout-content-wrapper {
+    flex: 1;
+    overflow: hidden;
+    margin: 10px;
+    padding: 10px;
+    border-radius: 20px;
+    border: 1px solid #a1a1a180;
+    background-color: white;
+    height: 98vh;
+}
+
+.layout-content-bordless {
+    flex: 1;
+    overflow: hidden;
+    margin: 10px;
+    padding: 10px;
+    height: 98vh;
 }
 
 .layout-main {
-  flex: 1;
-  overflow-y: auto;
-  overflow-x: hidden;
-  min-height: 0;
+    flex: 1;
+    overflow-y: auto;
+    overflow-x: hidden;
+    min-height: 0;
 }
 
 .layout-footer-wrapper {
-  flex-shrink: 0;
+    flex-shrink: 0;
+}
+
+.table-mg {
+    background-color: white;
+    cursor: pointer;
+    padding: 12px 16px;
+    transition: all 0.2s ease;
+    border-left: 3px solid transparent;
+    border-bottom-color: rgba(226, 232, 240, 0.1);
+    border-bottom-style: solid;
+    border-bottom-width: 1px;
+    border-left-color: rgba(0, 0, 0, 0);
 }

@@ -1,9 +1,21 @@
 import React, { useState } from "react";
 import { Button, Dropdown, Form, Nav } from "react-bootstrap";
 import { NavLink, useNavigate } from "react-router-dom";
+// @ts-ignore
 import marmotGraphLogo from "../assets/marmotgraph_dark.svg";
+// @ts-ignore
 import marmotGraphIcon from "../assets/marmotgraph_dark_icon.svg";
+
 import "./SidebarMG.css";
+import {
+  Blocks,
+  BookmarkCheck,
+  ChartScatter,
+  Edit3Icon,
+  PanelLeftClose,
+  PanelRightOpenIcon,
+  Search,
+} from "lucide-react";
 
 interface SidebarMGProps {
   isCollapsed: boolean;
@@ -48,17 +60,17 @@ function SidebarMG({ isCollapsed, onToggle }: SidebarMGProps) {
         <div className="px-3 mb-1">
           <Form onSubmit={handleSearch}>
             <div className="sidebar-search-container">
-              <ion-icon
-                name="search-outline"
-                className="sidebar-search-icon"
-              ></ion-icon>
-              <Form.Control
-                type="search"
-                placeholder="Search ⌘K"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="sidebar-search-input"
-              />
+              {isCollapsed ? (
+                <Search size={20} className="sidebar-search-icon" />
+              ) : (
+                <Form.Control
+                  type="search"
+                  placeholder="Search ⌘K"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="sidebar-search-input"
+                />
+              )}
             </div>
           </Form>
         </div>
@@ -71,7 +83,7 @@ function SidebarMG({ isCollapsed, onToggle }: SidebarMGProps) {
             className="p-2 text-dark sidebar-search-button"
             onClick={() => navigate("/queries")}
           >
-            <ion-icon name="search-outline"></ion-icon>
+            <Search size={18} />
           </Button>
         </div>
       )}
@@ -84,7 +96,7 @@ function SidebarMG({ isCollapsed, onToggle }: SidebarMGProps) {
             `d-flex align-items-center py-2 px-3 mb-1 text-dark rounded sidebar-nav-link ${isActive ? "active" : ""}`
           }
         >
-          <ion-icon name="create-outline"></ion-icon>
+          <Edit3Icon size={18} />
           {!isCollapsed && <span className="ms-2">Editor</span>}
         </NavLink>
         <NavLink
@@ -93,7 +105,7 @@ function SidebarMG({ isCollapsed, onToggle }: SidebarMGProps) {
             `d-flex align-items-center py-2 px-3 mb-1 text-dark rounded sidebar-nav-link ${isActive ? "active" : ""}`
           }
         >
-          <ion-icon name="construct-outline"></ion-icon>
+          <Blocks size={18} />
           {!isCollapsed && <span className="ms-2">Query Builder</span>}
         </NavLink>
         <NavLink
@@ -102,7 +114,7 @@ function SidebarMG({ isCollapsed, onToggle }: SidebarMGProps) {
             `d-flex align-items-center py-2 px-3 mb-1 text-dark rounded sidebar-nav-link ${isActive ? "active" : ""}`
           }
         >
-          <ion-icon name="bar-chart-outline"></ion-icon>
+          <ChartScatter size={18} />
           {!isCollapsed && <span className="ms-2">Visualizer</span>}
         </NavLink>
       </div>
@@ -115,7 +127,7 @@ function SidebarMG({ isCollapsed, onToggle }: SidebarMGProps) {
           target="_blank"
           className="d-flex align-items-center py-2 px-3 mb-2 text-dark rounded mx-2 sidebar-nav-link"
         >
-          <ion-icon name="book-outline"></ion-icon>
+          <BookmarkCheck size={18} />
           {!isCollapsed && <span className="ms-2">Documentation</span>}
         </Nav.Link>
 
@@ -148,16 +160,11 @@ function SidebarMG({ isCollapsed, onToggle }: SidebarMGProps) {
 
           {/* Collapse Button */}
           <Button
-            variant="outline-light"
-            className="sidebar-collapse-button"
+            variant="filled-light"
+            // className="sidebar-collapse-button"
             onClick={onToggle}
           >
-            <ion-icon
-              name={
-                isCollapsed ? "chevron-forward-outline" : "chevron-back-outline"
-              }
-              size="large"
-            ></ion-icon>
+            {isCollapsed ? <PanelRightOpenIcon /> : <PanelLeftClose />}
           </Button>
         </div>
       </div>

@@ -4,16 +4,29 @@ import AppSubNav from "../components/composites/AppSubNav";
 import Footer from "../components/composites/Footer";
 import { useAppSubNav } from "../hooks/useAppSubNav";
 import "./Layout.css";
+import { Row } from "react-bootstrap";
 
 interface LayoutProps {
   subNav?: {
     title?: React.ReactNode;
     ctas: {
       label: string;
-      href: string;
+      href?: string;
       icon?: React.ReactNode;
-      variant?: "primary" | "secondary" | "outline-primary" | "outline-secondary";
-      size?: "sm" | "md" | "lg";
+      variant?:
+        | "primary"
+        | "secondary"
+        | "outline-primary"
+        | "outline-secondary"
+        | "dark"
+        | "outline-dark";
+      size?: "sm" | "lg"; // ← Removed "md"
+      modal?: {
+        show: boolean;
+        title: string;
+        body: React.ReactNode;
+        onClose: () => void;
+      };
     }[];
   };
   children: React.ReactNode;
@@ -31,21 +44,24 @@ export default function Layout({ subNav, children }: LayoutProps) {
         onToggle={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
       />
 
-      <div className="d-flex flex-column layout-content">
+      {/*<div className="d-flex flex-column layout-content">*/}
+      <Row className="layout-content">
         {effectiveSubNav && (
           <div className="layout-subnav-wrapper">
-            <AppSubNav title={effectiveSubNav.title} ctas={effectiveSubNav.ctas} />
+            <AppSubNav
+              title={effectiveSubNav.title}
+              ctas={effectiveSubNav.ctas}
+            />
           </div>
         )}
 
-        <main className="p-4 layout-main">
-          {children}
-        </main>
+        <main className="px-4 layout-main">{children}</main>
 
         <div className="layout-footer-wrapper">
           <Footer />
         </div>
-      </div>
+        {/*</div>*/}
+      </Row>
     </div>
   );
 }

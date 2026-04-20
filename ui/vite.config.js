@@ -7,7 +7,7 @@ export default defineConfig({
   base: "/",
   plugins: [react(), svgrPlugin()],
   server: {
-    port: 3000,
+    port: 3001,
     strictPort: true,
     proxy: {
       "/api/query": {

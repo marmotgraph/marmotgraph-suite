@@ -14,18 +14,20 @@
     "testCI": "vitest run --coverage --dir src"
   },
   "dependencies": {
+    "@fortawesome/free-regular-svg-icons": "^7.2.0",
+    "@fortawesome/free-solid-svg-icons": "^7.2.0",
     "bootstrap": "^5.3.8",
-    "ionicons": "^8.0.13",
+    "lucide-react": "^1.0.0-rc.1",
     "mobx-react-lite": "^4.1.1",
     "react": "^19.2.0",
     "react-bootstrap": "^2.10.10",
     "react-dom": "^19.2.0",
-    "react-ionicons": "^4.2.1",
     "react-jss": "^10.10.0",
     "react-router-dom": "^7.13.0"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.1",
+    "@fortawesome/react-fontawesome": "^3.3.0",
     "@playwright/test": "^1.57.0",
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/react": "^16.3.2",
@@ -41,7 +43,7 @@
     "globals": "^16.5.0",
     "jsdom": "^27.4.0",
     "prettier": "^3.7.4",
-    "vite": "^7.2.4",
+    "vite": "^7.3.2",
     "vite-plugin-svgr": "^4.5.0",
     "vitest": "^4.0.17"
   }

@@ -14,7 +14,7 @@ export function useAppSubNav() {
 
   // Other routes
   if (/^\/queries/.test(pathname)) return queryBuilderSubNav;
-  if (/^\/editor/.test(pathname)) return editorSubNav;
+  if (/^\/editor/.test(pathname) || /^\/instances/.test(pathname)) return editorSubNav;
   if (/^\/visualizer/.test(pathname)) return visualizerSubNav;
 
   // Fallback – no sub‑nav
