@@ -4,7 +4,6 @@ import AppSubNav from "../components/composites/AppSubNav";
 import Footer from "../components/composites/Footer";
 import { useAppSubNav } from "../hooks/useAppSubNav";
 import "./Layout.css";
-import { Row } from "react-bootstrap";
 
 interface LayoutProps {
   subNav?: {
@@ -44,8 +43,7 @@ export default function Layout({ subNav, children }: LayoutProps) {
         onToggle={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
       />
 
-      {/*<div className="d-flex flex-column layout-content">*/}
-      <Row className="layout-content">
+      <div className="d-flex flex-column layout-content">
         {effectiveSubNav && (
           <div className="layout-subnav-wrapper">
             <AppSubNav
@@ -60,8 +58,7 @@ export default function Layout({ subNav, children }: LayoutProps) {
         <div className="layout-footer-wrapper">
           <Footer />
         </div>
-        {/*</div>*/}
-      </Row>
+      </div>
     </div>
   );
 }

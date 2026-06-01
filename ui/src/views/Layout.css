@@ -7,11 +7,14 @@
 /* Main Content Area */
 .layout-content {
     flex: 1;
+    display: flex;
+    flex-direction: column;
     overflow: hidden;
     margin: 10px;
     border-radius: 20px;
     background-color: white;
     height: 98vh;
+    min-height: 0;
 }
 
 .layout-subnav-wrapper {

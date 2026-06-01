@@ -1,5 +1,5 @@
-import React, { useState } from "react";
-import { Button, Dropdown, Form, Nav } from "react-bootstrap";
+import React from "react";
+import { Button, Dropdown, Nav } from "react-bootstrap";
 import { NavLink, useNavigate } from "react-router-dom";
 // @ts-ignore
 import marmotGraphLogo from "../assets/marmotgraph_dark.svg";
@@ -14,7 +14,6 @@ import {
   Edit3Icon,
   PanelLeftClose,
   PanelRightOpenIcon,
-  Search,
 } from "lucide-react";
 
 interface SidebarMGProps {
@@ -24,14 +23,6 @@ interface SidebarMGProps {
 
 function SidebarMG({ isCollapsed, onToggle }: SidebarMGProps) {
   const navigate = useNavigate();
-  const [searchQuery, setSearchQuery] = useState("");
-
-  const handleSearch = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (searchQuery.trim()) {
-      navigate(`/queries?search=${encodeURIComponent(searchQuery)}`);
-    }
-  };
 
   // @ts-ignore
   return (
@@ -54,39 +45,6 @@ function SidebarMG({ isCollapsed, onToggle }: SidebarMGProps) {
           />
         )}
       </div>
-
-      {/* Search Bar */}
-      {!isCollapsed && (
-        <div className="px-3 mb-1">
-          <Form onSubmit={handleSearch}>
-            <div className="sidebar-search-container">
-              {isCollapsed ? (
-                <Search size={20} className="sidebar-search-icon" />
-              ) : (
-                <Form.Control
-                  type="search"
-                  placeholder="Search ⌘K"
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="sidebar-search-input"
-                />
-              )}
-            </div>
-          </Form>
-        </div>
-      )}
-
-      {isCollapsed && (
-        <div className="px-2 d-flex justify-content-center">
-          <Button
-            variant="link"
-            className="p-2 text-dark sidebar-search-button"
-            onClick={() => navigate("/queries")}
-          >
-            <Search size={18} />
-          </Button>
-        </div>
-      )}
 
       {/* Navigation Links */}
       <div className="flex-column flex-grow-1 px-2 d-flex">

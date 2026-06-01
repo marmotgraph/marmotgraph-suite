@@ -1,0 +1,37 @@
+.linked-instances-field {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.linked-instances-field-empty {
+  font-size: 0.9rem;
+}
+
+.linked-instance-badge {
+  cursor: pointer;
+  max-width: 100%;
+}
+
+.linked-instance-badge-icon {
+  font-size: 0.45rem;
+  margin-right: 6px;
+}
+
+.linked-instance-badge-name {
+  vertical-align: middle;
+}
+
+.linked-instance-badge .linked-instance-draft-badge {
+  margin-left: 0.35rem;
+}
+
+.linked-instances-see-all-btn {
+  font-size: 0.875rem;
+  text-decoration: none !important;
+  white-space: nowrap;
+}
+
+.linked-instances-see-all-btn:hover {
+  text-decoration: underline !important;
+}

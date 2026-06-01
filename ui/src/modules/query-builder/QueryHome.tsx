@@ -2,7 +2,11 @@ import React, { useState } from "react";
 import { Button, Modal, Table } from "react-bootstrap";
 import { useNavigate } from "react-router-dom";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { faBookmark as faBookmarkSolid } from "@fortawesome/free-solid-svg-icons";
+import {
+  faBookmark as faBookmarkSolid,
+  faGlasses,
+  faPen,
+} from "@fortawesome/free-solid-svg-icons";
 import { faBookmark as faBookmarkRegular } from "@fortawesome/free-regular-svg-icons";
 import "./QueryHome.css";
 import "./SharedQueries.css";
@@ -240,7 +244,14 @@ export function QueryHome() {
                   <td>{query.title}</td>
                   <td>{query.description}</td>
                   <td>{query.space}</td>
-                  <td>{query.permissions}</td>
+                  <td>
+                    {query.permissions.includes("View") && (
+                      <FontAwesomeIcon icon={faGlasses} className="me-2" title="View" />
+                    )}
+                    {query.permissions.includes("Edit") && (
+                      <FontAwesomeIcon icon={faPen} title="Edit" />
+                    )}
+                  </td>
                 </tr>
               ))}
             </tbody>

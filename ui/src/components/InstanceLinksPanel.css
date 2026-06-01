@@ -1,0 +1,232 @@
+/* Links Panel — secondary/supporting columns */
+.instance-links-panel {
+    width: 100%;
+    background-color: #f1f3f5;
+    border: 1px solid #e9ecef;
+    border-radius: 8px;
+    padding: 16px;
+    position: sticky;
+    top: 0;
+    max-height: calc(100vh - 120px);
+    overflow-y: auto;
+    box-shadow: none;
+    opacity: 0.96;
+    transition: opacity 0.2s ease;
+}
+
+.instance-links-panel:hover,
+.instance-links-panel:focus-within {
+    opacity: 1;
+}
+
+.instance-links-panel.collapsed {
+    width: 60px;
+    padding: 16px 10px;
+}
+
+.links-panel-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 12px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid #dee2e6;
+}
+
+.instance-links-panel.collapsed .links-panel-header {
+    flex-direction: column;
+    gap: 10px;
+    border-bottom: none;
+    padding-bottom: 0;
+}
+
+.links-panel-title {
+    font-size: 0.75rem;
+    font-weight: 600;
+    margin: 0;
+    color: #6c757d;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.instance-links-panel.collapsed .links-panel-title {
+    writing-mode: vertical-rl;
+    text-orientation: mixed;
+    font-size: 0.75rem;
+}
+
+.collapse-toggle-btn {
+    color: #868e96 !important;
+    padding: 4px 8px !important;
+    text-decoration: none !important;
+    transition: color 0.2s ease;
+}
+
+.collapse-toggle-btn:hover {
+    color: #495057 !important;
+    background-color: transparent !important;
+}
+
+.links-list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.field-group {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.field-group-label {
+    font-size: 0.7rem;
+    font-weight: 600;
+    color: #868e96;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    padding: 4px 0;
+    border-bottom: 1px solid #dee2e6;
+    margin-bottom: 2px;
+    display: flex;
+    align-items: center;
+    transition: color 0.2s;
+    user-select: none;
+}
+
+.field-group-label:hover {
+    color: #495057;
+}
+
+.field-count {
+    font-size: 0.7rem;
+    color: #adb5bd;
+    font-weight: 400;
+}
+
+.links-empty-state {
+    padding: 24px 12px;
+    text-align: center;
+    font-size: 0.875rem;
+}
+
+.link-item {
+    background-color: #fafbfc;
+    border: 1px solid #e9ecef;
+    border-radius: 4px;
+    padding: 9px 10px;
+    transition: background-color 0.15s ease, border-color 0.15s ease;
+}
+
+.link-item:hover {
+    border-color: #dee2e6;
+    background-color: #fff;
+    box-shadow: none;
+    transform: none;
+}
+
+.link-item:focus-visible {
+    outline: 2px solid #6c8ebf;
+    outline-offset: 1px;
+}
+
+.link-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1px;
+}
+
+.link-field-label {
+    font-size: 0.7rem;
+    color: #868e96;
+    text-transform: uppercase;
+    font-weight: 600;
+    letter-spacing: 0.3px;
+}
+
+.link-edit-btn {
+    color: #6c757d !important;
+    background-color: transparent !important;
+    border: 1px solid transparent !important;
+    border-radius: 3px !important;
+    padding: 4px 8px !important;
+    text-decoration: none !important;
+    transition: all 0.15s ease;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.85rem;
+}
+
+.link-edit-btn:hover {
+    color: #495057 !important;
+    background-color: #e9ecef !important;
+    border-color: #dee2e6 !important;
+}
+
+.link-content {
+    display: flex;
+    flex-direction: column;
+}
+
+.link-type-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.link-type {
+    font-size: 0.65rem;
+    color: #868e96;
+    text-transform: uppercase;
+    font-weight: 600;
+    letter-spacing: 0.3px;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.link-type-icon {
+    font-size: 0.6rem;
+}
+
+.link-item-status-icon {
+    width: 28px;
+    height: 28px;
+    flex-shrink: 0;
+    opacity: 0.85;
+}
+
+.link-name {
+    font-size: 0.85rem;
+    font-weight: 500;
+    color: #495057;
+    margin-bottom: 2px;
+}
+
+.link-meta {
+    font-size: 0.72rem;
+    color: #868e96;
+    display: flex;
+    align-items: center;
+}
+
+.link-id {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 200px;
+}
+
+.link-space {
+    font-size: 0.72rem;
+    color: #868e96;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .instance-links-panel,
+    .link-item {
+        transition: none;
+    }
+}

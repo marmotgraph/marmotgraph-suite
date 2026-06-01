@@ -20,7 +20,11 @@ type CtaButton = {
     // ← Change body to accept a function OR ReactNode
     body:
       | React.ReactNode
-      | ((onTypeSelect: (typeName: string) => void) => React.ReactNode);
+      | ((
+          onTypeSelect: (typeName: string) => void,
+          onInstanceNameChange?: (name: string) => void,
+          instanceName?: string
+        ) => React.ReactNode);
     onClose: () => void;
   };
 };
@@ -33,19 +37,33 @@ type AppSubNavProps = {
 export default function AppSubNav({ title, ctas }: AppSubNavProps) {
   const [openModalIndex, setOpenModalIndex] = useState<number | null>(null);
   const [selectedType, setSelectedType] = useState<string | null>(null);
+  const [instanceName, setInstanceName] = useState<string>("");
 
   const handleModalClick = (index: number) => {
     setOpenModalIndex(index);
     setSelectedType(null); // Reset selection when opening
+    setInstanceName(""); // Reset instance name when opening
   };
 
   const handleCloseModal = () => {
     setOpenModalIndex(null);
     setSelectedType(null);
+    setInstanceName("");
   };
 
   const handleTypeSelection = (typeName: string) => {
     setSelectedType(typeName);
+  };
+
+  const handleInstanceNameChange = (name: string) => {
+    setInstanceName(name);
+  };
+
+  const handleCreate = () => {
+    // Generate a temporary ID for the new instance
+    const tempId = `new-${Date.now()}`;
+    // Navigate to the instance form with the name and type as query params
+    window.location.href = `/editor/instance/${tempId}?name=${encodeURIComponent(instanceName)}&type=${encodeURIComponent(selectedType || '')}`;
   };
 
   return (
@@ -94,8 +112,11 @@ export default function AppSubNav({ title, ctas }: AppSubNavProps) {
         // Check if body is a function (render prop pattern)
         const modalBody =
           typeof cta.modal.body === "function"
-            ? cta.modal.body(handleTypeSelection)
+            ? cta.modal.body(handleTypeSelection, handleInstanceNameChange, instanceName)
             : cta.modal.body;
+
+        // Determine if Create button should be enabled
+        const isCreateEnabled = selectedType && instanceName.trim().length > 0;
 
         return (
           <Modal
@@ -109,15 +130,15 @@ export default function AppSubNav({ title, ctas }: AppSubNavProps) {
             </Modal.Header>
             <Modal.Body>{modalBody}</Modal.Body>
             <Modal.Footer>
-              <Button variant="secondary" onClick={handleCloseModal}>
-                Close
+              <Button variant="outline-secondary" onClick={handleCloseModal}>
+                Cancel
               </Button>
               <Button
-                variant="primary"
-                onClick={handleCloseModal}
-                disabled={!selectedType}
+                variant="dark"
+                onClick={handleCreate}
+                disabled={!isCreateEnabled}
               >
-                Save Changes
+                Create
               </Button>
             </Modal.Footer>
           </Modal>
