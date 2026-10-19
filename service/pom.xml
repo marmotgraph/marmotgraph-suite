@@ -45,6 +45,19 @@
     <name>suite</name>
     <description>MarmotGraph Suite</description>
 
+    <repositories>
+        <repository>
+            <id>github</id>
+            <name>GitHub Packages - MarmotGraph SDK</name>
+            <url>https://maven.pkg.github.com/marmotgraph/marmotgraph-core-v4</url>
+            <releases>
+                <enabled>true</enabled>
+            </releases>
+            <snapshots>
+                <enabled>true</enabled>
+            </snapshots>
+        </repository>
+    </repositories>
 
     <dependencies>
         <dependency>
@@ -73,7 +86,6 @@
             <artifactId>springdoc-openapi-starter-webmvc-ui</artifactId>
             <version>3.1.1</version>
         </dependency>
-
 
         <dependency>
             <groupId>org.marmotgraph</groupId>

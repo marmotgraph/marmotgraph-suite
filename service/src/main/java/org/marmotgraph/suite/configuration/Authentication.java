@@ -24,6 +24,8 @@
 
 package org.marmotgraph.suite.configuration;
 
+import org.marmotgraph.sdk.MarmotGraphClient;
+import org.marmotgraph.sdk.MarmotGraphException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.context.annotation.Bean;
@@ -45,19 +47,18 @@ public class Authentication {
     private static final Logger log = LoggerFactory.getLogger(Authentication.class);
 
     @Bean
-    public AuthenticationInformation authenticationInformation(Variables variables) {
+    public AuthenticationInformation authenticationInformation(Variables variables, MarmotGraphClient client) {
         RestClient restClient = RestClient.create();
-        String setupUrl = String.format("%s/setup/authentication", variables.kgEndpoint());
         Duration retryInterval = Duration.ofSeconds(variables.coreConnectionRetryInterval());
         int maxAttempts = variables.coreConnectionMaxRetries() + 1;
         for (int attempt = 1; ; attempt++) {
             try {
-                return loadAuthenticationInformation(restClient, setupUrl);
-            } catch (RestClientException | IllegalStateException e) {
+                return loadAuthenticationInformation(client, restClient);
+            } catch (MarmotGraphException | RestClientException | IllegalStateException e) {
                 if (attempt >= maxAttempts) {
-                    throw new IllegalStateException(String.format("Was not able to load the authentication information from %s after %d attempts - giving up", setupUrl, attempt), e);
+                    throw new IllegalStateException(String.format("Was not able to load the authentication information from the MarmotGraph core at %s after %d attempts - giving up", client.baseUrl(), attempt), e);
                 }
-                log.warn("Was not able to load the authentication information from {} (attempt {}/{}): {} - retrying in {}s", setupUrl, attempt, maxAttempts, e.getMessage(), retryInterval.toSeconds());
+                log.warn("Was not able to load the authentication information from the MarmotGraph core at {} (attempt {}/{}): {} - retrying in {}s", client.baseUrl(), attempt, maxAttempts, e.getMessage(), retryInterval.toSeconds());
             }
             try {
                 Thread.sleep(retryInterval);
@@ -68,11 +69,11 @@ public class Authentication {
         }
     }
 
-    private AuthenticationInformation loadAuthenticationInformation(RestClient restClient, String setupUrl) {
-        log.info("Loading authentication information from {}", setupUrl);
-        Map<?, ?> setup = restClient.get().uri(setupUrl).retrieve().body(Map.class);
-        if (setup == null || !(setup.get("data") instanceof Map<?, ?> data) || !(data.get("endpoint") instanceof String wellKnownUrl)) {
-            throw new IllegalStateException(String.format("The response of %s doesn't contain an OIDC configuration endpoint", setupUrl));
+    private AuthenticationInformation loadAuthenticationInformation(MarmotGraphClient client, RestClient restClient) {
+        log.info("Loading authentication information from the MarmotGraph core at {}", client.baseUrl());
+        Map<String, Object> data = client.setup().getAuthenticationConfig();
+        if (!(data.get("endpoint") instanceof String wellKnownUrl)) {
+            throw new IllegalStateException(String.format("The authentication information of the MarmotGraph core at %s doesn't contain an OIDC configuration endpoint", client.baseUrl()));
         }
         String loginClientId = data.get("loginClientId") instanceof String clientId ? clientId : null;
         log.info("Loading OIDC configuration from {}", wellKnownUrl);
