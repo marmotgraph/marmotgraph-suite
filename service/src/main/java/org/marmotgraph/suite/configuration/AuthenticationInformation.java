@@ -1,7 +1,7 @@
 /*
  * Copyright 2018 - 2021 Swiss Federal Institute of Technology Lausanne (EPFL)
  * Copyright 2021 - 2024 EBRAINS AISBL
- * Copyright 2024 - 2025 ETH Zurich
+ * Copyright 2024 - 2026 ETH Zurich
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -22,27 +22,10 @@
  *  (Human Brain Project SGA1, SGA2 and SGA3).
  */
 
-package org.marmotgraph.suite.commons;
+package org.marmotgraph.suite.configuration;
 
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.context.annotation.Configuration;
-
-@Configuration
-public class SentryConfig {
-
-    private final String environment;
-    private final String dsn;
-
-    public SentryConfig(@Value("${sentry.environment:unknown}") String environment, @Value("${sentry.dsn:}") String dsn) {
-        this.environment = environment.isBlank() ? null : environment;
-        this.dsn = dsn.isBlank() ? null : dsn;
-    }
-
-    public String getEnvironment() {
-        return environment;
-    }
-
-    public String getDsn() {
-        return dsn;
-    }
+/**
+ * The OIDC information required to let users log in - resolved from the MarmotGraph core at startup.
+ */
+public record AuthenticationInformation(String authorizationEndpoint, String tokenEndpoint, String loginClientId) {
 }
