@@ -39,20 +39,11 @@ import java.net.URI;
 public class CoreClient {
 
     /**
-     * The core is configured by its base URL (e.g. https://marmotgraph.org or http://localhost:9999).
+     * The core is configured by its base URL including the scheme (e.g. https://marmotgraph.org or http://localhost:9999).
      */
     @Bean
     public MarmotGraphClient marmotGraphClient(Variables variables) {
-        URI uri = URI.create(variables.coreUrl());
-        boolean ssl = switch (uri.getScheme() == null ? "" : uri.getScheme().toLowerCase()) {
-            case "https" -> true;
-            case "http" -> false;
-            default -> throw new IllegalStateException(String.format("The core URL %s has to start with http:// or https://", variables.coreUrl()));
-        };
-        if (uri.getAuthority() == null || (uri.getRawPath() != null && !uri.getRawPath().isEmpty() && !uri.getRawPath().equals("/"))) {
-            throw new IllegalStateException(String.format("The core URL %s has to be a base URL (scheme, host and optional port only)", variables.coreUrl()));
-        }
-        return MarmotGraphClient.builder(uri.getAuthority()).ssl(ssl).build();
+        return MarmotGraphClient.builder(variables.coreUrl()).build();
     }
 
 }
