@@ -17,6 +17,7 @@
     "@fortawesome/free-regular-svg-icons": "^7.2.0",
     "@fortawesome/free-solid-svg-icons": "^7.2.0",
     "bootstrap": "^5.3.8",
+    "keycloak-js": "^26.2.4",
     "lucide-react": "^1.0.0-rc.1",
     "mobx-react-lite": "^4.1.1",
     "react": "^19.2.0",
