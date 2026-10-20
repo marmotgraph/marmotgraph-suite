@@ -1,5 +1,6 @@
 package org.marmotgraph.suite.api;
 
+import io.swagger.v3.oas.annotations.security.SecurityRequirements;
 import lombok.AllArgsConstructor;
 import org.marmotgraph.sdk.auth.AuthenticationInformation;
 import org.marmotgraph.suite.configuration.Variables;
@@ -17,6 +18,7 @@ public class Config {
     }
 
     @GetMapping("/config")
+    @SecurityRequirements // publicly accessible - overrides the global security requirement
     public ConfigResponse config() {
         return new ConfigResponse(authenticationInformation.authorizationEndpoint(), authenticationInformation.tokenEndpoint(), authenticationInformation.loginClientId(), variables.shortCommitId().orElse(null));
     }
