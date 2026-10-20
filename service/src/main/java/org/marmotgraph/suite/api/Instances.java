@@ -1,20 +1,37 @@
 package org.marmotgraph.suite.api;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
+import lombok.AllArgsConstructor;
 import org.marmotgraph.sdk.MarmotGraphClient;
+import org.marmotgraph.sdk.model.ReleaseStatus;
+import org.marmotgraph.sdk.model.ReleaseTreeScope;
+import org.marmotgraph.sdk.model.Stage;
+import org.marmotgraph.sdk.resources.InstanceListOptions;
+import org.marmotgraph.sdk.resources.ResponseOptions;
 import org.marmotgraph.suite.auth.AuthenticatedClient;
+import org.marmotgraph.suite.types.TypeCache;
+import org.marmotgraph.suite.types.TypeCache.TypeDefinition;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.UUID;
+import java.util.stream.Collectors;
 
 /**
- * Provides the instances shown in the editor.
+ * Provides the instances shown in the editor by listing them from the MarmotGraph core - on behalf of the user who
+ * issued the request. The type information (name, color, label property) is taken from the {@link TypeCache}.
  * <p>
- * TODO this is a dummy implementation returning mock data - to be replaced by requests to the MarmotGraph core
- * (on behalf of the user who issued the request).
+ * TODO bookmarks and the last visit are not (yet) provided by the core - they are always reported as not bookmarked /
+ * never visited. Only the first page of instances is returned.
  */
+@AllArgsConstructor
 @RestController
 @RequestMapping("/instances")
 public class Instances {
@@ -25,29 +42,100 @@ public class Instances {
     }
 
     @JsonInclude(JsonInclude.Include.NON_NULL)
-    public record Instance(int id, String instanceId, String type, String instanceName, String space,
+    public record Instance(int id, String instanceId, String type, String typeColor, String instanceName, String space,
                            String permissions, boolean bookmarked, String lastVisited, String releaseStatus) {
     }
+
+    static final String SPACE = "https://core.kg.ebrains.eu/vocab/meta/space";
+    static final String PERMISSIONS = "https://core.kg.ebrains.eu/vocab/meta/permissions";
 
     private static final String RELEASED = "released";
     private static final String IN_PROGRESS = "in progress";
 
-    private static final List<Instance> MOCK_INSTANCES = List.of(
-            new Instance(1, "inst-47b94e45-5435-49a8-aba3-3d482fabced3", "Appliance", "Server-Rack-A1", "private-25ae0198-753b-497d-9163-67488442f64", "View, Edit, Review, Release", true, "2026-04-18", RELEASED),
-            new Instance(2, "inst-a1b2c3d4-e5f6-4a5b-9c8d-7e6f5a4b3c2d", "Building", "Data Center North", "shared-infrastructure-workspace", "View", false, null, IN_PROGRESS),
-            new Instance(3, "inst-302a3695-722c-4e29-9543-8f6a7b8c9d0e", "Cabinet", "Storage-Cabinet-B3", "private-302a3695-722c-4e29-9543-8f6a", "View, Edit, Review", true, "2026-04-20", RELEASED),
-            new Instance(4, "inst-b2c3d4e5-f6a7-4b5c-8d9e-0f1a2b3c4d5e", "Blade", "Compute-Blade-12", "team-compute-ops", "View, Edit, Release", false, null, RELEASED),
-            new Instance(5, "inst-c3d4e5f6-a7b8-4c5d-9e0f-1a2b3c4d5e6f", "Asset Tag", "Asset-2023-1547", "private-25ae0198-753b-497d-9163-67488442f64", "View", true, "2026-04-15", IN_PROGRESS),
-            new Instance(6, "inst-d4e5f6a7-b8c9-4d5e-0f1a-2b3c4d5e6f7a", "Building", "Office Complex Alpha", "shared-facilities-workspace", "View, Review", false, null, RELEASED),
-            new Instance(7, "inst-7f8e9d0a-1b2c-3d4e-5f6a-7b8c9d0e1f2a", "Appliance", "Network-Switch-Core-1", "private-7f8e9d0a-1b2c-3d4e-5f6a-7b8c9d0e1f2a", "View, Edit", true, "2026-04-21", IN_PROGRESS),
-            new Instance(8, "inst-e5f6a7b8-c9d0-4e5f-1a2b-3c4d5e6f7a8b", "Cabinet", "Server-Cabinet-C5", "team-infrastructure-ops", "View", false, null, RELEASED),
-            new Instance(9, "inst-f6a7b8c9-d0e1-4f5a-2b3c-4d5e6f7a8b9c", "Canton", "Zurich-Site-Main", "shared-location-workspace", "View, Edit, Share", true, null, RELEASED),
-            new Instance(10,"inst-a7b8c9d0-e1f2-4a5b-3c4d-5e6f7a8b9c0d", "Blade", "GPU-Blade-Tesla-8", "private-25ae0198-753b-497d-9163-67488442f64", "View, Edit", false, "2026-04-19", IN_PROGRESS)
-    );
+    /**
+     * The functionalities of the core translated to the permissions shown in the editor (in the order of display).
+     */
+    private static final Map<String, String> PERMISSION_LABELS = new LinkedHashMap<>();
+
+    static {
+        PERMISSION_LABELS.put("READ", "View");
+        PERMISSION_LABELS.put("WRITE", "Edit");
+        PERMISSION_LABELS.put("INVITE_FOR_REVIEW", "Review");
+        PERMISSION_LABELS.put("RELEASE", "Release");
+    }
+
+    private final TypeCache typeCache;
 
     @GetMapping
     public List<Instance> list(@AuthenticatedClient MarmotGraphClient client) {
-        return MOCK_INSTANCES;
+        List<org.marmotgraph.sdk.model.Instance> instances = client.instances().list(InstanceListOptions.builder()
+                .stage(Stage.IN_PROGRESS)
+                .responseOptions(ResponseOptions.builder().returnPermissions(true).build())
+                .build()).items();
+        if (instances.isEmpty()) {
+            return List.of();
+        }
+        List<String> typeNames = instances.stream().map(Instances::primaryType).filter(Objects::nonNull).distinct().toList();
+        Map<String, TypeDefinition> types = typeNames.isEmpty() ? Map.of() : typeCache.get(client, typeNames);
+        List<UUID> ids = instances.stream().map(i -> i.getUuid().orElse(null)).filter(Objects::nonNull).toList();
+        Map<String, ReleaseStatus> releaseStatuses = ids.isEmpty() ? Map.of() : client.instances().releaseStatusByIds(ids, ReleaseTreeScope.TOP_INSTANCE_ONLY);
+
+        List<Instance> result = new ArrayList<>(instances.size());
+        for (org.marmotgraph.sdk.model.Instance instance : instances) {
+            String instanceId = instance.getUuid().map(UUID::toString).orElse(instance.getId());
+            String typeName = primaryType(instance);
+            TypeDefinition type = typeName != null ? types.get(typeName) : null;
+            result.add(new Instance(result.size() + 1, instanceId, typeLabel(typeName, type), type != null ? type.color() : null,
+                    instanceName(instance, type, instanceId), firstString(instance.get(SPACE)),
+                    permissions(instance.get(PERMISSIONS)), false, null,
+                    releaseStatuses.get(instanceId) == ReleaseStatus.RELEASED ? RELEASED : IN_PROGRESS));
+        }
+        return result;
+    }
+
+    private static String primaryType(org.marmotgraph.sdk.model.Instance instance) {
+        List<String> types = instance.getTypes();
+        return types.isEmpty() ? null : types.getFirst();
+    }
+
+    /**
+     * The name of the type as defined in the core - or the last segment of its IRI if there is none.
+     */
+    static String typeLabel(String typeName, TypeDefinition type) {
+        if (type != null && type.name() != null) {
+            return type.name();
+        }
+        if (typeName == null) {
+            return "";
+        }
+        return typeName.substring(Math.max(typeName.lastIndexOf('/'), typeName.lastIndexOf('#')) + 1);
+    }
+
+    /**
+     * The value of the label property defined for the type - or the id of the instance if there is none.
+     */
+    static String instanceName(Map<String, Object> instance, TypeDefinition type, String instanceId) {
+        String label = type != null && type.labelProperty() != null ? firstString(instance.get(type.labelProperty())) : null;
+        return label != null && !label.isBlank() ? label : instanceId;
+    }
+
+    static String permissions(Object functionalities) {
+        Collection<?> values = functionalities instanceof Collection<?> c ? c : functionalities != null ? List.of(functionalities) : List.of();
+        List<String> granted = values.stream().map(Object::toString).toList();
+        return PERMISSION_LABELS.entrySet().stream().filter(e -> granted.contains(e.getKey())).map(Map.Entry::getValue).collect(Collectors.joining(", "));
+    }
+
+    /**
+     * JSON-LD values can be single values, lists or value objects - this returns the first plain value as a string.
+     */
+    private static String firstString(Object value) {
+        if (value instanceof List<?> list) {
+            return list.isEmpty() ? null : firstString(list.getFirst());
+        }
+        if (value instanceof Map<?, ?> map) {
+            return firstString(map.containsKey("@value") ? map.get("@value") : map.get("@id"));
+        }
+        return value != null ? value.toString() : null;
     }
 
 }

@@ -16,6 +16,7 @@ export type Instance = {
   id: number;
   instanceId: string;
   type: string;
+  typeColor?: string;
   instanceName: string;
   space: string;
   permissions: string;

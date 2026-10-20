@@ -442,7 +442,7 @@ export default function EditorHome() {
                         <FontAwesomeIcon
                           icon={faCircle}
                           className="type-color-icon me-2"
-                          style={{ color: typeColors[instance.type] || "#999" }}
+                          style={{ color: instance.typeColor || typeColors[instance.type] || "#999" }}
                         />
                         {instance.type}
                       </td>
