@@ -1,5 +1,7 @@
-import React, { createContext, useContext, useState, ReactNode } from 'react';
-import { Instance, mockInstances as initialInstances } from '../modules/editor/editorMockData';
+import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react';
+import { Instance } from '../modules/editor/editorMockData';
+import { useAuth } from './AuthContext';
+import { fetchInstances } from '../services/instances';
 
 interface InstancesContextType {
   instances: Instance[];
@@ -12,7 +14,19 @@ interface InstancesContextType {
 const InstancesContext = createContext<InstancesContextType | undefined>(undefined);
 
 export function InstancesProvider({ children }: { children: ReactNode }) {
-  const [instances, setInstances] = useState<Instance[]>([...initialInstances]);
+  const { getAccessToken } = useAuth();
+  const [instances, setInstances] = useState<Instance[]>([]);
+
+  useEffect(() => {
+    let cancelled = false;
+    getAccessToken()
+      .then(fetchInstances)
+      .then((loaded) => !cancelled && setInstances(loaded))
+      .catch((e: unknown) => console.error('Failed to load the instances', e));
+    return () => {
+      cancelled = true;
+    };
+  }, [getAccessToken]);
 
   const addInstance = (instance: Instance) => {
     setInstances(prev => [...prev, instance]);
