@@ -7,6 +7,8 @@ import marmotGraphLogo from "../assets/marmotgraph_dark.svg";
 import marmotGraphIcon from "../assets/marmotgraph_dark_icon.svg";
 
 import "./SidebarMG.css";
+import { useCurrentUser } from "../hooks/useCurrentUser";
+import { userLabel } from "../services/users";
 import {
   Blocks,
   BookmarkCheck,
@@ -23,6 +25,8 @@ interface SidebarMGProps {
 
 function SidebarMG({ isCollapsed, onToggle }: SidebarMGProps) {
   const navigate = useNavigate();
+  const user = useCurrentUser();
+  const userName = (user && userLabel(user)) || "User";
 
   // @ts-ignore
   return (
@@ -100,10 +104,12 @@ function SidebarMG({ isCollapsed, onToggle }: SidebarMGProps) {
                 style={{ cursor: "pointer" }}
               >
                 <div className="rounded-circle bg-dark text-white d-flex align-items-center justify-content-center sidebar-user-avatar">
-                  A
+                  {userName.charAt(0).toUpperCase()}
                 </div>
                 {!isCollapsed && (
-                  <span className="ms-2 text-dark fw-medium">User</span>
+                  <span className="ms-2 text-dark fw-medium">
+                    {userName}
+                  </span>
                 )}
               </div>
             </Dropdown.Toggle>
