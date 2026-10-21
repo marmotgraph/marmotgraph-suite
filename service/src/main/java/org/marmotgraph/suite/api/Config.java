@@ -14,13 +14,13 @@ public class Config {
     private final AuthenticationInformation authenticationInformation;
     private final Variables variables;
 
-    public record ConfigResponse(String authUrl, String authTokenUrl, String authClientId, String commit) {
+    public record ConfigResponse(String authUrl, String authTokenUrl, String authClientId, String authLogoutUrl, String commit) {
     }
 
     @GetMapping("/config")
     @SecurityRequirements // publicly accessible - overrides the global security requirement
     public ConfigResponse config() {
-        return new ConfigResponse(authenticationInformation.authorizationEndpoint(), authenticationInformation.tokenEndpoint(), authenticationInformation.loginClientId(), variables.shortCommitId().orElse(null));
+        return new ConfigResponse(authenticationInformation.authorizationEndpoint(), authenticationInformation.tokenEndpoint(), authenticationInformation.loginClientId(), authenticationInformation.endSessionEndpoint(), variables.shortCommitId().orElse(null));
     }
 
 

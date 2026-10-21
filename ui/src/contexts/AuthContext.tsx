@@ -11,6 +11,8 @@ interface AuthContextType {
   keycloak: Keycloak;
   /** Returns a valid access token (refreshed if it is about to expire) - to be sent as bearer token */
   getAccessToken: () => Promise<string>;
+  /** Terminates the session at the OIDC provider and returns to the app (only defined if supported by the provider) */
+  logout?: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -28,6 +30,7 @@ function initialize(config: AppConfig): Promise<Keycloak> {
       oidcProvider: {
         authorization_endpoint: config.authUrl,
         token_endpoint: config.authTokenUrl,
+        end_session_endpoint: config.authLogoutUrl,
       },
     });
     keycloak.onTokenExpired = () => {
@@ -81,6 +84,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return keycloak.token!;
   }, [keycloak]);
 
+  // After the logout, the user lands on the start page again - which requires a new login
+  const logout = useCallback(
+    () => keycloak!.logout({ redirectUri: window.location.origin + "/" }),
+    [keycloak],
+  );
+
   if (error) {
     return <StartupStatus error={`Authentication failed: ${error}`} onRetry={init} />;
   }
@@ -88,7 +97,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return <StartupStatus message="Signing in..." />;
   }
   return (
-    <AuthContext.Provider value={{ keycloak, getAccessToken }}>
+    <AuthContext.Provider value={{ keycloak, getAccessToken, logout: config.authLogoutUrl ? logout : undefined }}>
       {children}
     </AuthContext.Provider>
   );

@@ -2,6 +2,8 @@ export interface AppConfig {
   authUrl: string;
   authTokenUrl: string;
   authClientId: string;
+  /** The end session endpoint of the OIDC provider - absent if it doesn't support logging out */
+  authLogoutUrl?: string;
   commit?: string;
 }
 

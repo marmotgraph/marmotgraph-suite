@@ -8,6 +8,7 @@ import marmotGraphIcon from "../assets/marmotgraph_dark_icon.svg";
 
 import "./SidebarMG.css";
 import { useCurrentUser } from "../hooks/useCurrentUser";
+import { useAuth } from "../contexts/AuthContext";
 import { userLabel } from "../services/users";
 import {
   Blocks,
@@ -26,6 +27,7 @@ interface SidebarMGProps {
 function SidebarMG({ isCollapsed, onToggle }: SidebarMGProps) {
   const navigate = useNavigate();
   const user = useCurrentUser();
+  const { logout } = useAuth();
   const userName = (user && userLabel(user)) || "User";
 
   // @ts-ignore
@@ -118,7 +120,13 @@ function SidebarMG({ isCollapsed, onToggle }: SidebarMGProps) {
               <Dropdown.Item href="#/profile">Profile</Dropdown.Item>
               <Dropdown.Item href="#/settings">Settings</Dropdown.Item>
               <Dropdown.Divider />
-              <Dropdown.Item href="#/logout">Logout</Dropdown.Item>
+              <Dropdown.Item
+                disabled={!logout}
+                title={logout ? undefined : "Logging out is not supported by the identity provider"}
+                onClick={() => logout?.()}
+              >
+                Logout
+              </Dropdown.Item>
             </Dropdown.Menu>
           </Dropdown>
 
