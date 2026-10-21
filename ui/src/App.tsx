@@ -12,6 +12,7 @@ import Test from "./modules/query-builder/Test";
 import EditorHome from "./modules/editor/EditorHome";
 import InstanceDetail from "./modules/editor/InstanceDetail";
 import VisualizerHome from "./modules/visualizer/VisualizerHome";
+import ApiHome from "./modules/api/ApiHome";
 import { SharedQueries } from "./modules/query-builder/SharedQueries";
 
 function App() {
@@ -28,6 +29,7 @@ function App() {
           <Route path="editor" element={<EditorHome />} />
           <Route path="editor/instances/:instanceId" element={<InstanceDetail />} />
           <Route path="visualizer/*" element={<VisualizerHome />} />
+          <Route path="core-api" element={<ApiHome />} />
           <Route path="*" element={<h4>Page not found</h4>} />
         </Routes>
       </Layout>

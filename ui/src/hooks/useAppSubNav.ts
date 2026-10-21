@@ -3,6 +3,7 @@ import { useLocation } from "react-router-dom";
 import { queryBuilderSubNav } from "../modules/query-builder/querySubNav";
 import { editorSubNav } from "../modules/editor/editorSubNav";
 import { visualizerSubNav } from "../modules/visualizer/visualizerSubNav";
+import { apiSubNav } from "../modules/api/apiSubNav";
 
 export function useAppSubNav() {
   const { pathname } = useLocation();
@@ -16,6 +17,7 @@ export function useAppSubNav() {
   if (/^\/queries/.test(pathname)) return queryBuilderSubNav;
   if (/^\/editor/.test(pathname)) return editorSubNav;
   if (/^\/visualizer/.test(pathname)) return visualizerSubNav;
+  if (/^\/core-api/.test(pathname)) return apiSubNav;
 
   // Fallback – no sub‑nav
   return undefined;

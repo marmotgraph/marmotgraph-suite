@@ -14,6 +14,7 @@ import {
   Blocks,
   BookmarkCheck,
   ChartScatter,
+  CodeXml,
   Edit3Icon,
   PanelLeftClose,
   PanelRightOpenIcon,
@@ -80,6 +81,15 @@ function SidebarMG({ isCollapsed, onToggle }: SidebarMGProps) {
         >
           <ChartScatter size={18} />
           {!isCollapsed && <span className="ms-2">Visualizer</span>}
+        </NavLink>
+        <NavLink
+          to="/core-api"
+          className={({ isActive }) =>
+            `d-flex align-items-center py-2 px-3 mb-1 text-dark rounded sidebar-nav-link ${isActive ? "active" : ""}`
+          }
+        >
+          <CodeXml size={18} />
+          {!isCollapsed && <span className="ms-2">API</span>}
         </NavLink>
       </div>
 
