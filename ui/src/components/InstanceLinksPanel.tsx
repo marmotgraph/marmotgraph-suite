@@ -6,9 +6,16 @@ import {
   faChevronRight,
   faCircle,
   faCopy,
+  faLinkSlash,
+  faLock,
   faPencil,
 } from "@fortawesome/free-solid-svg-icons";
-import { LinkedInstance } from "../modules/editor/editorMockData";
+import {
+  isResolvedLink,
+  LinkedInstance,
+  linkedInstanceDisplayName,
+  linkedInstanceStatusDescription,
+} from "../modules/editor/editorMockData";
 import DirLinkIcon from "../assets/icons/DirLink.svg";
 import RevLinkIcon from "../assets/icons/RevLink.svg";
 import NoLinksIcon from "../assets/icons/NoLinks.svg";
@@ -28,6 +35,10 @@ interface InstanceLinksPanelProps {
   onLinkClick: (instanceId: string) => void;
   title: string;
   isReverse?: boolean;
+  /** The label of the field whose group is highlighted */
+  highlightedField?: string;
+  /** Called with the label of the field whose group is hovered (undefined when left) */
+  onFieldHover?: (fieldLabel: string | undefined) => void;
 }
 
 export default function InstanceLinksPanel({
@@ -35,6 +46,8 @@ export default function InstanceLinksPanel({
   onLinkClick,
   title,
   isReverse = false,
+  highlightedField,
+  onFieldHover,
 }: InstanceLinksPanelProps) {
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [collapsedFields, setCollapsedFields] = useState<Set<string>>(
@@ -115,7 +128,20 @@ export default function InstanceLinksPanel({
               {Object.entries(groupedLinks).map(([fieldLabel, fieldLinks]) => {
                 const isFieldCollapsed = collapsedFields.has(fieldLabel);
                 return (
-                  <div key={fieldLabel} className="field-group">
+                  <div
+                    key={fieldLabel}
+                    className={`field-group${
+                      highlightedField === fieldLabel
+                        ? " field-group--highlighted"
+                        : ""
+                    }`}
+                    onMouseEnter={
+                      onFieldHover && (() => onFieldHover(fieldLabel))
+                    }
+                    onMouseLeave={
+                      onFieldHover && (() => onFieldHover(undefined))
+                    }
+                  >
                     <div
                       className="field-group-label"
                       onClick={() => toggleFieldCollapse(fieldLabel)}
@@ -132,52 +158,78 @@ export default function InstanceLinksPanel({
                       </span>
                     </div>
                     {!isFieldCollapsed &&
-                      fieldLinks.map((link, index) => {
+                      fieldLinks.map((link) => {
                         const linkTypeColor =
-                          typeColors[link.type] || "#6c757d";
+                          link.typeColor || typeColors[link.type] || "#6c757d";
+                        const resolved = isResolvedLink(link);
+                        const unresolved = link.linkStatus === "unresolved";
                         return (
                           <div
                             key={link.instanceId}
-                            className="link-item"
-                            onClick={() => onLinkClick(link.instanceId)}
-                            style={{ cursor: "pointer" }}
+                            className={`link-item${
+                              resolved ? "" : ` link-item--${link.linkStatus}`
+                            }`}
+                            onClick={
+                              resolved
+                                ? () => onLinkClick(link.instanceId)
+                                : undefined
+                            }
+                            title={linkedInstanceStatusDescription(link)}
+                            style={resolved ? { cursor: "pointer" } : undefined}
                           >
                             <div className="link-header">
                               <div className="link-type">
                                 <FontAwesomeIcon
-                                  icon={faCircle}
-                                  className="link-type-icon"
-                                  style={{ color: linkTypeColor }}
+                                  icon={
+                                    unresolved
+                                      ? faLinkSlash
+                                      : resolved
+                                        ? faCircle
+                                        : faLock
+                                  }
+                                  className={
+                                    resolved
+                                      ? "link-type-icon"
+                                      : "link-type-status-icon"
+                                  }
+                                  style={
+                                    unresolved
+                                      ? undefined
+                                      : { color: linkTypeColor }
+                                  }
                                 />
-                                {link.type}
+                                {unresolved ? "Unknown type" : link.type}
                               </div>
-                              <div className="d-flex align-items-center gap-2">
-                                <img
-                                  src={getLinkStatusIcon(link)}
-                                  alt="Link status"
-                                  className="link-item-status-icon"
-                                />
-                                <Button
-                                  variant="link"
-                                  size="sm"
-                                  className="link-edit-btn"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    onLinkClick(link.instanceId);
-                                  }}
-                                  title="Edit instance"
-                                >
-                                  <FontAwesomeIcon icon={faPencil} />
-                                </Button>
-                              </div>
+                              {resolved && (
+                                <div className="d-flex align-items-center gap-2">
+                                  <img
+                                    src={getLinkStatusIcon(link)}
+                                    alt="Link status"
+                                    className="link-item-status-icon"
+                                  />
+                                  <Button
+                                    variant="link"
+                                    size="sm"
+                                    className="link-edit-btn"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      onLinkClick(link.instanceId);
+                                    }}
+                                    title="Edit instance"
+                                  >
+                                    <FontAwesomeIcon icon={faPencil} />
+                                  </Button>
+                                </div>
+                              )}
                             </div>
                             <div className="link-content">
                               <div className="link-name">
-                                {link.instanceName}
+                                {linkedInstanceDisplayName(link)}
                               </div>
                               <div className="link-meta">
                                 <span className="link-id">
-                                  ID: {link.instanceId}
+                                  {unresolved ? "Identifier" : "ID"}:{" "}
+                                  {link.instanceId}
                                 </span>
                                 <Button
                                   variant="link"
@@ -193,9 +245,11 @@ export default function InstanceLinksPanel({
                                   <FontAwesomeIcon icon={faCopy} />
                                 </Button>
                               </div>
-                              <div className="link-space">
-                                Space: {link.space}
-                              </div>
+                              {link.space && (
+                                <div className="link-space">
+                                  Space: {link.space}
+                                </div>
+                              )}
                             </div>
                           </div>
                         );

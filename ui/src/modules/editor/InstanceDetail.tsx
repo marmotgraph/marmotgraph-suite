@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { Breadcrumb, Button, Form, Spinner } from "react-bootstrap";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
@@ -8,7 +8,6 @@ import {
   emptyInstanceFieldValues,
   getChangedInstanceFieldKeys,
   getChangedInstanceFieldLabels,
-  getInstanceFieldValues,
   InstanceFieldValues,
   InstanceSummary
 } from "./editorMockData";
@@ -17,10 +16,11 @@ import { useInstances } from "../../contexts/InstancesContext";
 import {
   fetchInstance,
   InstanceDetail as InstanceDetailData,
+  InstanceField,
 } from "../../services/instances";
 import { useUnsavedInstances } from "../../contexts/UnsavedInstancesContext";
+import InstanceFieldControl from "../../components/InstanceFieldControl";
 import InstanceLinksPanel from "../../components/InstanceLinksPanel";
-import LinkedInstancesField from "../../components/LinkedInstancesField";
 import UnsavedInstancesPanel from "../../components/UnsavedInstancesPanel";
 import DirLinkIcon from "../../assets/icons/DirLink.svg";
 import RevLinkIcon from "../../assets/icons/RevLink.svg";
@@ -60,7 +60,9 @@ function InstanceDetailView({ instanceId }: { instanceId: string }) {
   const [searchParams] = useState(
     () => new URLSearchParams(window.location.search),
   );
-  const baselineRef = useRef<InstanceFieldValues>(emptyInstanceFieldValues);
+  const [baseline, setBaseline] = useState<InstanceFieldValues>(
+    emptyInstanceFieldValues,
+  );
 
   const [breadcrumbTrail, setBreadcrumbTrail] = useState<
     Array<{ id: string; name: string }>
@@ -71,17 +73,8 @@ function InstanceDetailView({ instanceId }: { instanceId: string }) {
   const newInstanceType = searchParams.get("type") || "";
 
   const [isEditMode, setIsEditMode] = useState(isNewInstance);
-  const [field1, setField1] = useState("");
-  const [field2, setField2] = useState("");
-  const [field3Values, setField3Values] = useState<
-    InstanceFieldValues["field3"]
-  >([]);
-  const [field4Values, setField4Values] = useState<
-    InstanceFieldValues["field4"]
-  >([]);
-  const [field5Values, setField5Values] = useState<
-    InstanceFieldValues["field5"]
-  >([]);
+  const [currentFieldValues, setCurrentFieldValues] =
+    useState<InstanceFieldValues>(emptyInstanceFieldValues);
 
   const [instance, setInstance] = useState<InstanceDetailData | undefined>(
     () =>
@@ -98,6 +91,8 @@ function InstanceDetailView({ instanceId }: { instanceId: string }) {
           }
         : undefined,
   );
+  /** The label of the link field hovered - either in the form or in the outgoing links */
+  const [hoveredLinkField, setHoveredLinkField] = useState<string>();
   const [loading, setLoading] = useState(!isNewInstance);
   const [loadError, setLoadError] = useState<string>();
 
@@ -125,26 +120,24 @@ function InstanceDetailView({ instanceId }: { instanceId: string }) {
   const typeColor =
     instance?.typeColor || (instance && typeColors[instance.type]) || "#6c757d";
 
-  const getSavedFieldValues = useCallback((): InstanceFieldValues => {
-    if (isNewInstance) {
-      return emptyInstanceFieldValues;
-    }
+  const fields = useMemo(() => instance?.fields ?? [], [instance]);
 
-    return getInstanceFieldValues(instanceId || "");
-  }, [instanceId, isNewInstance]);
+  const savedFieldValues = useMemo<InstanceFieldValues>(
+    () =>
+      Object.fromEntries(
+        fields.map((field) => [field.identifier, field.value ?? null]),
+      ),
+    [fields],
+  );
 
-  const applyFieldValues = useCallback((values: InstanceFieldValues) => {
-    setField1(values.field1);
-    setField2(values.field2);
-    setField3Values(values.field3);
-    setField4Values(values.field4);
-    setField5Values(values.field5);
+  const setFieldValue = useCallback((identifier: string, value: unknown) => {
+    setCurrentFieldValues((values) => ({ ...values, [identifier]: value }));
   }, []);
 
   const resetToSaved = useCallback(() => {
-    applyFieldValues(getSavedFieldValues());
+    setCurrentFieldValues(savedFieldValues);
     setIsEditMode(false);
-  }, [applyFieldValues, getSavedFieldValues]);
+  }, [savedFieldValues]);
 
   useEffect(() => {
     if (instance && instanceId) {
@@ -167,48 +160,34 @@ function InstanceDetailView({ instanceId }: { instanceId: string }) {
       return;
     }
 
-    const savedValues = getSavedFieldValues();
     const draft = getDraft(instanceId);
 
     if (draft) {
-      applyFieldValues(draft.fieldValues);
-      baselineRef.current = savedValues;
+      setCurrentFieldValues(draft.fieldValues);
+      setBaseline(savedFieldValues);
       setIsEditMode(true);
       return;
     }
 
-    applyFieldValues(savedValues);
-    baselineRef.current = savedValues;
+    setCurrentFieldValues(savedFieldValues);
+    setBaseline(savedFieldValues);
     setIsEditMode(Boolean(isNewInstance));
-    // Only re-initialize when navigating between instances — not when unrelated
+    // Only re-initialize when navigating between instances or once the instance is loaded — not when unrelated
     // drafts are added (getDraft identity changes would exit edit mode otherwise).
-  }, [applyFieldValues, getSavedFieldValues, instanceId, isNewInstance]);
-
-  const currentFieldValues = useMemo<InstanceFieldValues>(
-    () => ({
-      field1,
-      field2,
-      field3: field3Values,
-      field4: field4Values,
-      field5: field5Values,
-    }),
-    [field1, field2, field3Values, field4Values, field5Values],
-  );
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [savedFieldValues, instanceId, isNewInstance]);
 
   const changedFieldKeys = useMemo(() => {
     if (!isEditMode) {
-      return new Set<keyof InstanceFieldValues>();
+      return new Set<string>();
     }
 
-    return new Set(
-      getChangedInstanceFieldKeys(currentFieldValues, baselineRef.current),
-    );
-  }, [currentFieldValues, isEditMode]);
+    return new Set(getChangedInstanceFieldKeys(currentFieldValues, baseline));
+  }, [baseline, currentFieldValues, isEditMode]);
 
   const changedFieldLabels = useMemo(
-    () =>
-      getChangedInstanceFieldLabels(currentFieldValues, baselineRef.current),
-    [currentFieldValues],
+    () => getChangedInstanceFieldLabels(currentFieldValues, baseline, fields),
+    [baseline, currentFieldValues, fields],
   );
 
   const hasUnsavedChanges = isEditMode && changedFieldKeys.size > 0;
@@ -218,7 +197,7 @@ function InstanceDetailView({ instanceId }: { instanceId: string }) {
       return;
     }
 
-    if (!areInstanceFieldValuesEqual(currentFieldValues, baselineRef.current)) {
+    if (!areInstanceFieldValuesEqual(currentFieldValues, baseline)) {
       upsertDraft({
         instanceId,
         instanceName: instance.instanceName,
@@ -233,6 +212,7 @@ function InstanceDetailView({ instanceId }: { instanceId: string }) {
 
     removeDraft(instanceId);
   }, [
+    baseline,
     changedFieldLabels,
     currentFieldValues,
     instance,
@@ -267,7 +247,7 @@ function InstanceDetailView({ instanceId }: { instanceId: string }) {
   };
 
   const handleEdit = () => {
-    baselineRef.current = getSavedFieldValues();
+    setBaseline(savedFieldValues);
     setIsEditMode(true);
   };
 
@@ -295,7 +275,7 @@ function InstanceDetailView({ instanceId }: { instanceId: string }) {
     }
 
     removeDraft(instanceId || "");
-    baselineRef.current = currentFieldValues;
+    setBaseline(currentFieldValues);
     setIsEditMode(false);
   };
 
@@ -310,6 +290,21 @@ function InstanceDetailView({ instanceId }: { instanceId: string }) {
 
   const handleLinkClick = (linkedInstanceId: string) => {
     navigate(`/editor/instances/${linkedInstanceId}`);
+  };
+
+  /** Highlights a link field together with its group in the outgoing links (and vice versa) when hovered. */
+  const linkFieldProps = (field: InstanceField, className: string) => {
+    if (field.kind !== "LINK" && field.kind !== "LINKS") {
+      return { className };
+    }
+    const label = field.label.trim();
+    return {
+      className: `${className} instance-link-field${
+        hoveredLinkField === label ? " instance-link-field--highlighted" : ""
+      }`,
+      onMouseEnter: () => setHoveredLinkField(label),
+      onMouseLeave: () => setHoveredLinkField(undefined),
+    };
   };
 
   const getLinkStatusIcon = () => {
@@ -435,141 +430,55 @@ function InstanceDetailView({ instanceId }: { instanceId: string }) {
               </div>
             </div>
 
+            {fields.length === 0 && (
+              <p className="text-muted">
+                {isNewInstance
+                  ? "The fields of new instances are not available yet."
+                  : "This instance has no fields."}
+              </p>
+            )}
             {!isEditMode ? (
               <div className="instance-view">
-                <div className="mb-4">
-                  <div className="view-label">Field 1</div>
-                  <div className="view-value">{field1}</div>
-                </div>
-
-                <div className="mb-4">
-                  <div className="view-label">Field 2</div>
-                  <div className="view-value">{field2}</div>
-                </div>
-
-                <div className="mb-4">
-                  <div className="view-label">Field 3</div>
-                  <div className="view-value">
-                    <LinkedInstancesField
-                      fieldKey="field3"
-                      fieldLabel="Field 3"
-                      linkedInstances={field3Values}
+                {fields.map((field) => (
+                  <div key={field.identifier} {...linkFieldProps(field, "mb-4")}>
+                    <div className="view-label" title={field.tooltip}>
+                      {field.label}
+                    </div>
+                    <InstanceFieldControl
+                      field={field}
+                      value={currentFieldValues[field.identifier]}
+                      onChange={(value) => setFieldValue(field.identifier, value)}
+                      isEditMode={false}
                       onInstanceClick={handleLinkClick}
-                      variant="view"
                     />
                   </div>
-                </div>
-
-                <div className="mb-4">
-                  <div className="view-label">Field 4</div>
-                  <div className="view-value">
-                    <LinkedInstancesField
-                      fieldKey="field4"
-                      fieldLabel="Field 4"
-                      linkedInstances={field4Values}
-                      onInstanceClick={handleLinkClick}
-                      variant="view"
-                    />
-                  </div>
-                </div>
-
-                <div className="mb-4">
-                  <div className="view-label">Field 5</div>
-                  <div className="view-value">
-                    <LinkedInstancesField
-                      fieldKey="field5"
-                      fieldLabel="Field 5"
-                      linkedInstances={field5Values}
-                      onInstanceClick={handleLinkClick}
-                      variant="view"
-                    />
-                  </div>
-                </div>
+                ))}
               </div>
             ) : (
               <div className="instance-form">
-                <Form.Group className="mb-4">
-                  <InstanceFieldLabel
-                    isChanged={changedFieldKeys.has("field1")}
+                {fields.map((field) => (
+                  <Form.Group
+                    key={field.identifier}
+                    {...linkFieldProps(field, "mb-4")}
                   >
-                    Field 1
-                  </InstanceFieldLabel>
-                  <Form.Control
-                    type="text"
-                    value={field1}
-                    onChange={(e) => setField1(e.target.value)}
-                  />
-                </Form.Group>
-
-                <Form.Group className="mb-4">
-                  <InstanceFieldLabel
-                    isChanged={changedFieldKeys.has("field2")}
-                  >
-                    Field 2
-                  </InstanceFieldLabel>
-                  <Form.Control
-                    type="text"
-                    value={field2}
-                    onChange={(e) => setField2(e.target.value)}
-                  />
-                </Form.Group>
-
-                <Form.Group className="mb-4">
-                  <InstanceFieldLabel
-                    isChanged={changedFieldKeys.has("field3")}
-                  >
-                    Field 3
-                  </InstanceFieldLabel>
-                  <LinkedInstancesField
-                    fieldKey="field3"
-                    fieldLabel="Field 3"
-                    linkedInstances={field3Values}
-                    onInstanceClick={handleLinkClick}
-                    isEditMode
-                    onChange={setField3Values}
-                    currentInstanceId={instanceId}
-                    parentSpace={instance.space}
-                    variant="edit"
-                  />
-                </Form.Group>
-
-                <Form.Group className="mb-4">
-                  <InstanceFieldLabel
-                    isChanged={changedFieldKeys.has("field4")}
-                  >
-                    Field 4
-                  </InstanceFieldLabel>
-                  <LinkedInstancesField
-                    fieldKey="field4"
-                    fieldLabel="Field 4"
-                    linkedInstances={field4Values}
-                    onInstanceClick={handleLinkClick}
-                    isEditMode
-                    onChange={setField4Values}
-                    currentInstanceId={instanceId}
-                    parentSpace={instance.space}
-                    variant="edit"
-                  />
-                </Form.Group>
-
-                <Form.Group className="mb-4">
-                  <InstanceFieldLabel
-                    isChanged={changedFieldKeys.has("field5")}
-                  >
-                    Field 5
-                  </InstanceFieldLabel>
-                  <LinkedInstancesField
-                    fieldKey="field5"
-                    fieldLabel="Field 5"
-                    linkedInstances={field5Values}
-                    onInstanceClick={handleLinkClick}
-                    isEditMode
-                    onChange={setField5Values}
-                    currentInstanceId={instanceId}
-                    parentSpace={instance.space}
-                    variant="edit"
-                  />
-                </Form.Group>
+                    <InstanceFieldLabel
+                      isChanged={changedFieldKeys.has(field.identifier)}
+                      tooltip={field.tooltip}
+                    >
+                      {field.label}
+                      {field.required && " *"}
+                    </InstanceFieldLabel>
+                    <InstanceFieldControl
+                      field={field}
+                      value={currentFieldValues[field.identifier]}
+                      onChange={(value) => setFieldValue(field.identifier, value)}
+                      isEditMode
+                      onInstanceClick={handleLinkClick}
+                      currentInstanceId={instanceId}
+                      parentSpace={instance.space}
+                    />
+                  </Form.Group>
+                ))}
 
                 <div className="d-flex gap-2 mt-4">
                   <Button variant="dark" onClick={handleSave}>
@@ -590,6 +499,8 @@ function InstanceDetailView({ instanceId }: { instanceId: string }) {
             onLinkClick={handleLinkClick}
             title="Outgoing Links"
             isReverse={false}
+            highlightedField={hoveredLinkField}
+            onFieldHover={setHoveredLinkField}
           />
         </aside>
       </div>
@@ -605,13 +516,16 @@ function InstanceDetailView({ instanceId }: { instanceId: string }) {
 function InstanceFieldLabel({
   children,
   isChanged = false,
+  tooltip,
 }: {
   children: React.ReactNode;
   isChanged?: boolean;
+  tooltip?: string;
 }) {
   return (
     <Form.Label
       className={isChanged ? "instance-field-label--changed" : undefined}
+      title={tooltip}
     >
       {children}
       {isChanged && (

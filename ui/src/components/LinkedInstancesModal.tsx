@@ -4,12 +4,17 @@ import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
   faCircle,
   faCopy,
+  faLinkSlash,
+  faLock,
   faXmark,
 } from "@fortawesome/free-solid-svg-icons";
 import { useUnsavedInstances } from "../contexts/UnsavedInstancesContext";
 import {
   enrichLinkedInstancesWithDrafts,
+  isResolvedLink,
   LinkedInstance,
+  linkedInstanceDisplayName,
+  linkedInstanceStatusDescription,
 } from "../modules/editor/editorMockData";
 import LinkedInstanceDraftBadge from "./LinkedInstanceDraftBadge";
 import { SearchBar } from "./SearchBar";
@@ -57,7 +62,13 @@ export default function LinkedInstancesModal({
 
   const availableTypes = useMemo(
     () =>
-      [...new Set(displayInstances.map((instance) => instance.type))].sort(),
+      [
+        ...new Set(
+          displayInstances
+            .map((instance) => instance.type)
+            .filter((type) => type.length > 0),
+        ),
+      ].sort(),
     [displayInstances],
   );
 
@@ -69,7 +80,7 @@ export default function LinkedInstancesModal({
         selectedTypes.length === 0 || selectedTypes.includes(instance.type);
       const matchesSearch =
         search.length === 0 ||
-        instance.instanceName.toLowerCase().includes(search) ||
+        linkedInstanceDisplayName(instance).toLowerCase().includes(search) ||
         instance.instanceId.toLowerCase().includes(search) ||
         instance.type.toLowerCase().includes(search);
 
@@ -210,41 +221,72 @@ export default function LinkedInstancesModal({
           ) : (
             filteredInstances.map((instance) => {
               const typeColor = typeColors[instance.type] || "#6c757d";
+              const resolved = isResolvedLink(instance);
+              const interaction = !resolved
+                ? { title: linkedInstanceStatusDescription(instance) }
+                : {
+                    onClick: () => onInstanceClick(instance.instanceId),
+                    role: "button",
+                    tabIndex: 0,
+                    onKeyDown: (event: React.KeyboardEvent) => {
+                      if (event.key === "Enter" || event.key === " ") {
+                        event.preventDefault();
+                        onInstanceClick(instance.instanceId);
+                      }
+                    },
+                  };
 
               return (
                 <div
                   key={instance.instanceId}
                   className={`linked-instances-modal-item${
                     instance.isDraft ? " linked-instances-modal-item--draft" : ""
+                  }${
+                    !resolved
+                      ? ` linked-instances-modal-item--${instance.linkStatus}`
+                      : ""
                   }`}
-                  onClick={() => onInstanceClick(instance.instanceId)}
-                  role="button"
-                  tabIndex={0}
-                  onKeyDown={(event) => {
-                    if (event.key === "Enter" || event.key === " ") {
-                      event.preventDefault();
-                      onInstanceClick(instance.instanceId);
-                    }
-                  }}
+                  {...interaction}
                 >
                   <div className="linked-instances-modal-item-main">
                     <div className="linked-instances-modal-item-type">
-                      <FontAwesomeIcon
-                        icon={faCircle}
-                        className="me-2"
-                        style={{ color: typeColor, fontSize: "0.55rem" }}
-                      />
-                      {instance.type}
+                      {instance.linkStatus === "unresolved" ? (
+                        <>
+                          <FontAwesomeIcon icon={faLinkSlash} className="me-2" />
+                          Unknown type
+                        </>
+                      ) : (
+                        <>
+                          <FontAwesomeIcon
+                            icon={instance.linkStatus === "restricted" ? faLock : faCircle}
+                            className="me-2"
+                            style={{
+                              color: typeColor,
+                              fontSize:
+                                instance.linkStatus === "restricted"
+                                  ? "0.7rem"
+                                  : "0.55rem",
+                            }}
+                          />
+                          {instance.type}
+                        </>
+                      )}
                     </div>
                     <div className="linked-instances-modal-item-name">
-                      {instance.instanceName}
+                      {linkedInstanceDisplayName(instance)}
                       <LinkedInstanceDraftBadge
                         instance={instance}
                         className="linked-instance-draft-badge--inline"
                       />
                     </div>
                     <div className="linked-instances-modal-item-meta">
-                      <span>ID: {instance.instanceId}</span>
+                      <span>
+                        {instance.linkStatus === "unresolved"
+                          ? "Identifier"
+                          : "ID"}
+                        :{" "}
+                        {instance.instanceId}
+                      </span>
                       <Button
                         variant="link"
                         size="sm"

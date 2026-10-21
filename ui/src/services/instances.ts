@@ -1,7 +1,34 @@
 import { InstanceSummary, LinkedInstance } from "../modules/editor/editorMockData";
 import { getJson } from "./http";
 
-/** A single instance as shown in its detail view - to be extended with the properties of the instance. */
+/** The kinds of fields as provided by the backend (translated from the widgets defined for the properties of the type). */
+export type FieldKind =
+  | "TEXT"
+  | "TEXTAREA"
+  | "NUMBER"
+  | "DATE"
+  | "DATETIME"
+  | "TIME"
+  | "COLOR"
+  | "CHECKBOX"
+  | "LINK"
+  | "LINKS"
+  | "UNSUPPORTED";
+
+/** A field of an instance - the value is in the shape required by its kind (e.g. LinkedInstance[] for LINKS). */
+export interface InstanceField {
+  identifier: string;
+  label: string;
+  kind: FieldKind;
+  value?: unknown;
+  required: boolean;
+  readOnly: boolean;
+  tooltip?: string;
+  /** The types (identifiers) the field can link to */
+  targetTypes?: string[];
+}
+
+/** A single instance as shown in its detail view. */
 export interface InstanceDetail {
   instanceId: string;
   type: string;
@@ -11,7 +38,9 @@ export interface InstanceDetail {
   space: string;
   permissions: string;
   releaseStatus: "released" | "in progress";
-  /** Not (yet) provided by the backend */
+  /** The fields in the order they are to be shown - not available for new instances (yet) */
+  fields?: InstanceField[];
+  /** The instances linked by the fields (labeled with the field they are linked by) */
   directLinks?: LinkedInstance[];
   /** Not (yet) provided by the backend */
   reverseLinks?: LinkedInstance[];

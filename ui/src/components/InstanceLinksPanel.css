@@ -230,3 +230,32 @@
         transition: none;
     }
 }
+
+.link-item--restricted,
+.link-item--unresolved {
+    cursor: default;
+    font-style: italic;
+}
+
+.link-item--unresolved {
+    border-style: dashed;
+    color: #6c757d;
+}
+
+.link-type-status-icon {
+    font-size: 0.7rem;
+}
+
+.field-group {
+    border-radius: 6px;
+    transition: background-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.field-group--highlighted {
+    background-color: #eef3fa;
+    box-shadow: 0 0 0 6px #eef3fa, inset 3px 0 0 #6c8ebf;
+}
+
+.field-group--highlighted .field-group-label {
+    color: #495057;
+}

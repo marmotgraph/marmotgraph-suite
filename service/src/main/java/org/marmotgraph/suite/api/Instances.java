@@ -1,6 +1,7 @@
 package org.marmotgraph.suite.api;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.AllArgsConstructor;
 import org.marmotgraph.sdk.MarmotGraphClient;
 import org.marmotgraph.sdk.model.ReleaseStatus;
@@ -9,6 +10,9 @@ import org.marmotgraph.sdk.model.Stage;
 import org.marmotgraph.sdk.resources.InstanceListOptions;
 import org.marmotgraph.sdk.resources.ResponseOptions;
 import org.marmotgraph.suite.auth.AuthenticatedClient;
+import org.marmotgraph.suite.types.FieldCache;
+import org.marmotgraph.suite.types.FieldCache.FieldDefinition;
+import org.marmotgraph.suite.types.FieldKind;
 import org.marmotgraph.suite.types.TypeCache;
 import org.marmotgraph.suite.types.TypeCache.TypeDefinition;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -18,6 +22,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -38,9 +43,34 @@ import java.util.stream.Collectors;
 @RequestMapping("/instances")
 public class Instances {
 
+    /**
+     * Whether a link could be resolved by the core - and if so, whether the user is allowed to read its target.
+     */
+    public enum LinkStatus {
+        /** The target is known and readable - all information is available */
+        @JsonProperty("resolved") RESOLVED,
+        /** The target is known but not readable by the user - only its id and type are available */
+        @JsonProperty("restricted") RESTRICTED,
+        /** The link doesn't point to any known instance - only the identifier it is linked with is available */
+        @JsonProperty("unresolved") UNRESOLVED;
+
+        static LinkStatus of(String value) {
+            return Arrays.stream(values()).filter(s -> s.name().equalsIgnoreCase(value)).findFirst().orElse(UNRESOLVED);
+        }
+    }
+
+    /**
+     * An instance linked from another one. The instanceId is the id of the target in the core - except for unresolved
+     * links for which it is the identifier the target is linked with. The name falls back to the instanceId if the
+     * label of the target is not available.
+     */
     @JsonInclude(JsonInclude.Include.NON_NULL)
-    public record LinkedInstance(String instanceId, String instanceName, String type, String space, String fieldLabel,
-                                 Boolean hasDirectLinks, Boolean hasReverseLinks) {
+    public record LinkedInstance(String instanceId, String instanceName, String type, String typeColor, String space, String fieldLabel,
+                                 Boolean hasDirectLinks, Boolean hasReverseLinks, LinkStatus linkStatus) {
+
+        LinkedInstance withFieldLabel(String label) {
+            return new LinkedInstance(instanceId, instanceName, type, typeColor, space, label, hasDirectLinks, hasReverseLinks, linkStatus);
+        }
     }
 
     /**
@@ -52,16 +82,35 @@ public class Instances {
     }
 
     /**
-     * The representation of a single instance as shown in its detail view - this is going to be extended with the
-     * properties and links of the instance.
+     * A field of an instance as shown in the editor - the value is provided in the shape required by the kind of the
+     * field (see {@link #fieldValue(FieldKind, Object, Map)}).
+     */
+    @JsonInclude(JsonInclude.Include.NON_NULL)
+    public record Field(String identifier, String label, FieldKind kind, Object value, boolean required, boolean readOnly,
+                        String tooltip, List<String> targetTypes) {
+    }
+
+    /**
+     * The representation of a single instance as shown in its detail view - its fields are sorted in the order they are
+     * to be shown in. The direct links are the instances linked by its fields (labeled with the field they are linked
+     * by, in the order of the fields). This is going to be extended with the reverse links of the instance.
      */
     @JsonInclude(JsonInclude.Include.NON_NULL)
     public record InstanceDetail(String instanceId, String type, String typeDescription, String typeColor, String instanceName,
-                                 String space, String permissions, String releaseStatus) {
+                                 String space, String permissions, String releaseStatus, List<Field> fields,
+                                 List<LinkedInstance> directLinks) {
     }
 
     static final String SPACE = "https://core.kg.ebrains.eu/vocab/meta/space";
     static final String PERMISSIONS = "https://core.kg.ebrains.eu/vocab/meta/permissions";
+
+    /**
+     * The properties added to each link by the core if a summary of the outgoing links is requested.
+     */
+    static final String LINK_STATUS = "_linkStatus";
+    static final String LINK_RESOLVED_ID = "_resolvedId";
+    static final String LINK_LABEL = "_label";
+    static final String LINK_SPACE = "_space";
 
     private static final String RELEASED = "released";
     private static final String IN_PROGRESS = "in progress";
@@ -79,6 +128,7 @@ public class Instances {
     }
 
     private final TypeCache typeCache;
+    private final FieldCache fieldCache;
 
     /**
      * @param search      an optional term the instances are filtered by (matched against their labels by the core)
@@ -123,14 +173,97 @@ public class Instances {
     @GetMapping("/{id}")
     public InstanceDetail get(@AuthenticatedClient MarmotGraphClient client, @PathVariable UUID id) {
         org.marmotgraph.sdk.model.Instance instance = client.instances().get(id, Stage.IN_PROGRESS,
-                ResponseOptions.builder().returnPermissions(true).build());
+                ResponseOptions.builder().returnPermissions(true).returnSummaryOfOutgoingLinks(true).build());
         String instanceId = instance.getUuid().map(UUID::toString).orElse(id.toString());
         String typeName = primaryType(instance);
         TypeDefinition type = typeName != null ? typeCache.get(client, List.of(typeName)).get(typeName) : null;
         ReleaseStatus releaseStatus = client.instances().releaseStatus(id, ReleaseTreeScope.TOP_INSTANCE_ONLY);
+        List<Field> fields = fields(client, instance, typeName);
         return new InstanceDetail(instanceId, typeLabel(typeName, type), type != null ? type.description() : null, type != null ? type.color() : null,
                 instanceName(instance, type, instanceId), firstString(instance.get(SPACE)), permissions(instance.get(PERMISSIONS)),
-                releaseStatus == ReleaseStatus.RELEASED ? RELEASED : IN_PROGRESS);
+                releaseStatus == ReleaseStatus.RELEASED ? RELEASED : IN_PROGRESS, fields, directLinks(fields));
+    }
+
+    /**
+     * The instances linked by the given fields - labeled with the field they are linked by.
+     */
+    static List<LinkedInstance> directLinks(List<Field> fields) {
+        return fields.stream().filter(f -> f.kind().isLink())
+                .flatMap(f -> values(f.value()).stream().map(l -> ((LinkedInstance) l).withFieldLabel(f.label()))).toList();
+    }
+
+    /**
+     * The fields of the instance as defined by its type (in the order to be shown) - the linked instances are described
+     * by the summary of the outgoing links provided by the core (only their types are looked up).
+     */
+    private List<Field> fields(MarmotGraphClient client, org.marmotgraph.sdk.model.Instance instance, String typeName) {
+        List<FieldDefinition> definitions = typeName != null ? fieldCache.get(client, typeName) : List.of();
+        List<String> linkedTypeNames = definitions.stream().filter(d -> d.kind().isLink())
+                .flatMap(d -> values(instance.get(d.identifier())).stream())
+                .map(l -> l instanceof Map<?, ?> link ? firstString(link.get("@type")) : null).filter(Objects::nonNull).distinct().toList();
+        Map<String, TypeDefinition> linkedTypes = linkedTypeNames.isEmpty() ? Map.of() : typeCache.get(client, linkedTypeNames);
+        return definitions.stream().map(d -> new Field(d.identifier(), d.label(), d.kind(), fieldValue(d.kind(), instance.get(d.identifier()), linkedTypes),
+                d.required(), d.readOnly(), d.tooltip(), d.targetTypes().isEmpty() ? null : d.targetTypes())).toList();
+    }
+
+    /**
+     * Translates the JSON-LD value of a property into the shape required by the kind of the field: a string for the
+     * textual ones, a number, a boolean, a linked instance (or a list of them) - and the value as is for the
+     * unsupported ones.
+     */
+    static Object fieldValue(FieldKind kind, Object value, Map<String, TypeDefinition> linkedTypes) {
+        return switch (kind) {
+            case TEXT, TEXTAREA, DATE, DATETIME, TIME, COLOR -> firstString(value);
+            case NUMBER -> toNumber(firstString(value));
+            case CHECKBOX -> {
+                String s = firstString(value);
+                yield s != null ? Boolean.parseBoolean(s) : null;
+            }
+            case LINK -> values(value).stream().map(l -> linkedInstance(l, linkedTypes)).filter(Objects::nonNull).findFirst().orElse(null);
+            case LINKS -> values(value).stream().map(l -> linkedInstance(l, linkedTypes)).filter(Objects::nonNull).toList();
+            case UNSUPPORTED -> value;
+        };
+    }
+
+    private static Number toNumber(String value) {
+        if (value == null) {
+            return null;
+        }
+        try {
+            return value.contains(".") || value.contains("e") || value.contains("E") ? Double.parseDouble(value) : Long.parseLong(value);
+        } catch (NumberFormatException e) {
+            return null;
+        }
+    }
+
+    private static List<?> values(Object value) {
+        return value instanceof List<?> list ? list : value != null ? List.of(value) : List.of();
+    }
+
+    /**
+     * Translates a link (as summarized by the core) into a linked instance - null if the value is no link. Links without
+     * a summary are treated as unresolved.
+     */
+    private static LinkedInstance linkedInstance(Object reference, Map<String, TypeDefinition> linkedTypes) {
+        if (!(reference instanceof Map<?, ?> link)) {
+            return null;
+        }
+        String identifier = firstString(link.get("@id"));
+        if (identifier == null || identifier.isBlank()) {
+            return null;
+        }
+        String resolvedId = firstString(link.get(LINK_RESOLVED_ID));
+        String id = resolvedId != null ? new org.marmotgraph.sdk.model.Instance(Map.of("@id", resolvedId)).getUuid().map(UUID::toString).orElse(null) : null;
+        LinkStatus status = id != null ? LinkStatus.of(firstString(link.get(LINK_STATUS))) : LinkStatus.UNRESOLVED;
+        if (status == LinkStatus.UNRESOLVED) {
+            return new LinkedInstance(identifier, identifier, "", null, "", null, null, null, status);
+        }
+        String typeName = firstString(link.get("@type"));
+        TypeDefinition type = typeName != null ? linkedTypes.get(typeName) : null;
+        String label = status == LinkStatus.RESOLVED ? firstString(link.get(LINK_LABEL)) : null;
+        String space = status == LinkStatus.RESOLVED ? firstString(link.get(LINK_SPACE)) : null;
+        return new LinkedInstance(id, label != null && !label.isBlank() ? label : id, typeLabel(typeName, type), type != null ? type.color() : null,
+                Objects.requireNonNullElse(space, ""), null, null, null, status);
     }
 
     private static List<String> nonBlank(List<String> values) {

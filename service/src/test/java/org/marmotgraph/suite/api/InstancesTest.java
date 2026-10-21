@@ -5,6 +5,7 @@ import org.junit.jupiter.api.Test;
 import org.marmotgraph.sdk.MarmotGraphApiException;
 import org.marmotgraph.sdk.MarmotGraphClient;
 import org.marmotgraph.sdk.model.Instance;
+import org.marmotgraph.sdk.model.Property;
 import org.marmotgraph.sdk.model.ReleaseStatus;
 import org.marmotgraph.sdk.model.ReleaseTreeScope;
 import org.marmotgraph.sdk.model.Stage;
@@ -17,6 +18,7 @@ import org.marmotgraph.sdk.resources.TypesResource;
 import org.marmotgraph.suite.auth.AuthenticatedClientResolver;
 import org.marmotgraph.suite.configuration.ArgumentResolvers;
 import org.marmotgraph.suite.configuration.Variables;
+import org.marmotgraph.suite.types.FieldCache;
 import org.marmotgraph.suite.types.TypeCache;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mockito;
@@ -30,6 +32,7 @@ import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.web.context.WebApplicationContext;
 import org.springframework.web.servlet.config.annotation.EnableWebMvc;
 
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -62,6 +65,13 @@ class InstancesTest {
             Variables variables = Mockito.mock(Variables.class);
             when(variables.typeCacheTtl()).thenReturn(300);
             return new TypeCache(variables);
+        }
+
+        @Bean
+        FieldCache fieldCache() {
+            Variables variables = Mockito.mock(Variables.class);
+            when(variables.typeCacheTtl()).thenReturn(300);
+            return new FieldCache(variables);
         }
     }
 
@@ -215,6 +225,104 @@ class InstancesTest {
     }
 
     @Test
+    void getProvidesTheFieldsOfTheInstanceInTheShapeOfTheirKind() throws Exception {
+        String rack = "https://example.org/types/Rack";
+        String blade = "https://example.org/types/Blade";
+        String linkedId = "11111111-2222-4333-8444-555555555555";
+        String restrictedId = "99999999-2222-4333-8444-555555555555";
+        String unresolvedIdentifier = "https://example.org/blades/unknown";
+        when(instancesResource.get(any(UUID.class), any(), any())).thenReturn(instance(RELEASED_ID, rack, Map.of(
+                NAME, "Rack-1",
+                "https://example.org/height", 42,
+                "https://example.org/active", List.of("true"),
+                "https://example.org/blades", List.of(
+                        link("https://example.org/blades/7", "resolved", "https://kg.ebrains.eu/api/instances/" + linkedId, blade, "Blade-7", "otherspace"),
+                        link("https://example.org/blades/8", "restricted", "https://kg.ebrains.eu/api/instances/" + restrictedId, blade, null, null),
+                        link(unresolvedIdentifier, "unresolved", null, null, null, null)),
+                "https://example.org/components", List.of(Map.of("x", "y")))));
+        when(typesResource.getByNames(List.of(rack), Stage.IN_PROGRESS, null, false, false))
+                .thenReturn(Map.of(rack, new TypeInformation(rack, null, "Rack", "#4caf50", NAME, null, null, List.of(), List.of(), List.of(), Map.of())));
+        when(typesResource.getByNames(List.of(rack), Stage.IN_PROGRESS, null, true, false))
+                .thenReturn(Map.of(rack, new TypeInformation(rack, null, "Rack", "#4caf50", NAME, null, null, List.of(), List.of(
+                        new Property("https://example.org/components", "components", null, List.of(), Map.of()),
+                        new Property("https://example.org/blades", "blades", null, List.of(), Map.of("https://editor.kg.ebrains.eu/vocab/meta/property/widget", "DynamicDropdown",
+                                "https://core.kg.ebrains.eu/vocab/meta/orderNumber", 4)),
+                        new Property("https://example.org/active", "active", null, List.of(), Map.of("https://editor.kg.ebrains.eu/vocab/meta/property/widget", "CheckBox",
+                                "https://core.kg.ebrains.eu/vocab/meta/orderNumber", 3)),
+                        new Property("https://example.org/height", "height", null, List.of(), Map.of("https://editor.kg.ebrains.eu/vocab/meta/property/widget", "InputNumber",
+                                "https://core.kg.ebrains.eu/vocab/meta/orderNumber", 2)),
+                        new Property(NAME, "name", null, List.of(), Map.of("https://editor.kg.ebrains.eu/vocab/meta/property/widget", "InputText",
+                                "https://core.kg.ebrains.eu/vocab/meta/orderNumber", 1))
+                ), List.of(), Map.of())));
+        when(typesResource.getByNames(List.of(blade), Stage.IN_PROGRESS, null, false, false))
+                .thenReturn(Map.of(blade, new TypeInformation(blade, null, "Blade", "#2196f3", NAME, null, null, List.of(), List.of(), List.of(), Map.of())));
+        when(instancesResource.releaseStatus(RELEASED_ID, ReleaseTreeScope.TOP_INSTANCE_ONLY)).thenReturn(ReleaseStatus.RELEASED);
+
+        mockMvc.perform(get("/instances/" + RELEASED_ID).header(HttpHeaders.AUTHORIZATION, "Bearer theToken"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.fields.length()").value(5))
+                .andExpect(jsonPath("$.fields[0].identifier").value(NAME))
+                .andExpect(jsonPath("$.fields[0].label").value("Name"))
+                .andExpect(jsonPath("$.fields[0].kind").value("TEXT"))
+                .andExpect(jsonPath("$.fields[0].value").value("Rack-1"))
+                .andExpect(jsonPath("$.fields[0].required").value(false))
+                .andExpect(jsonPath("$.fields[1].kind").value("NUMBER"))
+                .andExpect(jsonPath("$.fields[1].value").value(42))
+                .andExpect(jsonPath("$.fields[2].kind").value("CHECKBOX"))
+                .andExpect(jsonPath("$.fields[2].value").value(true))
+                .andExpect(jsonPath("$.fields[3].kind").value("LINKS"))
+                .andExpect(jsonPath("$.fields[3].value.length()").value(3))
+                .andExpect(jsonPath("$.fields[3].value[0].instanceId").value(linkedId))
+                .andExpect(jsonPath("$.fields[3].value[0].instanceName").value("Blade-7"))
+                .andExpect(jsonPath("$.fields[3].value[0].type").value("Blade"))
+                .andExpect(jsonPath("$.fields[3].value[0].typeColor").value("#2196f3"))
+                .andExpect(jsonPath("$.fields[3].value[0].space").value("otherspace"))
+                .andExpect(jsonPath("$.fields[3].value[0].linkStatus").value("resolved"))
+                .andExpect(jsonPath("$.fields[3].value[1].instanceId").value(restrictedId))
+                .andExpect(jsonPath("$.fields[3].value[1].instanceName").value(restrictedId))
+                .andExpect(jsonPath("$.fields[3].value[1].type").value("Blade"))
+                .andExpect(jsonPath("$.fields[3].value[1].typeColor").value("#2196f3"))
+                .andExpect(jsonPath("$.fields[3].value[1].space").value(""))
+                .andExpect(jsonPath("$.fields[3].value[1].linkStatus").value("restricted"))
+                .andExpect(jsonPath("$.fields[3].value[2].instanceId").value(unresolvedIdentifier))
+                .andExpect(jsonPath("$.fields[3].value[2].instanceName").value(unresolvedIdentifier))
+                .andExpect(jsonPath("$.fields[3].value[2].type").value(""))
+                .andExpect(jsonPath("$.fields[3].value[2].typeColor").doesNotExist())
+                .andExpect(jsonPath("$.fields[3].value[2].linkStatus").value("unresolved"))
+                .andExpect(jsonPath("$.fields[4].kind").value("UNSUPPORTED"))
+                .andExpect(jsonPath("$.fields[4].value[0].x").value("y"))
+                .andExpect(jsonPath("$.directLinks.length()").value(3))
+                .andExpect(jsonPath("$.directLinks[0].instanceId").value(linkedId))
+                .andExpect(jsonPath("$.directLinks[0].instanceName").value("Blade-7"))
+                .andExpect(jsonPath("$.directLinks[0].fieldLabel").value("Blades"))
+                .andExpect(jsonPath("$.directLinks[0].linkStatus").value("resolved"))
+                .andExpect(jsonPath("$.directLinks[1].instanceId").value(restrictedId))
+                .andExpect(jsonPath("$.directLinks[1].fieldLabel").value("Blades"))
+                .andExpect(jsonPath("$.directLinks[1].linkStatus").value("restricted"))
+                .andExpect(jsonPath("$.directLinks[2].instanceId").value(unresolvedIdentifier))
+                .andExpect(jsonPath("$.directLinks[2].fieldLabel").value("Blades"))
+                .andExpect(jsonPath("$.directLinks[2].linkStatus").value("unresolved"));
+
+        ArgumentCaptor<ResponseOptions> options = ArgumentCaptor.forClass(ResponseOptions.class);
+        verify(instancesResource).get(Mockito.eq(RELEASED_ID), Mockito.eq(Stage.IN_PROGRESS), options.capture());
+        assertTrue(options.getValue().returnSummaryOfOutgoingLinks());
+    }
+
+    /**
+     * A link as summarized by the core (all properties are present - with null values if not applicable).
+     */
+    private static Map<String, Object> link(String id, String status, String resolvedId, String type, String label, String space) {
+        Map<String, Object> link = new HashMap<>();
+        link.put("@id", id);
+        link.put("@type", type);
+        link.put(Instances.LINK_STATUS, status);
+        link.put(Instances.LINK_RESOLVED_ID, resolvedId);
+        link.put(Instances.LINK_LABEL, label);
+        link.put(Instances.LINK_SPACE, space);
+        return link;
+    }
+
+    @Test
     void getOfAnUnknownTypeFallsBackToTheIdentifiers() throws Exception {
         when(instancesResource.get(any(UUID.class), any(), any())).thenReturn(
                 instance(UNRELEASED_ID, "https://example.org/types/Unknown", Map.of()));
@@ -226,7 +334,9 @@ class InstancesTest {
                 .andExpect(jsonPath("$.typeColor").doesNotExist())
                 .andExpect(jsonPath("$.instanceName").value(UNRELEASED_ID.toString()))
                 .andExpect(jsonPath("$.permissions").value(""))
-                .andExpect(jsonPath("$.releaseStatus").value("in progress"));
+                .andExpect(jsonPath("$.releaseStatus").value("in progress"))
+                .andExpect(jsonPath("$.fields.length()").value(0))
+                .andExpect(jsonPath("$.directLinks.length()").value(0));
     }
 
     @Test
