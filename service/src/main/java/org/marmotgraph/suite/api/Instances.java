@@ -27,7 +27,7 @@ import java.util.stream.Collectors;
 
 /**
  * Provides the instances shown in the editor by listing them from the MarmotGraph core - on behalf of the user who
- * issued the request. The type information (name, color, label property) is taken from the {@link TypeCache}.
+ * issued the request. The type information (name, description, color, label property) is taken from the {@link TypeCache}.
  * <p>
  * TODO bookmarks and the last visit are not (yet) provided by the core - they are always reported as not bookmarked /
  * never visited. Only the first page of instances is returned.
@@ -43,7 +43,7 @@ public class Instances {
     }
 
     @JsonInclude(JsonInclude.Include.NON_NULL)
-    public record Instance(int id, String instanceId, String type, String typeColor, String instanceName, String space,
+    public record Instance(int id, String instanceId, String type, String typeDescription, String typeColor, String instanceName, String space,
                            String permissions, boolean bookmarked, String lastVisited, String releaseStatus) {
     }
 
@@ -90,7 +90,7 @@ public class Instances {
             String instanceId = instance.getUuid().map(UUID::toString).orElse(instance.getId());
             String typeName = primaryType(instance);
             TypeDefinition type = typeName != null ? types.get(typeName) : null;
-            result.add(new Instance(result.size() + 1, instanceId, typeLabel(typeName, type), type != null ? type.color() : null,
+            result.add(new Instance(result.size() + 1, instanceId, typeLabel(typeName, type), type != null ? type.description() : null, type != null ? type.color() : null,
                     instanceName(instance, type, instanceId), firstString(instance.get(SPACE)),
                     permissions(instance.get(PERMISSIONS)), false, null,
                     releaseStatuses.get(instanceId) == ReleaseStatus.RELEASED ? RELEASED : IN_PROGRESS));

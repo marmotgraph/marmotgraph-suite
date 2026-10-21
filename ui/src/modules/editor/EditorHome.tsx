@@ -76,10 +76,14 @@ export default function EditorHome() {
 
   // The types and spaces to filter by (instances are matched by the type label and the space identifier)
   const availableTypes = useMemo(() => {
-    const byName = new Map(types.map((type) => [typeLabel(type), type.identifier]));
+    const byName = new Map(types.map((type) => [typeLabel(type), type]));
     return Array.from(byName.keys())
       .sort()
-      .map((name) => ({ name, url: byName.get(name)! }));
+      .map((name) => ({
+        name,
+        url: byName.get(name)!.identifier,
+        description: byName.get(name)!.description,
+      }));
   }, [types]);
 
   const availableSpaces = useMemo(() => {
@@ -311,6 +315,9 @@ export default function EditorHome() {
                   key={type}
                   label="Type"
                   value={type}
+                  title={
+                    availableTypes.find((t) => t.name === type)?.description
+                  }
                   onRemove={() => handleRemoveFilter("types", type)}
                 />
               ))}
@@ -444,7 +451,7 @@ export default function EditorHome() {
                           }
                         />
                       </td>
-                      <td>
+                      <td title={instance.typeDescription}>
                         <FontAwesomeIcon
                           icon={faCircle}
                           className="type-color-icon me-2"

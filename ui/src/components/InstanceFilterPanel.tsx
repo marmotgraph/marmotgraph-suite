@@ -8,6 +8,7 @@ import {
 type EntityType = {
   name: string;
   url: string;
+  description?: string;
 };
 
 type InstanceFilters = {
@@ -30,12 +31,15 @@ function ItemListFilter({
   onItemToggle,
   placeholder = "Filter...",
   emptyMessage = "No items found matching",
+  descriptions,
 }: {
   items: string[];
   selectedItems: string[];
   onItemToggle: (itemName: string) => void;
   placeholder?: string;
   emptyMessage?: string;
+  /** Optional descriptions of the items (by item) shown as tooltip */
+  descriptions?: Record<string, string | undefined>;
 }) {
   const [filter, setFilter] = useState("");
 
@@ -60,6 +64,7 @@ function ItemListFilter({
               type="checkbox"
               id={`item-${item}`}
               label={item}
+              title={descriptions?.[item]}
               checked={selectedItems.includes(item)}
               onChange={() => onItemToggle(item)}
               className="mb-2"
@@ -170,6 +175,9 @@ export function InstanceFilterPanel({
         <Modal.Body>
           <ItemListFilter
             items={availableTypes.map((t) => t.name)}
+            descriptions={Object.fromEntries(
+              availableTypes.map((t) => [t.name, t.description]),
+            )}
             selectedItems={filters.types}
             onItemToggle={handleTypeToggle}
             placeholder="Filter types..."

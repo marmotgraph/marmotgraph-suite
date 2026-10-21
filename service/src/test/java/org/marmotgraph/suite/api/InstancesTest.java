@@ -106,7 +106,7 @@ class InstancesTest {
                 instance(UNRELEASED_ID, "https://example.org/types/Unknown", Map.of(Instances.PERMISSIONS, List.of("READ")))
         )));
         when(typesResource.getByNames(List.of(DEVICE, "https://example.org/types/Unknown"), Stage.IN_PROGRESS, null, false, false))
-                .thenReturn(Map.of(DEVICE, new TypeInformation(DEVICE, null, "Device", "#ff9800", NAME, null, null, List.of(), List.of(), List.of(), Map.of())));
+                .thenReturn(Map.of(DEVICE, new TypeInformation(DEVICE, "A device in the data center", "Device", "#ff9800", NAME, null, null, List.of(), List.of(), List.of(), Map.of())));
         when(instancesResource.releaseStatusByIds(List.of(RELEASED_ID, UNRELEASED_ID), ReleaseTreeScope.TOP_INSTANCE_ONLY))
                 .thenReturn(Map.of(RELEASED_ID.toString(), ReleaseStatus.RELEASED, UNRELEASED_ID.toString(), ReleaseStatus.HAS_CHANGED));
 
@@ -116,6 +116,7 @@ class InstancesTest {
                 .andExpect(jsonPath("$[0].id").value(1))
                 .andExpect(jsonPath("$[0].instanceId").value(RELEASED_ID.toString()))
                 .andExpect(jsonPath("$[0].type").value("Device"))
+                .andExpect(jsonPath("$[0].typeDescription").value("A device in the data center"))
                 .andExpect(jsonPath("$[0].typeColor").value("#ff9800"))
                 .andExpect(jsonPath("$[0].instanceName").value("Server-Rack-A1"))
                 .andExpect(jsonPath("$[0].space").value("myspace"))
@@ -124,6 +125,7 @@ class InstancesTest {
                 .andExpect(jsonPath("$[0].lastVisited").doesNotExist())
                 .andExpect(jsonPath("$[0].releaseStatus").value("released"))
                 .andExpect(jsonPath("$[1].type").value("Unknown"))
+                .andExpect(jsonPath("$[1].typeDescription").doesNotExist())
                 .andExpect(jsonPath("$[1].typeColor").doesNotExist())
                 .andExpect(jsonPath("$[1].instanceName").value(UNRELEASED_ID.toString()))
                 .andExpect(jsonPath("$[1].permissions").value("View"))
