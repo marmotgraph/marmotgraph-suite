@@ -100,14 +100,14 @@ class InstancesTest {
     }
 
     private static Instance instance(UUID id, String type, Map<String, Object> properties) {
-        Instance instance = new Instance(Map.of("@id", "https://kg.ebrains.eu/api/instances/" + id, "@type", List.of(type),
+        Instance instance = new Instance(Map.of("@id", id, "@type", type,
                 Instances.SPACE, "myspace"));
         instance.putAll(properties);
         return instance;
     }
 
     private static Page<Instance> page(List<Instance> items) {
-        return new Page<>(items, items.size(), 50, 0, null, null, Map.of(), null);
+        return new Page<>(items, items.size(), 50, null, null, Map.of(), null);
     }
 
     @Test
@@ -236,8 +236,8 @@ class InstancesTest {
                 "https://example.org/height", 42,
                 "https://example.org/active", List.of("true"),
                 "https://example.org/blades", List.of(
-                        link("https://example.org/blades/7", "resolved", "https://kg.ebrains.eu/api/instances/" + linkedId, blade, "Blade-7", "otherspace"),
-                        link("https://example.org/blades/8", "restricted", "https://kg.ebrains.eu/api/instances/" + restrictedId, blade, null, null),
+                        link("https://example.org/blades/7", "resolved", linkedId, blade, "Blade-7", "otherspace"),
+                        link("https://example.org/blades/8", "restricted", restrictedId, blade, null, null),
                         link(unresolvedIdentifier, "unresolved", null, null, null, null)),
                 "https://example.org/components", List.of(Map.of("x", "y")))));
         when(typesResource.getByNames(List.of(rack), Stage.IN_PROGRESS, null, false, false))

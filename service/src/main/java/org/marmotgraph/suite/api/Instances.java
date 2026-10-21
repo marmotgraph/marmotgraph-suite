@@ -149,7 +149,7 @@ public class Instances {
         if (instances.isEmpty()) {
             return List.of();
         }
-        List<String> typeNames = instances.stream().map(Instances::primaryType).filter(Objects::nonNull).distinct().toList();
+        List<String> typeNames = instances.stream().map(org.marmotgraph.sdk.model.Instance::getType).filter(Objects::nonNull).distinct().toList();
         Map<String, TypeDefinition> types = typeNames.isEmpty() ? Map.of() : typeCache.get(client, typeNames);
         List<UUID> ids = instances.stream().map(i -> i.getUuid().orElse(null)).filter(Objects::nonNull).toList();
         Map<String, ReleaseStatus> releaseStatuses = ids.isEmpty() ? Map.of() : client.instances().releaseStatusByIds(ids, ReleaseTreeScope.TOP_INSTANCE_ONLY);
@@ -157,7 +157,7 @@ public class Instances {
         List<InstanceSummary> result = new ArrayList<>(instances.size());
         for (org.marmotgraph.sdk.model.Instance instance : instances) {
             String instanceId = instance.getUuid().map(UUID::toString).orElse(instance.getId());
-            String typeName = primaryType(instance);
+            String typeName = instance.getType();
             TypeDefinition type = typeName != null ? types.get(typeName) : null;
             result.add(new InstanceSummary(result.size() + 1, instanceId, typeLabel(typeName, type), type != null ? type.description() : null, type != null ? type.color() : null,
                     instanceName(instance, type, instanceId), firstString(instance.get(SPACE)),
@@ -175,7 +175,7 @@ public class Instances {
         org.marmotgraph.sdk.model.Instance instance = client.instances().get(id, Stage.IN_PROGRESS,
                 ResponseOptions.builder().returnPermissions(true).returnSummaryOfOutgoingLinks(true).build());
         String instanceId = instance.getUuid().map(UUID::toString).orElse(id.toString());
-        String typeName = primaryType(instance);
+        String typeName = instance.getType();
         TypeDefinition type = typeName != null ? typeCache.get(client, List.of(typeName)).get(typeName) : null;
         ReleaseStatus releaseStatus = client.instances().releaseStatus(id, ReleaseTreeScope.TOP_INSTANCE_ONLY);
         List<Field> fields = fields(client, instance, typeName);
@@ -268,11 +268,6 @@ public class Instances {
 
     private static List<String> nonBlank(List<String> values) {
         return values == null ? List.of() : values.stream().filter(v -> v != null && !v.isBlank()).map(String::trim).distinct().toList();
-    }
-
-    private static String primaryType(org.marmotgraph.sdk.model.Instance instance) {
-        List<String> types = instance.getTypes();
-        return types.isEmpty() ? null : types.getFirst();
     }
 
     /**

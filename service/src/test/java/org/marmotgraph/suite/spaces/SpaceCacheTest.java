@@ -45,7 +45,7 @@ class SpaceCacheTest {
     void listIsCachedWithoutTheUserSpecificPermissions() {
         when(spaces.list(any(SpaceListOptions.class))).thenReturn(new Page<>(List.of(
                 new SpaceInformation("myspace", "My Space", List.of("READ")), new SpaceInformation("other", "other", List.of())),
-                2, 50, 0, null, null, Map.of(), null));
+                2, 50, null, null, Map.of(), null));
 
         List<SpaceDefinition> expected = List.of(new SpaceDefinition("myspace", "My Space"), new SpaceDefinition("other", "other"));
         assertEquals(expected, cache.list(client, "alice"));

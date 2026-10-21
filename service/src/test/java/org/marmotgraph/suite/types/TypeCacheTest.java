@@ -99,7 +99,7 @@ class TypeCacheTest {
     @Test
     void listIsCachedAndFillsTheCacheOfTheDefinitions() {
         when(types.list(any(TypeListOptions.class))).thenReturn(new Page<>(List.of(type(DEVICE, "Device", "#ff9800"), type(BUILDING, "Building", "#4caf50")),
-                2, 50, 0, null, null, Map.of(), null));
+                2, 50, null, null, Map.of(), null));
 
         List<TypeDefinition> first = cache.list(client, "alice");
         assertEquals(List.of("Device", "Building"), first.stream().map(TypeDefinition::name).toList());
@@ -118,8 +118,8 @@ class TypeCacheTest {
         MarmotGraphClient otherClient = Mockito.mock(MarmotGraphClient.class);
         TypesResource otherTypes = Mockito.mock(TypesResource.class);
         when(otherClient.types()).thenReturn(otherTypes);
-        when(types.list(any(TypeListOptions.class))).thenReturn(new Page<>(List.of(type(DEVICE, "Device", "#ff9800")), 1, 50, 0, null, null, Map.of(), null));
-        when(otherTypes.list(any(TypeListOptions.class))).thenReturn(new Page<>(List.of(type(BUILDING, "Building", "#4caf50")), 1, 50, 0, null, null, Map.of(), null));
+        when(types.list(any(TypeListOptions.class))).thenReturn(new Page<>(List.of(type(DEVICE, "Device", "#ff9800")), 1, 50, null, null, Map.of(), null));
+        when(otherTypes.list(any(TypeListOptions.class))).thenReturn(new Page<>(List.of(type(BUILDING, "Building", "#4caf50")), 1, 50, null, null, Map.of(), null));
 
         assertEquals(List.of("Device"), cache.list(client, "alice").stream().map(TypeDefinition::name).toList());
         assertEquals(List.of("Building"), cache.list(otherClient, "bob").stream().map(TypeDefinition::name).toList());
@@ -131,7 +131,7 @@ class TypeCacheTest {
 
     @Test
     void expiredListIsFetchedAgain() {
-        when(types.list(any(TypeListOptions.class))).thenReturn(new Page<>(List.of(type(DEVICE, "Device", "#ff9800")), 1, 50, 0, null, null, Map.of(), null));
+        when(types.list(any(TypeListOptions.class))).thenReturn(new Page<>(List.of(type(DEVICE, "Device", "#ff9800")), 1, 50, null, null, Map.of(), null));
         cache.list(client, "alice");
         clock.advance(TTL);
 
