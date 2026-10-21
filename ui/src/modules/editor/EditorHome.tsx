@@ -19,6 +19,9 @@ import { useInstances } from "../../contexts/InstancesContext";
 import { SearchBar } from "../../components/SearchBar";
 import { InstanceFilterPanel } from "../../components/InstanceFilterPanel";
 import { FilterPill } from "../../components/FilterPill";
+import { useTypes } from "../../hooks/useTypes";
+import { useSpaces } from "../../hooks/useSpaces";
+import { typeLabel } from "../../services/types";
 import "../query-builder/SharedQueries.css";
 import "./EditorHome.css";
 
@@ -45,12 +48,14 @@ const typeColors: Record<string, string> = {
 export default function EditorHome() {
   const navigate = useNavigate();
   // const location = useLocation();
-  const { instances, deleteInstances } = useInstances();
+  const { instances, searchTerm, setSearchTerm, deleteInstances } =
+    useInstances();
+  const types = useTypes();
+  const spaces = useSpaces();
   const [showBookmarkedOnly, setShowBookmarkedOnly] = useState(false);
   const [sortField, setSortField] = useState<SortField | null>("lastVisited");
   const [sortDirection, setSortDirection] = useState<SortDirection>("desc");
-  const [searchQuery, setSearchQuery] = useState<string>("");
-  const [activeSearchQuery, setActiveSearchQuery] = useState<string>("");
+  const [searchQuery, setSearchQuery] = useState<string>(searchTerm);
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [itemsToShow, setItemsToShow] = useState<number>(10);
   const [selectedInstances, setSelectedInstances] = useState<Set<string>>(
@@ -67,36 +72,25 @@ export default function EditorHome() {
   // Reset items to show when filters or search change
   useEffect(() => {
     setItemsToShow(10);
-  }, [activeSearchQuery, filters, showBookmarkedOnly]);
+  }, [searchTerm, filters, showBookmarkedOnly]);
 
-  // Get unique types and spaces for filters
+  // The types and spaces to filter by (instances are matched by the type label and the space identifier)
   const availableTypes = useMemo(() => {
-    return Array.from(new Set(instances.map((i) => i.type)))
+    const byName = new Map(types.map((type) => [typeLabel(type), type.identifier]));
+    return Array.from(byName.keys())
       .sort()
-      .map((type) => ({
-        name: type,
-        url: `https://kg.svc.cscs.ch/types/${type.replace(/\s+/g, "")}`,
-      }));
-  }, [instances]);
+      .map((name) => ({ name, url: byName.get(name)! }));
+  }, [types]);
 
   const availableSpaces = useMemo(() => {
-    return Array.from(new Set(instances.map((i) => i.space))).sort();
-  }, [instances]);
+    return Array.from(new Set(spaces.map((space) => space.identifier))).sort();
+  }, [spaces]);
 
   // Filter and sort instances
   const filteredAndSortedInstances = useMemo(() => {
     let result = [...instances];
 
-    // Apply search filter
-    if (activeSearchQuery) {
-      const query = activeSearchQuery.toLowerCase();
-      result = result.filter(
-        (instance) =>
-          instance.instanceName.toLowerCase().includes(query) ||
-          instance.type.toLowerCase().includes(query) ||
-          instance.space.toLowerCase().includes(query),
-      );
-    }
+    // The search term is applied by the backend (see InstancesContext)
 
     // Apply bookmarked filter
     if (showBookmarkedOnly) {
@@ -163,7 +157,6 @@ export default function EditorHome() {
     return result;
   }, [
     instances,
-    activeSearchQuery,
     showBookmarkedOnly,
     filters,
     sortField,
@@ -171,7 +164,7 @@ export default function EditorHome() {
   ]);
 
   const handleSearch = () => {
-    setActiveSearchQuery(searchQuery);
+    setSearchTerm(searchQuery.trim());
   };
 
   const handleRemoveFilter = (

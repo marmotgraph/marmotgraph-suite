@@ -5,8 +5,11 @@ import org.junit.jupiter.api.Test;
 import org.marmotgraph.sdk.MarmotGraphClient;
 import org.marmotgraph.sdk.model.Stage;
 import org.marmotgraph.sdk.model.TypeInformation;
+import org.marmotgraph.sdk.pagination.Page;
+import org.marmotgraph.sdk.resources.TypeListOptions;
 import org.marmotgraph.sdk.resources.TypesResource;
 import org.marmotgraph.suite.types.TypeCache.TypeDefinition;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mockito;
 
 import java.time.Clock;
@@ -17,6 +20,7 @@ import java.util.List;
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.Mockito.verify;
@@ -90,6 +94,50 @@ class TypeCacheTest {
         cache.get(client, List.of(UNKNOWN));
 
         verify(types, Mockito.times(2)).getByNames(List.of(UNKNOWN), Stage.IN_PROGRESS, null, false, false);
+    }
+
+    @Test
+    void listIsCachedAndFillsTheCacheOfTheDefinitions() {
+        when(types.list(any(TypeListOptions.class))).thenReturn(new Page<>(List.of(type(DEVICE, "Device", "#ff9800"), type(BUILDING, "Building", "#4caf50")),
+                2, 50, 0, null, null, Map.of(), null));
+
+        List<TypeDefinition> first = cache.list(client, "alice");
+        assertEquals(List.of("Device", "Building"), first.stream().map(TypeDefinition::name).toList());
+        assertEquals(first, cache.list(client, "alice"));
+        assertEquals("#4caf50", cache.get(client, List.of(BUILDING)).get(BUILDING).color());
+
+        ArgumentCaptor<TypeListOptions> options = ArgumentCaptor.forClass(TypeListOptions.class);
+        verify(types).list(options.capture());
+        assertEquals(Stage.IN_PROGRESS, options.getValue().stage());
+        assertFalse(options.getValue().withOccurrenceCount());
+        verifyNoMoreInteractions(types);
+    }
+
+    @Test
+    void listsAreCachedPerUser() {
+        MarmotGraphClient otherClient = Mockito.mock(MarmotGraphClient.class);
+        TypesResource otherTypes = Mockito.mock(TypesResource.class);
+        when(otherClient.types()).thenReturn(otherTypes);
+        when(types.list(any(TypeListOptions.class))).thenReturn(new Page<>(List.of(type(DEVICE, "Device", "#ff9800")), 1, 50, 0, null, null, Map.of(), null));
+        when(otherTypes.list(any(TypeListOptions.class))).thenReturn(new Page<>(List.of(type(BUILDING, "Building", "#4caf50")), 1, 50, 0, null, null, Map.of(), null));
+
+        assertEquals(List.of("Device"), cache.list(client, "alice").stream().map(TypeDefinition::name).toList());
+        assertEquals(List.of("Building"), cache.list(otherClient, "bob").stream().map(TypeDefinition::name).toList());
+        assertEquals(List.of("Device"), cache.list(client, "alice").stream().map(TypeDefinition::name).toList());
+
+        verify(types).list(any(TypeListOptions.class));
+        verify(otherTypes).list(any(TypeListOptions.class));
+    }
+
+    @Test
+    void expiredListIsFetchedAgain() {
+        when(types.list(any(TypeListOptions.class))).thenReturn(new Page<>(List.of(type(DEVICE, "Device", "#ff9800")), 1, 50, 0, null, null, Map.of(), null));
+        cache.list(client, "alice");
+        clock.advance(TTL);
+
+        cache.list(client, "alice");
+
+        verify(types, Mockito.times(2)).list(any(TypeListOptions.class));
     }
 
     private static class MutableClock extends Clock {

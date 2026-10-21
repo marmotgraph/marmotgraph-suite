@@ -34,6 +34,7 @@ import java.util.Map;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.never;
@@ -132,6 +133,31 @@ class InstancesTest {
         verify(instancesResource).list(options.capture());
         assertEquals(Stage.IN_PROGRESS, options.getValue().stage());
         assertTrue(options.getValue().responseOptions().returnPermissions());
+        assertNull(options.getValue().searchByLabel());
+    }
+
+    @Test
+    void listForwardsTheSearchTermToTheCore() throws Exception {
+        when(instancesResource.list(any(InstanceListOptions.class))).thenReturn(page(List.of()));
+
+        mockMvc.perform(get("/instances").param("search", " rack ").header(HttpHeaders.AUTHORIZATION, "Bearer theToken"))
+                .andExpect(status().isOk());
+
+        ArgumentCaptor<InstanceListOptions> options = ArgumentCaptor.forClass(InstanceListOptions.class);
+        verify(instancesResource).list(options.capture());
+        assertEquals("rack", options.getValue().searchByLabel());
+    }
+
+    @Test
+    void listIgnoresABlankSearchTerm() throws Exception {
+        when(instancesResource.list(any(InstanceListOptions.class))).thenReturn(page(List.of()));
+
+        mockMvc.perform(get("/instances").param("search", "  ").header(HttpHeaders.AUTHORIZATION, "Bearer theToken"))
+                .andExpect(status().isOk());
+
+        ArgumentCaptor<InstanceListOptions> options = ArgumentCaptor.forClass(InstanceListOptions.class);
+        verify(instancesResource).list(options.capture());
+        assertNull(options.getValue().searchByLabel());
     }
 
     @Test

@@ -5,6 +5,8 @@ import { fetchInstances } from '../services/instances';
 
 interface InstancesContextType {
   instances: Instance[];
+  searchTerm: string;
+  setSearchTerm: (searchTerm: string) => void;
   addInstance: (instance: Instance) => void;
   updateInstance: (instanceId: string, updates: Partial<Instance>) => void;
   deleteInstances: (instanceIds: string[]) => void;
@@ -16,17 +18,18 @@ const InstancesContext = createContext<InstancesContextType | undefined>(undefin
 export function InstancesProvider({ children }: { children: ReactNode }) {
   const { getAccessToken } = useAuth();
   const [instances, setInstances] = useState<Instance[]>([]);
+  const [searchTerm, setSearchTerm] = useState<string>('');
 
   useEffect(() => {
     let cancelled = false;
     getAccessToken()
-      .then(fetchInstances)
+      .then((token) => fetchInstances(token, searchTerm))
       .then((loaded) => !cancelled && setInstances(loaded))
       .catch((e: unknown) => console.error('Failed to load the instances', e));
     return () => {
       cancelled = true;
     };
-  }, [getAccessToken]);
+  }, [getAccessToken, searchTerm]);
 
   const addInstance = (instance: Instance) => {
     setInstances(prev => [...prev, instance]);
@@ -51,7 +54,7 @@ export function InstancesProvider({ children }: { children: ReactNode }) {
   };
 
   return (
-    <InstancesContext.Provider value={{ instances, addInstance, updateInstance, deleteInstances, getInstance }}>
+    <InstancesContext.Provider value={{ instances, searchTerm, setSearchTerm, addInstance, updateInstance, deleteInstances, getInstance }}>
       {children}
     </InstancesContext.Provider>
   );

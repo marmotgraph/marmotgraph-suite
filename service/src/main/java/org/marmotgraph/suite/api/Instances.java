@@ -13,6 +13,7 @@ import org.marmotgraph.suite.types.TypeCache;
 import org.marmotgraph.suite.types.TypeCache.TypeDefinition;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.ArrayList;
@@ -66,10 +67,14 @@ public class Instances {
 
     private final TypeCache typeCache;
 
+    /**
+     * @param search an optional term the instances are filtered by (matched against their labels by the core)
+     */
     @GetMapping
-    public List<Instance> list(@AuthenticatedClient MarmotGraphClient client) {
+    public List<Instance> list(@AuthenticatedClient MarmotGraphClient client, @RequestParam(required = false) String search) {
         List<org.marmotgraph.sdk.model.Instance> instances = client.instances().list(InstanceListOptions.builder()
                 .stage(Stage.IN_PROGRESS)
+                .searchByLabel(search != null && !search.isBlank() ? search.trim() : null)
                 .responseOptions(ResponseOptions.builder().returnPermissions(true).build())
                 .build()).items();
         if (instances.isEmpty()) {

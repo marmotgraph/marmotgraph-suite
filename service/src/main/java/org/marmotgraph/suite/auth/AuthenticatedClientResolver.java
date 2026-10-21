@@ -12,9 +12,15 @@ import org.springframework.web.method.support.HandlerMethodArgumentResolver;
 import org.springframework.web.method.support.ModelAndViewContainer;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
+import java.util.HexFormat;
+
 /**
  * Resolves the {@link AuthenticatedClient} parameters by deriving a client with the bearer token of the request from
- * the (unauthenticated) {@link MarmotGraphClient} - the derived client shares the connection pool with it.
+ * the (unauthenticated) {@link MarmotGraphClient} - the derived client shares the connection pool with it. Also
+ * resolves the {@link UserKey} parameters by hashing the bearer token.
  */
 @AllArgsConstructor
 @Component
@@ -26,12 +32,22 @@ public class AuthenticatedClientResolver implements HandlerMethodArgumentResolve
 
     @Override
     public boolean supportsParameter(MethodParameter parameter) {
-        return parameter.hasParameterAnnotation(AuthenticatedClient.class) && MarmotGraphClient.class.equals(parameter.getParameterType());
+        return (parameter.hasParameterAnnotation(AuthenticatedClient.class) && MarmotGraphClient.class.equals(parameter.getParameterType()))
+                || (parameter.hasParameterAnnotation(UserKey.class) && String.class.equals(parameter.getParameterType()));
     }
 
     @Override
-    public MarmotGraphClient resolveArgument(MethodParameter parameter, ModelAndViewContainer mavContainer, NativeWebRequest webRequest, WebDataBinderFactory binderFactory) {
-        return client.withToken(bearerToken(webRequest.getHeader(HttpHeaders.AUTHORIZATION)));
+    public Object resolveArgument(MethodParameter parameter, ModelAndViewContainer mavContainer, NativeWebRequest webRequest, WebDataBinderFactory binderFactory) {
+        String token = bearerToken(webRequest.getHeader(HttpHeaders.AUTHORIZATION));
+        return parameter.hasParameterAnnotation(UserKey.class) ? userKey(token) : client.withToken(token);
+    }
+
+    public static String userKey(String token) {
+        try {
+            return HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(token.getBytes(StandardCharsets.UTF_8)));
+        } catch (NoSuchAlgorithmException e) {
+            throw new IllegalStateException("SHA-256 is not available", e);
+        }
     }
 
     static String bearerToken(String authorization) {
