@@ -1,0 +1,96 @@
+.search-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin-bottom: 14px;
+}
+
+.search-result-count {
+  font-size: 15px;
+  color: var(--search-ink-2);
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  margin: 0;
+}
+
+.search-result-count strong {
+  font-size: 19px;
+  color: var(--search-ink);
+  font-weight: 700;
+}
+
+.search-result-for {
+  color: var(--search-muted);
+}
+
+.search-toolbar-tools {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.search-tool-select {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 13px;
+  color: var(--search-muted);
+}
+
+.search-tool-select label {
+  margin: 0;
+}
+
+.search-tool-select select {
+  font-family: var(--search-font-sans);
+  font-size: 13.5px;
+  font-weight: 500;
+  color: var(--search-ink);
+  background: var(--search-surface);
+  border: 1px solid var(--search-line);
+  border-radius: 8px;
+  padding: 7px 10px;
+  outline: 0;
+  cursor: pointer;
+}
+
+.search-tool-select select:focus {
+  border-color: var(--search-accent);
+  box-shadow: var(--search-focus-ring);
+}
+
+.search-view-toggle {
+  display: flex;
+  background: var(--search-surface);
+  border: 1px solid var(--search-line);
+  border-radius: 8px;
+  padding: 2px;
+}
+
+.search-view-toggle button {
+  border: 0;
+  background: transparent;
+  font-size: 12.5px;
+  font-weight: 500;
+  color: var(--search-muted);
+  padding: 6px 9px;
+  border-radius: 6px;
+  transition: background 0.12s ease, color 0.12s ease;
+  cursor: pointer;
+  display: grid;
+  place-items: center;
+}
+
+.search-view-toggle button.on {
+  background: var(--search-accent);
+  color: var(--search-white);
+}
+
+.search-view-toggle button:focus-visible {
+  outline: none;
+  box-shadow: var(--search-focus-ring);
+}

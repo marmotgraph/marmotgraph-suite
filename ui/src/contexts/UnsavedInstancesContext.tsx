@@ -3,6 +3,7 @@ import React, {
   useCallback,
   useContext,
   useMemo,
+  useRef,
   useState,
   ReactNode,
 } from "react";
@@ -12,17 +13,26 @@ export type UnsavedInstanceDraft = {
   instanceId: string;
   instanceName: string;
   type: string;
+  space?: string;
   fieldValues: InstanceFieldValues;
   updatedAt: number;
   isNew?: boolean;
   changedFieldLabels?: string[];
 };
 
+type LiveDraftProvider = () => UnsavedInstanceDraft | null;
+
 type UnsavedInstancesContextType = {
   drafts: UnsavedInstanceDraft[];
   getDraft: (instanceId: string) => UnsavedInstanceDraft | undefined;
   upsertDraft: (draft: UnsavedInstanceDraft) => void;
   removeDraft: (instanceId: string) => void;
+  registerLiveDraftProvider: (
+    instanceId: string,
+    provider: LiveDraftProvider,
+  ) => void;
+  unregisterLiveDraftProvider: (instanceId: string) => void;
+  flushLiveDrafts: (instanceIds: string[]) => void;
 };
 
 const UnsavedInstancesContext = createContext<
@@ -33,6 +43,7 @@ export function UnsavedInstancesProvider({ children }: { children: ReactNode }) 
   const [draftsById, setDraftsById] = useState<
     Record<string, UnsavedInstanceDraft>
   >({});
+  const liveDraftProvidersRef = useRef<Record<string, LiveDraftProvider>>({});
 
   const getDraft = useCallback(
     (instanceId: string) => draftsById[instanceId],
@@ -58,6 +69,39 @@ export function UnsavedInstancesProvider({ children }: { children: ReactNode }) 
     });
   }, []);
 
+  const registerLiveDraftProvider = useCallback(
+    (instanceId: string, provider: LiveDraftProvider) => {
+      liveDraftProvidersRef.current[instanceId] = provider;
+    },
+    [],
+  );
+
+  const unregisterLiveDraftProvider = useCallback((instanceId: string) => {
+    delete liveDraftProvidersRef.current[instanceId];
+  }, []);
+
+  const flushLiveDrafts = useCallback(
+    (instanceIds: string[]) => {
+      const timestamp = Date.now();
+
+      for (const instanceId of instanceIds) {
+        const provider = liveDraftProvidersRef.current[instanceId];
+        const liveDraft = provider?.();
+
+        if (liveDraft) {
+          setDraftsById((previous) => ({
+            ...previous,
+            [instanceId]: {
+              ...liveDraft,
+              updatedAt: timestamp,
+            },
+          }));
+        }
+      }
+    },
+    [],
+  );
+
   const drafts = useMemo(
     () =>
       Object.values(draftsById).sort(
@@ -68,7 +112,15 @@ export function UnsavedInstancesProvider({ children }: { children: ReactNode }) 
 
   return (
     <UnsavedInstancesContext.Provider
-      value={{ drafts, getDraft, upsertDraft, removeDraft }}
+      value={{
+        drafts,
+        getDraft,
+        upsertDraft,
+        removeDraft,
+        registerLiveDraftProvider,
+        unregisterLiveDraftProvider,
+        flushLiveDrafts,
+      }}
     >
       {children}
     </UnsavedInstancesContext.Provider>

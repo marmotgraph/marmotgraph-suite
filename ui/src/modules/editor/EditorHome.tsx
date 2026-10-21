@@ -1,15 +1,11 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { Button, Col, Form, Modal, Row, Spinner, Table } from "react-bootstrap";
+import { Button, Col, Form, Modal, Row, Table } from "react-bootstrap";
 import { useNavigate } from "react-router-dom";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
   faBookmark as faBookmarkSolid,
   faCircle,
-  faClipboardCheck,
   faCopy,
-  faGlasses,
-  faPen,
-  faRocket,
   faSort,
   faSortDown,
   faSortUp,
@@ -19,9 +15,9 @@ import { useInstances } from "../../contexts/InstancesContext";
 import { SearchBar } from "../../components/SearchBar";
 import { InstanceFilterPanel } from "../../components/InstanceFilterPanel";
 import { FilterPill } from "../../components/FilterPill";
-import { useTypes } from "../../hooks/useTypes";
-import { useSpaces } from "../../hooks/useSpaces";
-import { typeLabel } from "../../services/types";
+import { ReleaseStatusBadge } from "../../components/ReleaseStatusBadge";
+import { InstanceTableActions } from "../../components/InstanceTableActions";
+import { InstancePreviewDrawer } from "../../components/InstancePreviewDrawer";
 import "../query-builder/SharedQueries.css";
 import "./EditorHome.css";
 
@@ -48,75 +44,93 @@ const typeColors: Record<string, string> = {
 export default function EditorHome() {
   const navigate = useNavigate();
   // const location = useLocation();
-  const {
-    instances,
-    loading,
-    searchTerm,
-    setSearchTerm,
-    typeFilter,
-    setTypeFilter,
-    spaceFilter,
-    setSpaceFilter,
-    deleteInstances,
-  } = useInstances({ load: true });
-  const types = useTypes();
-  const spaces = useSpaces();
+  const { instances, deleteInstances } = useInstances();
   const [showBookmarkedOnly, setShowBookmarkedOnly] = useState(false);
   const [sortField, setSortField] = useState<SortField | null>("lastVisited");
   const [sortDirection, setSortDirection] = useState<SortDirection>("desc");
-  const [searchQuery, setSearchQuery] = useState<string>(searchTerm);
+  const [searchQuery, setSearchQuery] = useState<string>("");
+  const [activeSearchQuery, setActiveSearchQuery] = useState<string>("");
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [itemsToShow, setItemsToShow] = useState<number>(10);
   const [selectedInstances, setSelectedInstances] = useState<Set<string>>(
     new Set(),
   );
   const [showDeleteModal, setShowDeleteModal] = useState(false);
-  const [localFilters, setLocalFilters] = useState<
-    Pick<InstanceFilters, "permissions" | "releaseStatuses">
-  >({
+  const [previewInstanceId, setPreviewInstanceId] = useState<string | null>(
+    null,
+  );
+  const [filters, setFilters] = useState<InstanceFilters>({
+    types: [],
+    spaces: [],
     permissions: [],
     releaseStatuses: [],
   });
-  // The type and space filters are applied by the backend (see InstancesContext) - the others on the client
-  const filters: InstanceFilters = useMemo(
-    () => ({ ...localFilters, types: typeFilter, spaces: spaceFilter }),
-    [localFilters, typeFilter, spaceFilter],
+
+  const previewInstance = useMemo(
+    () =>
+      previewInstanceId
+        ? instances.find((i) => i.instanceId === previewInstanceId) ?? null
+        : null,
+    [instances, previewInstanceId],
   );
-  const setFilters = ({ types, spaces, ...rest }: InstanceFilters) => {
-    setLocalFilters(rest);
-    setTypeFilter(types);
-    setSpaceFilter(spaces);
-  };
+
+  useEffect(() => {
+    if (previewInstanceId && !previewInstance) {
+      setPreviewInstanceId(null);
+    }
+  }, [previewInstance, previewInstanceId]);
 
   // Reset items to show when filters or search change
   useEffect(() => {
     setItemsToShow(10);
-  }, [searchTerm, filters, showBookmarkedOnly]);
+  }, [activeSearchQuery, filters, showBookmarkedOnly]);
 
-  // The types (filtered by their identifier) and spaces to filter by
+  // Get unique types and spaces for filters
   const availableTypes = useMemo(() => {
-    return types
+    return Array.from(new Set(instances.map((i) => i.type)))
+      .sort()
       .map((type) => ({
-        name: typeLabel(type),
-        url: type.identifier,
-        description: type.description,
-      }))
-      .sort((a, b) => a.name.localeCompare(b.name));
-  }, [types]);
+        name: type,
+        url: `https://kg.svc.cscs.ch/types/${type.replace(/\s+/g, "")}`,
+      }));
+  }, [instances]);
 
   const availableSpaces = useMemo(() => {
-    return Array.from(new Set(spaces.map((space) => space.identifier))).sort();
-  }, [spaces]);
+    return Array.from(new Set(instances.map((i) => i.space))).sort();
+  }, [instances]);
 
   // Filter and sort instances
   const filteredAndSortedInstances = useMemo(() => {
     let result = [...instances];
 
-    // The search term, type and space filters are applied by the backend (see InstancesContext)
+    // Apply search filter
+    if (activeSearchQuery) {
+      const query = activeSearchQuery.toLowerCase();
+      result = result.filter(
+        (instance) =>
+          instance.instanceName.toLowerCase().includes(query) ||
+          instance.type.toLowerCase().includes(query) ||
+          instance.space.toLowerCase().includes(query),
+      );
+    }
 
     // Apply bookmarked filter
     if (showBookmarkedOnly) {
       result = result.filter((instance) => instance.bookmarked);
+    }
+
+    // Apply type filters
+    if (filters.types.length > 0) {
+      result = result.filter((instance) =>
+        filters.types.includes(instance.type),
+      );
+    }
+
+    // Apply space filters
+    if (filters.spaces.length > 0) {
+      result = result.filter((instance) =>
+        filters.spaces.includes(instance.space),
+      );
     }
 
     // Apply release status filters
@@ -165,6 +179,7 @@ export default function EditorHome() {
     return result;
   }, [
     instances,
+    activeSearchQuery,
     showBookmarkedOnly,
     filters,
     sortField,
@@ -172,17 +187,17 @@ export default function EditorHome() {
   ]);
 
   const handleSearch = () => {
-    setSearchTerm(searchQuery.trim());
+    setActiveSearchQuery(searchQuery);
   };
 
   const handleRemoveFilter = (
     filterType: keyof InstanceFilters,
     value: string,
   ) => {
-    setFilters({
-      ...filters,
-      [filterType]: filters[filterType].filter((item) => item !== value),
-    });
+    setFilters((prev) => ({
+      ...prev,
+      [filterType]: prev[filterType].filter((item) => item !== value),
+    }));
   };
 
   const handleSort = (field: SortField) => {
@@ -263,8 +278,30 @@ export default function EditorHome() {
     return <FontAwesomeIcon icon={faSort} className="ms-1 text-muted" />;
   };
 
-  const handleRowClick = (instanceId: string) => {
-    navigate(`/editor/instances/${instanceId}`);
+  const handleOpenPreview = (instanceId: string) => {
+    setPreviewInstanceId(instanceId);
+  };
+
+  const handlePreviewLinkedInstance = (instanceId: string) => {
+    if (instances.some((instance) => instance.instanceId === instanceId)) {
+      setPreviewInstanceId(instanceId);
+      return;
+    }
+
+    navigate(`/instances/${instanceId}`);
+  };
+
+  const handleTableAction = (
+    instanceId: string,
+    actionKey: string,
+    path: string,
+  ) => {
+    if (actionKey === "view") {
+      handleOpenPreview(instanceId);
+      return;
+    }
+
+    navigate(path);
   };
 
   return (
@@ -318,12 +355,7 @@ export default function EditorHome() {
                 <FilterPill
                   key={type}
                   label="Type"
-                  value={
-                    availableTypes.find((t) => t.url === type)?.name ?? type
-                  }
-                  title={
-                    availableTypes.find((t) => t.url === type)?.description
-                  }
+                  value={type}
                   onRemove={() => handleRemoveFilter("types", type)}
                 />
               ))}
@@ -397,7 +429,6 @@ export default function EditorHome() {
                   >
                     Instance Name {getSortIcon("instanceName")}
                   </th>
-                  <th>Permissions</th>
                   <th
                     onClick={() => handleSort("lastVisited")}
                     style={{ cursor: "pointer", userSelect: "none" }}
@@ -405,37 +436,36 @@ export default function EditorHome() {
                     Last visited {getSortIcon("lastVisited")}
                   </th>
                   <th>Release status</th>
+                  <th
+                    className="instance-table-actions-col"
+                    aria-label="Actions"
+                  />
                 </tr>
               </thead>
               <tbody>
-                {loading && (
-                  <tr>
-                    <td colSpan={7} className="text-center py-4">
-                      <Spinner
-                        animation="border"
-                        size="sm"
-                        role="status"
-                        className="me-2"
-                      />
-                      Loading instances...
-                    </td>
-                  </tr>
-                )}
-                {!loading && filteredAndSortedInstances
+                {filteredAndSortedInstances
                   .slice(0, itemsToShow)
                   .map((instance) => (
                     <tr
                       key={instance.id}
+                      className={
+                        previewInstanceId === instance.instanceId
+                          ? "instance-table-row--preview-active"
+                          : undefined
+                      }
                       onClick={(e) => {
                         // Don't navigate if clicking checkbox
                         if (
                           (e.target as HTMLElement).closest(
                             'input[type="checkbox"]',
+                          ) ||
+                          (e.target as HTMLElement).closest(
+                            ".instance-table-actions",
                           )
                         ) {
                           return;
                         }
-                        handleRowClick(instance.instanceId);
+                        handleOpenPreview(instance.instanceId);
                       }}
                       style={{ cursor: "pointer" }}
                     >
@@ -457,11 +487,11 @@ export default function EditorHome() {
                           }
                         />
                       </td>
-                      <td title={instance.typeDescription}>
+                      <td>
                         <FontAwesomeIcon
                           icon={faCircle}
                           className="type-color-icon me-2"
-                          style={{ color: instance.typeColor || typeColors[instance.type] || "#999" }}
+                          style={{ color: typeColors[instance.type] || "#999" }}
                         />
                         {instance.type}
                       </td>
@@ -497,40 +527,30 @@ export default function EditorHome() {
                           Saved in space {instance.space}
                         </div>
                       </td>
-                      <td>
-                        {instance.permissions.includes("View") && (
-                          <FontAwesomeIcon
-                            icon={faGlasses}
-                            className="me-2"
-                            title="View"
-                          />
-                        )}
-                        {instance.permissions.includes("Edit") && (
-                          <FontAwesomeIcon
-                            icon={faPen}
-                            className="me-2"
-                            title="Edit"
-                          />
-                        )}
-                        {instance.permissions.includes("Review") && (
-                          <FontAwesomeIcon
-                            icon={faClipboardCheck}
-                            className="me-2"
-                            title="Review"
-                          />
-                        )}
-                        {instance.permissions.includes("Release") && (
-                          <FontAwesomeIcon icon={faRocket} title="Release" />
-                        )}
-                      </td>
                       <td>{instance.lastVisited || ""}</td>
-                      <td>{instance.releaseStatus}</td>
+                      <td>
+                        <ReleaseStatusBadge status={instance.releaseStatus} />
+                      </td>
+                      <td className="instance-table-actions-col">
+                        <InstanceTableActions
+                          instanceId={instance.instanceId}
+                          permissions={instance.permissions}
+                          releaseStatus={instance.releaseStatus}
+                          onAction={(actionKey, path) =>
+                            handleTableAction(
+                              instance.instanceId,
+                              actionKey,
+                              path,
+                            )
+                          }
+                        />
+                      </td>
                     </tr>
                   ))}
               </tbody>
             </Table>
           </div>
-          {!loading && itemsToShow < filteredAndSortedInstances.length && (
+          {itemsToShow < filteredAndSortedInstances.length && (
             <div className="text-center mt-3 mb-3">
               <Button
                 variant="outline-secondary"
@@ -543,6 +563,15 @@ export default function EditorHome() {
           )}
         </div>
       </div>
+
+      <InstancePreviewDrawer
+        instance={previewInstance}
+        show={previewInstanceId !== null && previewInstance !== null}
+        onHide={() => setPreviewInstanceId(null)}
+        onNavigate={navigate}
+        onPreviewInstance={handlePreviewLinkedInstance}
+        typeColors={typeColors}
+      />
 
       {/* Delete Confirmation Modal */}
       <Modal

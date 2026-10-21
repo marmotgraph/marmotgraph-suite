@@ -6,6 +6,8 @@ import {
   enrichLinkedInstancesWithDrafts,
   getSelectableInstancesForField,
   idsToLinkedInstances,
+  instanceLinkedFieldConfig,
+  InstanceLinkedFieldKey,
   isUnsavedInstanceId,
   LinkedInstance,
   normalizeLinkedInstancesForField,
@@ -22,9 +24,7 @@ import "./LinkedInstancesEditModal.css";
 type LinkedInstancesEditModalProps = {
   show: boolean;
   onHide: () => void;
-  fieldLabel: string;
-  /** The types (names) of the instances which can be linked - all if empty */
-  allowedTypes: string[];
+  fieldKey: InstanceLinkedFieldKey;
   linkedInstances: LinkedInstance[];
   currentInstanceId?: string;
   parentSpace?: string;
@@ -42,22 +42,22 @@ function getInitialCreatedInstances(instances: LinkedInstance[]): LinkedInstance
 export default function LinkedInstancesEditModal({
   show,
   onHide,
-  fieldLabel,
-  allowedTypes,
+  fieldKey,
   linkedInstances,
   currentInstanceId,
   parentSpace = "",
   onApply,
 }: LinkedInstancesEditModalProps) {
   const { getDraft, upsertDraft, removeDraft } = useUnsavedInstances();
+  const fieldConfig = instanceLinkedFieldConfig[fieldKey];
   const sessionCreatedIdsRef = useRef<Set<string>>(new Set());
   const selectableCatalog = useMemo(
     () =>
       enrichLinkedInstancesWithDrafts(
-        getSelectableInstancesForField(allowedTypes, currentInstanceId),
+        getSelectableInstancesForField(fieldKey, currentInstanceId),
         getDraft,
       ),
-    [allowedTypes, currentInstanceId, getDraft],
+    [currentInstanceId, fieldKey, getDraft],
   );
   const enrichedLinkedInstances = useMemo(
     () => enrichLinkedInstancesWithDrafts(linkedInstances, getDraft),
@@ -81,11 +81,11 @@ export default function LinkedInstancesEditModal({
     () =>
       [
         ...new Set([
-          ...allowedTypes,
+          ...fieldConfig.allowedTypes,
           ...selectableCatalog.map((instance) => instance.type),
         ]),
       ].sort(),
-    [allowedTypes, selectableCatalog],
+    [fieldConfig.allowedTypes, selectableCatalog],
   );
   const availableSpaces = useMemo(
     () =>
@@ -121,6 +121,7 @@ export default function LinkedInstancesEditModal({
           instanceId: instance.instanceId,
           instanceName: instance.instanceName,
           type: instance.type,
+          space: instance.space,
           fieldValues: emptyInstanceFieldValues,
           updatedAt: timestamp,
           isNew: true,
@@ -228,7 +229,7 @@ export default function LinkedInstancesEditModal({
     >
       <Modal.Header closeButton>
         <Modal.Title>
-          Manage {fieldLabel}
+          Manage {fieldConfig.label}
           <span className="linked-instances-edit-modal-count ms-2">
             ({selectedIds.length} selected)
           </span>
@@ -242,7 +243,7 @@ export default function LinkedInstancesEditModal({
         </p>
 
         <LinkedInstancesCreatePanel
-          allowedTypes={allowedTypes}
+          allowedTypes={fieldConfig.allowedTypes}
           defaultSpace={parentSpace}
           show={show}
           onCreate={handleCreateInstances}
@@ -322,7 +323,7 @@ export default function LinkedInstancesEditModal({
           text="dark"
           className="linked-instances-edit-modal-badge"
         >
-          {selectedIds.length} in {fieldLabel}
+          {selectedIds.length} in {fieldConfig.label}
         </Badge>
         <Button type="button" variant="outline-secondary" onClick={handleClose}>
           Done

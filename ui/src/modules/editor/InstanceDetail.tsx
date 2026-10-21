@@ -1,27 +1,39 @@
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { Breadcrumb, Button, Form, Spinner } from "react-bootstrap";
+import { Breadcrumb, Button, Form, Modal } from "react-bootstrap";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { faCircle, faCopy, faPencil } from "@fortawesome/free-solid-svg-icons";
+import {
+  faArrowUpRightFromSquare,
+  faCircle,
+  faCopy,
+  faPencil,
+  faTrash,
+  faTriangleExclamation,
+} from "@fortawesome/free-solid-svg-icons";
 import {
   areInstanceFieldValuesEqual,
   emptyInstanceFieldValues,
   getChangedInstanceFieldKeys,
   getChangedInstanceFieldLabels,
+  getInstanceFieldValues,
+  isMandatoryInstanceField,
+  Instance,
   InstanceFieldValues,
-  InstanceSummary
 } from "./editorMockData";
-import { useAuth } from "../../contexts/AuthContext";
 import { useInstances } from "../../contexts/InstancesContext";
-import {
-  fetchInstance,
-  InstanceDetail as InstanceDetailData,
-  InstanceField,
-} from "../../services/instances";
 import { useUnsavedInstances } from "../../contexts/UnsavedInstancesContext";
-import InstanceFieldControl from "../../components/InstanceFieldControl";
 import InstanceLinksPanel from "../../components/InstanceLinksPanel";
+import LinkedInstancesField from "../../components/LinkedInstancesField";
+import SavePlanModal from "../../components/SavePlanModal";
 import UnsavedInstancesPanel from "../../components/UnsavedInstancesPanel";
+import { SaveExecutionResult } from "./instanceSave";
+import { useInstanceSave } from "./useInstanceSave";
 import DirLinkIcon from "../../assets/icons/DirLink.svg";
 import RevLinkIcon from "../../assets/icons/RevLink.svg";
 import RevDirLinkIcon from "../../assets/icons/RevDirLink.svg";
@@ -36,6 +48,8 @@ const typeColors: Record<string, string> = {
   Cabinet: "#f44336",
   Canton: "#00bcd4",
 };
+
+const SEARCH_UI_BASE_URL = "https://search.kg.ebrains.eu/";
 
 export default function InstanceDetail() {
   const { instanceId } = useParams<{ instanceId: string }>();
@@ -54,15 +68,19 @@ export default function InstanceDetail() {
 
 function InstanceDetailView({ instanceId }: { instanceId: string }) {
   const navigate = useNavigate();
-  const { getAccessToken } = useAuth();
-  const { addInstance, instances } = useInstances();
-  const { getDraft, upsertDraft, removeDraft } = useUnsavedInstances();
+  const { getInstance, instances, deleteInstances } = useInstances();
+  const {
+    getDraft,
+    upsertDraft,
+    removeDraft,
+    registerLiveDraftProvider,
+    unregisterLiveDraftProvider,
+  } = useUnsavedInstances();
   const [searchParams] = useState(
     () => new URLSearchParams(window.location.search),
   );
-  const [baseline, setBaseline] = useState<InstanceFieldValues>(
-    emptyInstanceFieldValues,
-  );
+  const editFromUrl = searchParams.get("edit") === "true";
+  const baselineRef = useRef<InstanceFieldValues>(emptyInstanceFieldValues);
 
   const [breadcrumbTrail, setBreadcrumbTrail] = useState<
     Array<{ id: string; name: string }>
@@ -73,71 +91,63 @@ function InstanceDetailView({ instanceId }: { instanceId: string }) {
   const newInstanceType = searchParams.get("type") || "";
 
   const [isEditMode, setIsEditMode] = useState(isNewInstance);
-  const [currentFieldValues, setCurrentFieldValues] =
-    useState<InstanceFieldValues>(emptyInstanceFieldValues);
+  const [field1, setField1] = useState("");
+  const [field2, setField2] = useState("");
+  const [field3Values, setField3Values] = useState<
+    InstanceFieldValues["field3"]
+  >([]);
+  const [field4Values, setField4Values] = useState<
+    InstanceFieldValues["field4"]
+  >([]);
+  const [field5Values, setField5Values] = useState<
+    InstanceFieldValues["field5"]
+  >([]);
+  const [incomingLinksCollapsed, setIncomingLinksCollapsed] = useState(false);
+  const [outgoingLinksCollapsed, setOutgoingLinksCollapsed] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
-  const [instance, setInstance] = useState<InstanceDetailData | undefined>(
-    () =>
-      isNewInstance
-        ? {
-            instanceId,
-            type: newInstanceType,
-            instanceName: newInstanceName,
-            space: "",
-            permissions: "",
-            releaseStatus: "in progress",
-            directLinks: [],
-            reverseLinks: [],
-          }
-        : undefined,
-  );
-  /** The label of the link field hovered - either in the form or in the outgoing links */
-  const [hoveredLinkField, setHoveredLinkField] = useState<string>();
-  const [loading, setLoading] = useState(!isNewInstance);
-  const [loadError, setLoadError] = useState<string>();
+  const collapsedSideCount =
+    Number(incomingLinksCollapsed) + Number(outgoingLinksCollapsed);
 
-  useEffect(() => {
+  const instance = isNewInstance
+    ? {
+        id: instances.length + 1,
+        instanceId: instanceId || "",
+        type: newInstanceType,
+        instanceName: newInstanceName,
+        space: "",
+        permissions: "",
+        bookmarked: false,
+        releaseStatus: "in progress" as const,
+        directLinks: [],
+        reverseLinks: [],
+      }
+    : getInstance(instanceId || "");
+
+  const typeColor = instance
+    ? typeColors[instance.type] || "#6c757d"
+    : "#6c757d";
+
+  const getSavedFieldValues = useCallback((): InstanceFieldValues => {
     if (isNewInstance) {
-      return;
+      return emptyInstanceFieldValues;
     }
 
-    let cancelled = false;
-    getAccessToken()
-      .then((token) => fetchInstance(token, instanceId))
-      .then((loaded) => !cancelled && setInstance(loaded))
-      .catch((e: unknown) => {
-        console.error("Failed to load the instance", e);
-        if (!cancelled) {
-          setLoadError(e instanceof Error ? e.message : String(e));
-        }
-      })
-      .finally(() => !cancelled && setLoading(false));
-    return () => {
-      cancelled = true;
-    };
-  }, [getAccessToken, instanceId, isNewInstance]);
+    return getInstanceFieldValues(instanceId || "");
+  }, [instanceId, isNewInstance]);
 
-  const typeColor =
-    instance?.typeColor || (instance && typeColors[instance.type]) || "#6c757d";
-
-  const fields = useMemo(() => instance?.fields ?? [], [instance]);
-
-  const savedFieldValues = useMemo<InstanceFieldValues>(
-    () =>
-      Object.fromEntries(
-        fields.map((field) => [field.identifier, field.value ?? null]),
-      ),
-    [fields],
-  );
-
-  const setFieldValue = useCallback((identifier: string, value: unknown) => {
-    setCurrentFieldValues((values) => ({ ...values, [identifier]: value }));
+  const applyFieldValues = useCallback((values: InstanceFieldValues) => {
+    setField1(values.field1);
+    setField2(values.field2);
+    setField3Values(values.field3);
+    setField4Values(values.field4);
+    setField5Values(values.field5);
   }, []);
 
   const resetToSaved = useCallback(() => {
-    setCurrentFieldValues(savedFieldValues);
+    applyFieldValues(getSavedFieldValues());
     setIsEditMode(false);
-  }, [savedFieldValues]);
+  }, [applyFieldValues, getSavedFieldValues]);
 
   useEffect(() => {
     if (instance && instanceId) {
@@ -160,48 +170,133 @@ function InstanceDetailView({ instanceId }: { instanceId: string }) {
       return;
     }
 
+    const savedValues = getSavedFieldValues();
     const draft = getDraft(instanceId);
 
     if (draft) {
-      setCurrentFieldValues(draft.fieldValues);
-      setBaseline(savedFieldValues);
+      applyFieldValues(draft.fieldValues);
+      baselineRef.current = savedValues;
       setIsEditMode(true);
       return;
     }
 
-    setCurrentFieldValues(savedFieldValues);
-    setBaseline(savedFieldValues);
-    setIsEditMode(Boolean(isNewInstance));
-    // Only re-initialize when navigating between instances or once the instance is loaded — not when unrelated
+    applyFieldValues(savedValues);
+    baselineRef.current = savedValues;
+    setIsEditMode(Boolean(isNewInstance || editFromUrl));
+    // Only re-initialize when navigating between instances — not when unrelated
     // drafts are added (getDraft identity changes would exit edit mode otherwise).
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [savedFieldValues, instanceId, isNewInstance]);
+  }, [applyFieldValues, editFromUrl, getSavedFieldValues, instanceId, isNewInstance]);
+
+  const currentFieldValues = useMemo<InstanceFieldValues>(
+    () => ({
+      field1,
+      field2,
+      field3: field3Values,
+      field4: field4Values,
+      field5: field5Values,
+    }),
+    [field1, field2, field3Values, field4Values, field5Values],
+  );
 
   const changedFieldKeys = useMemo(() => {
     if (!isEditMode) {
-      return new Set<string>();
+      return new Set<keyof InstanceFieldValues>();
     }
 
-    return new Set(getChangedInstanceFieldKeys(currentFieldValues, baseline));
-  }, [baseline, currentFieldValues, isEditMode]);
+    return new Set(
+      getChangedInstanceFieldKeys(currentFieldValues, baselineRef.current),
+    );
+  }, [currentFieldValues, isEditMode]);
 
   const changedFieldLabels = useMemo(
-    () => getChangedInstanceFieldLabels(currentFieldValues, baseline, fields),
-    [baseline, currentFieldValues, fields],
+    () =>
+      getChangedInstanceFieldLabels(currentFieldValues, baselineRef.current),
+    [currentFieldValues],
   );
 
   const hasUnsavedChanges = isEditMode && changedFieldKeys.size > 0;
+
+  const liveDraftRef = useRef({
+    fieldValues: currentFieldValues,
+    changedFieldLabels: [] as string[],
+  });
+  liveDraftRef.current = {
+    fieldValues: currentFieldValues,
+    changedFieldLabels,
+  };
+
+  const handleSaveComplete = useCallback(
+    (result: SaveExecutionResult, rootIds: string[]) => {
+      const mappedCurrentId = instanceId
+        ? result.idMappings[instanceId]
+        : undefined;
+
+      if (mappedCurrentId) {
+        navigate(`/editor/instance/${mappedCurrentId}`);
+        return;
+      }
+
+      if (instanceId && rootIds.includes(instanceId)) {
+        const savedValues = getInstanceFieldValues(instanceId);
+        applyFieldValues(savedValues);
+        baselineRef.current = savedValues;
+        setIsEditMode(false);
+      }
+    },
+    [applyFieldValues, instanceId, navigate],
+  );
+
+  const {
+    requestSave,
+    pendingSave,
+    confirmPendingSave,
+    cancelPendingSave,
+    isSaving,
+    saveError,
+  } = useInstanceSave({
+    onSaveComplete: handleSaveComplete,
+  });
+
+  useEffect(() => {
+    if (!instanceId || !instance || !isEditMode) {
+      unregisterLiveDraftProvider(instanceId || "");
+      return;
+    }
+
+    registerLiveDraftProvider(instanceId, () => ({
+      instanceId,
+      instanceName: instance.instanceName,
+      type: instance.type,
+      space: instance.space,
+      fieldValues: liveDraftRef.current.fieldValues,
+      updatedAt: Date.now(),
+      isNew: isNewInstance,
+      changedFieldLabels: liveDraftRef.current.changedFieldLabels,
+    }));
+
+    return () => {
+      unregisterLiveDraftProvider(instanceId);
+    };
+  }, [
+    instance,
+    instanceId,
+    isEditMode,
+    isNewInstance,
+    registerLiveDraftProvider,
+    unregisterLiveDraftProvider,
+  ]);
 
   useEffect(() => {
     if (!instanceId || !instance || !isEditMode) {
       return;
     }
 
-    if (!areInstanceFieldValuesEqual(currentFieldValues, baseline)) {
+    if (!areInstanceFieldValuesEqual(currentFieldValues, baselineRef.current)) {
       upsertDraft({
         instanceId,
         instanceName: instance.instanceName,
         type: instance.type,
+        space: instance.space,
         fieldValues: currentFieldValues,
         updatedAt: Date.now(),
         isNew: isNewInstance,
@@ -212,7 +307,6 @@ function InstanceDetailView({ instanceId }: { instanceId: string }) {
 
     removeDraft(instanceId);
   }, [
-    baseline,
     changedFieldLabels,
     currentFieldValues,
     instance,
@@ -223,21 +317,11 @@ function InstanceDetailView({ instanceId }: { instanceId: string }) {
     upsertDraft,
   ]);
 
-  if (loading) {
-    return (
-      <div className="text-center py-4">
-        <Spinner animation="border" size="sm" role="status" className="me-2" />
-        Loading instance...
-      </div>
-    );
-  }
-
   if (!instance) {
     return (
       <div>
         <h2>Instance not found</h2>
         <p>No instance found with ID: {instanceId}</p>
-        {loadError && <p className="text-muted">{loadError}</p>}
       </div>
     );
   }
@@ -247,36 +331,16 @@ function InstanceDetailView({ instanceId }: { instanceId: string }) {
   };
 
   const handleEdit = () => {
-    setBaseline(savedFieldValues);
+    baselineRef.current = getSavedFieldValues();
     setIsEditMode(true);
   };
 
   const handleSave = () => {
-    if (isNewInstance) {
-      const newId = `inst-${crypto.randomUUID()}`;
-
-      const newInstance: InstanceSummary = {
-        id: instances.length + 1,
-        instanceId: newId,
-        type: instance.type,
-        instanceName: instance.instanceName,
-        space: instance.space || "default-space",
-        permissions: "View, Edit",
-        bookmarked: false,
-        releaseStatus: "in progress",
-        directLinks: [],
-        reverseLinks: [],
-      };
-
-      removeDraft(instanceId || "");
-      addInstance(newInstance);
-      navigate(`/editor/instances/${newId}`);
+    if (!instanceId) {
       return;
     }
 
-    removeDraft(instanceId || "");
-    setBaseline(currentFieldValues);
-    setIsEditMode(false);
+    requestSave([instanceId]);
   };
 
   const handleCancel = () => {
@@ -288,23 +352,31 @@ function InstanceDetailView({ instanceId }: { instanceId: string }) {
     }
   };
 
-  const handleLinkClick = (linkedInstanceId: string) => {
-    navigate(`/editor/instances/${linkedInstanceId}`);
+  const handleDeleteClick = () => {
+    setShowDeleteConfirm(true);
   };
 
-  /** Highlights a link field together with its group in the outgoing links (and vice versa) when hovered. */
-  const linkFieldProps = (field: InstanceField, className: string) => {
-    if (field.kind !== "LINK" && field.kind !== "LINKS") {
-      return { className };
+  const handleCancelDelete = () => {
+    setShowDeleteConfirm(false);
+  };
+
+  const handleConfirmDelete = () => {
+    if (!instanceId) {
+      return;
     }
-    const label = field.label.trim();
-    return {
-      className: `${className} instance-link-field${
-        hoveredLinkField === label ? " instance-link-field--highlighted" : ""
-      }`,
-      onMouseEnter: () => setHoveredLinkField(label),
-      onMouseLeave: () => setHoveredLinkField(undefined),
-    };
+
+    removeDraft(instanceId);
+
+    if (!isNewInstance) {
+      deleteInstances([instanceId]);
+    }
+
+    setShowDeleteConfirm(false);
+    navigate("/editor");
+  };
+
+  const handleLinkClick = (linkedInstanceId: string) => {
+    navigate(`/editor/instance/${linkedInstanceId}`);
   };
 
   const getLinkStatusIcon = () => {
@@ -326,13 +398,25 @@ function InstanceDetailView({ instanceId }: { instanceId: string }) {
 
   return (
     <>
-      <div className="instance-detail-layout">
-        <aside className="instance-detail-side instance-detail-side--reverse">
+      <div
+        className={`instance-detail-layout${
+          collapsedSideCount > 0
+            ? ` instance-detail-layout--sides-${collapsedSideCount}-collapsed`
+            : ""
+        }`}
+      >
+        <aside
+          className={`instance-detail-side instance-detail-side--reverse${
+            incomingLinksCollapsed ? " instance-detail-side--collapsed" : ""
+          }`}
+        >
           <InstanceLinksPanel
             links={instance?.reverseLinks || []}
             onLinkClick={handleLinkClick}
             title="Incoming Links"
             isReverse={true}
+            isCollapsed={incomingLinksCollapsed}
+            onCollapsedChange={setIncomingLinksCollapsed}
           />
         </aside>
 
@@ -353,7 +437,7 @@ function InstanceDetailView({ instanceId }: { instanceId: string }) {
                   onClick={
                     isLast
                       ? undefined
-                      : () => navigate(`/editor/instances/${item.id}`)
+                      : () => navigate(`/editor/instance/${item.id}`)
                   }
                   style={isLast ? {} : { cursor: "pointer" }}
                 >
@@ -410,17 +494,48 @@ function InstanceDetailView({ instanceId }: { instanceId: string }) {
                   </div>
                 </div>
                 <div className="d-flex flex-column align-items-end gap-2">
-                  {!isEditMode && (
-                    <Button
-                      variant="link"
-                      className="edit-icon-btn"
-                      onClick={handleEdit}
-                      aria-label="Edit"
-                      title="Edit"
-                    >
-                      <FontAwesomeIcon icon={faPencil} />
-                    </Button>
-                  )}
+                  <div className="instance-header-actions">
+                    {instance.releaseStatus === "released" && !isNewInstance && (
+                      <Button
+                        variant="outline-secondary"
+                        size="sm"
+                        className="instance-search-link-btn"
+                        href={SEARCH_UI_BASE_URL}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        title="Open this instance in the Knowledge Graph search UI"
+                      >
+                        View in search UI
+                        <FontAwesomeIcon
+                          icon={faArrowUpRightFromSquare}
+                          className="ms-2"
+                          aria-hidden="true"
+                        />
+                      </Button>
+                    )}
+                    {!isEditMode && (
+                      <Button
+                        variant="link"
+                        className="edit-icon-btn"
+                        onClick={handleEdit}
+                        aria-label="Edit"
+                        title="Edit"
+                      >
+                        <FontAwesomeIcon icon={faPencil} />
+                      </Button>
+                    )}
+                    {isEditMode && (
+                      <Button
+                        variant="link"
+                        className="delete-icon-btn"
+                        onClick={handleDeleteClick}
+                        aria-label="Delete instance"
+                        title="Delete instance"
+                      >
+                        <FontAwesomeIcon icon={faTrash} />
+                      </Button>
+                    )}
+                  </div>
                   <img
                     src={getLinkStatusIcon()}
                     alt="Link status"
@@ -430,59 +545,152 @@ function InstanceDetailView({ instanceId }: { instanceId: string }) {
               </div>
             </div>
 
-            {fields.length === 0 && (
-              <p className="text-muted">
-                {isNewInstance
-                  ? "The fields of new instances are not available yet."
-                  : "This instance has no fields."}
-              </p>
-            )}
             {!isEditMode ? (
               <div className="instance-view">
-                {fields.map((field) => (
-                  <div key={field.identifier} {...linkFieldProps(field, "mb-4")}>
-                    <div className="view-label" title={field.tooltip}>
-                      {field.label}
-                    </div>
-                    <InstanceFieldControl
-                      field={field}
-                      value={currentFieldValues[field.identifier]}
-                      onChange={(value) => setFieldValue(field.identifier, value)}
-                      isEditMode={false}
+                <div className="mb-4">
+                  <InstanceViewLabel fieldKey="field1">Field 1</InstanceViewLabel>
+                  <div className="view-value">{field1}</div>
+                </div>
+
+                <div className="mb-4">
+                  <InstanceViewLabel fieldKey="field2">Field 2</InstanceViewLabel>
+                  <div className="view-value">{field2}</div>
+                </div>
+
+                <div className="mb-4">
+                  <InstanceViewLabel fieldKey="field3">Field 3</InstanceViewLabel>
+                  <div className="view-value">
+                    <LinkedInstancesField
+                      fieldKey="field3"
+                      fieldLabel="Field 3"
+                      linkedInstances={field3Values}
                       onInstanceClick={handleLinkClick}
+                      variant="view"
                     />
                   </div>
-                ))}
+                </div>
+
+                <div className="mb-4">
+                  <InstanceViewLabel fieldKey="field4">Field 4</InstanceViewLabel>
+                  <div className="view-value">
+                    <LinkedInstancesField
+                      fieldKey="field4"
+                      fieldLabel="Field 4"
+                      linkedInstances={field4Values}
+                      onInstanceClick={handleLinkClick}
+                      variant="view"
+                    />
+                  </div>
+                </div>
+
+                <div className="mb-4">
+                  <InstanceViewLabel fieldKey="field5">Field 5</InstanceViewLabel>
+                  <div className="view-value">
+                    <LinkedInstancesField
+                      fieldKey="field5"
+                      fieldLabel="Field 5"
+                      linkedInstances={field5Values}
+                      onInstanceClick={handleLinkClick}
+                      variant="view"
+                    />
+                  </div>
+                </div>
               </div>
             ) : (
               <div className="instance-form">
-                {fields.map((field) => (
-                  <Form.Group
-                    key={field.identifier}
-                    {...linkFieldProps(field, "mb-4")}
+                <Form.Group className="mb-4">
+                  <InstanceFieldLabel
+                    fieldKey="field1"
+                    isChanged={changedFieldKeys.has("field1")}
                   >
-                    <InstanceFieldLabel
-                      isChanged={changedFieldKeys.has(field.identifier)}
-                      tooltip={field.tooltip}
-                    >
-                      {field.label}
-                      {field.required && " *"}
-                    </InstanceFieldLabel>
-                    <InstanceFieldControl
-                      field={field}
-                      value={currentFieldValues[field.identifier]}
-                      onChange={(value) => setFieldValue(field.identifier, value)}
-                      isEditMode
-                      onInstanceClick={handleLinkClick}
-                      currentInstanceId={instanceId}
-                      parentSpace={instance.space}
-                    />
-                  </Form.Group>
-                ))}
+                    Field 1
+                  </InstanceFieldLabel>
+                  <Form.Control
+                    type="text"
+                    value={field1}
+                    onChange={(e) => setField1(e.target.value)}
+                    aria-required={isMandatoryInstanceField("field1")}
+                  />
+                </Form.Group>
+
+                <Form.Group className="mb-4">
+                  <InstanceFieldLabel
+                    fieldKey="field2"
+                    isChanged={changedFieldKeys.has("field2")}
+                  >
+                    Field 2
+                  </InstanceFieldLabel>
+                  <Form.Control
+                    type="text"
+                    value={field2}
+                    onChange={(e) => setField2(e.target.value)}
+                    aria-required={isMandatoryInstanceField("field2")}
+                  />
+                </Form.Group>
+
+                <Form.Group className="mb-4">
+                  <InstanceFieldLabel
+                    fieldKey="field3"
+                    isChanged={changedFieldKeys.has("field3")}
+                  >
+                    Field 3
+                  </InstanceFieldLabel>
+                  <LinkedInstancesField
+                    fieldKey="field3"
+                    fieldLabel="Field 3"
+                    linkedInstances={field3Values}
+                    onInstanceClick={handleLinkClick}
+                    isEditMode
+                    onChange={setField3Values}
+                    currentInstanceId={instanceId}
+                    parentSpace={instance.space}
+                    variant="edit"
+                  />
+                </Form.Group>
+
+                <Form.Group className="mb-4">
+                  <InstanceFieldLabel
+                    fieldKey="field4"
+                    isChanged={changedFieldKeys.has("field4")}
+                  >
+                    Field 4
+                  </InstanceFieldLabel>
+                  <LinkedInstancesField
+                    fieldKey="field4"
+                    fieldLabel="Field 4"
+                    linkedInstances={field4Values}
+                    onInstanceClick={handleLinkClick}
+                    isEditMode
+                    onChange={setField4Values}
+                    currentInstanceId={instanceId}
+                    parentSpace={instance.space}
+                    variant="edit"
+                  />
+                </Form.Group>
+
+                <Form.Group className="mb-4">
+                  <InstanceFieldLabel
+                    fieldKey="field5"
+                    isChanged={changedFieldKeys.has("field5")}
+                  >
+                    Field 5
+                  </InstanceFieldLabel>
+                  <LinkedInstancesField
+                    fieldKey="field5"
+                    fieldLabel="Field 5"
+                    linkedInstances={field5Values}
+                    onInstanceClick={handleLinkClick}
+                    isEditMode
+                    onChange={setField5Values}
+                    currentInstanceId={instanceId}
+                    parentSpace={instance.space}
+                    variant="edit"
+                  />
+                </Form.Group>
 
                 <div className="d-flex gap-2 mt-4">
-                  <Button variant="dark" onClick={handleSave}>
-                    Save
+                  <Button variant="dark" onClick={handleSave} disabled={isSaving}>
+                    {isSaving ? "Saving..." : "Save"}
                   </Button>
                   <Button variant="outline-secondary" onClick={handleCancel}>
                     Cancel
@@ -493,14 +701,18 @@ function InstanceDetailView({ instanceId }: { instanceId: string }) {
           </div>
         </div>
 
-        <aside className="instance-detail-side instance-detail-side--direct">
+        <aside
+          className={`instance-detail-side instance-detail-side--direct${
+            outgoingLinksCollapsed ? " instance-detail-side--collapsed" : ""
+          }`}
+        >
           <InstanceLinksPanel
             links={instance?.directLinks || []}
             onLinkClick={handleLinkClick}
             title="Outgoing Links"
             isReverse={false}
-            highlightedField={hoveredLinkField}
-            onFieldHover={setHoveredLinkField}
+            isCollapsed={outgoingLinksCollapsed}
+            onCollapsedChange={setOutgoingLinksCollapsed}
           />
         </aside>
       </div>
@@ -508,26 +720,141 @@ function InstanceDetailView({ instanceId }: { instanceId: string }) {
       <UnsavedInstancesPanel
         currentInstanceId={instanceId}
         onDiscardCurrent={resetToSaved}
+        onRequestSave={requestSave}
+        isSaving={isSaving}
       />
+
+      <SavePlanModal
+        show={Boolean(pendingSave)}
+        plan={pendingSave?.plan ?? null}
+        isSaving={isSaving}
+        saveError={saveError}
+        onConfirm={confirmPendingSave}
+        onCancel={cancelPendingSave}
+        onOpenInstance={(targetInstanceId) => {
+          cancelPendingSave();
+          navigate(`/editor/instance/${targetInstanceId}?edit=true`);
+        }}
+      />
+
+      <Modal
+        show={showDeleteConfirm}
+        onHide={handleCancelDelete}
+        centered
+        aria-labelledby="instance-delete-confirm-title"
+      >
+        <Modal.Header closeButton>
+          <Modal.Title id="instance-delete-confirm-title">
+            Delete instance?
+          </Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          <p className="instance-delete-confirm-intro">
+            You are about to permanently delete{" "}
+            <strong>{instance.instanceName}</strong>.
+          </p>
+          <div className="instance-delete-confirm-summary">
+            <div>
+              <span className="text-muted">Type:</span> {instance.type}
+            </div>
+            <div>
+              <span className="text-muted">ID:</span> {instanceId}
+            </div>
+          </div>
+          {instance.releaseStatus === "released" && !isNewInstance && (
+            <p className="instance-delete-confirm-warning" role="status">
+              <FontAwesomeIcon
+                icon={faTriangleExclamation}
+                className="me-2"
+                aria-hidden="true"
+              />
+              This instance is released. Deleting it will also remove it from
+              search.
+            </p>
+          )}
+          {(instance.reverseLinks?.length || instance.directLinks?.length) ? (
+            <p className="instance-delete-confirm-warning" role="status">
+              <FontAwesomeIcon
+                icon={faTriangleExclamation}
+                className="me-2"
+                aria-hidden="true"
+              />
+              Linked incoming and outgoing relationships will be removed with
+              this instance.
+            </p>
+          ) : null}
+          {isNewInstance && (
+            <p className="instance-delete-confirm-note">
+              This instance has not been saved yet. Deleting it will discard
+              the draft.
+            </p>
+          )}
+          <p className="instance-delete-confirm-note mb-0">
+            This action cannot be undone.
+          </p>
+        </Modal.Body>
+        <Modal.Footer>
+          <Button variant="outline-secondary" onClick={handleCancelDelete}>
+            Cancel
+          </Button>
+          <Button variant="danger" onClick={handleConfirmDelete}>
+            Delete instance
+          </Button>
+        </Modal.Footer>
+      </Modal>
     </>
   );
 }
 
+function InstanceFieldRequiredMark({
+  fieldKey,
+}: {
+  fieldKey: keyof InstanceFieldValues;
+}) {
+  if (!isMandatoryInstanceField(fieldKey)) {
+    return null;
+  }
+
+  return (
+    <>
+      <span className="instance-field-label-required" aria-hidden="true">
+        *
+      </span>
+      <span className="visually-hidden"> (required)</span>
+    </>
+  );
+}
+
+function InstanceViewLabel({
+  fieldKey,
+  children,
+}: {
+  fieldKey: keyof InstanceFieldValues;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="view-label">
+      {children}
+      <InstanceFieldRequiredMark fieldKey={fieldKey} />
+    </div>
+  );
+}
+
 function InstanceFieldLabel({
+  fieldKey,
   children,
   isChanged = false,
-  tooltip,
 }: {
+  fieldKey: keyof InstanceFieldValues;
   children: React.ReactNode;
   isChanged?: boolean;
-  tooltip?: string;
 }) {
   return (
     <Form.Label
       className={isChanged ? "instance-field-label--changed" : undefined}
-      title={tooltip}
     >
       {children}
+      <InstanceFieldRequiredMark fieldKey={fieldKey} />
       {isChanged && (
         <span className="instance-field-label-changed-badge">Unsaved</span>
       )}

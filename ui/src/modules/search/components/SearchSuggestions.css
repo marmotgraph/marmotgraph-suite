@@ -1,0 +1,39 @@
+.search-suggestions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-top: 15px;
+}
+
+.search-suggestions-label {
+  font-size: 13px;
+  color: var(--search-muted);
+  margin-right: 2px;
+}
+
+.search-suggestion {
+  font-size: 13px;
+  color: var(--search-ink-2);
+  background: var(--search-surface);
+  border: 1px solid var(--search-line);
+  padding: 5px 12px;
+  border-radius: 20px;
+  font-family: var(--search-font-sans);
+  cursor: pointer;
+  transition:
+    border-color 0.14s ease,
+    color 0.14s ease,
+    background 0.14s ease;
+}
+
+.search-suggestion:hover {
+  border-color: var(--search-accent);
+  color: var(--search-accent-ink);
+  background: color-mix(in srgb, var(--search-accent) 6%, var(--search-white));
+}
+
+.search-suggestion:focus-visible {
+  outline: none;
+  box-shadow: var(--search-focus-ring);
+}

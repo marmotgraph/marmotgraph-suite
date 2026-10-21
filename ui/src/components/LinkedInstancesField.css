@@ -13,22 +13,6 @@
   max-width: 100%;
 }
 
-.linked-instance-badge--restricted,
-.linked-instance-badge--unresolved {
-  cursor: default;
-  font-style: italic;
-}
-
-.linked-instance-badge--unresolved {
-  color: #6c757d !important;
-  border: 1px dashed #adb5bd;
-}
-
-.linked-instance-badge-status-icon {
-  font-size: 0.7rem;
-  margin-right: 6px;
-}
-
 .linked-instance-badge-icon {
   font-size: 0.45rem;
   margin-right: 6px;

@@ -1,0 +1,29 @@
+.search-empty {
+  text-align: center;
+  padding: 60px 20px;
+  background: var(--search-surface);
+  border: 1px dashed var(--search-line);
+  border-radius: var(--search-radius);
+  color: var(--search-faint);
+}
+
+.search-empty h3 {
+  margin: 14px 0 6px;
+  font-size: 18px;
+  color: var(--search-ink);
+  font-weight: 600;
+}
+
+.search-empty p {
+  margin: 0;
+  color: var(--search-muted);
+  font-size: 14px;
+  line-height: 1.5;
+  max-width: 420px;
+  margin-inline: auto;
+}
+
+.search-empty p strong {
+  color: var(--search-ink);
+  font-weight: 500;
+}

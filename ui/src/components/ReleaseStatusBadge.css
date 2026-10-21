@@ -1,0 +1,21 @@
+.release-status-badge {
+  font-size: 0.8125rem;
+  font-weight: 500;
+  padding: 0.35em 0.75em;
+  display: inline-flex;
+  align-items: center;
+  border: 1px solid transparent;
+  background-color: transparent;
+}
+
+.release-status-badge--released {
+  background-color: #d4edda !important;
+  color: #1e5631;
+  border-color: #b7dfc4;
+}
+
+.release-status-badge--in-progress {
+  background-color: #ffe5cc !important;
+  color: #8a4b00;
+  border-color: #ffcc99;
+}

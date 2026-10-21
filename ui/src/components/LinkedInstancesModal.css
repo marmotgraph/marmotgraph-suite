@@ -52,16 +52,6 @@
   outline: none;
 }
 
-.linked-instances-modal-item--restricted,
-.linked-instances-modal-item--unresolved {
-  cursor: default;
-  font-style: italic;
-}
-
-.linked-instances-modal-item--unresolved {
-  color: #6c757d;
-}
-
 .linked-instances-modal-item-main {
   min-width: 0;
 }

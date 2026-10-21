@@ -7,12 +7,15 @@ export default defineConfig({
   base: "/",
   plugins: [react(), svgrPlugin()],
   server: {
-    port: 3000,
+    port: 3001,
     strictPort: true,
     proxy: {
-      // The suite backend - needs to come after the more specific rules above
-      "/api": {
-        target: "http://localhost:8080",
+      "/api/query": {
+        target: "https://query.kg-dev.tds.cscs.ch",
+        changeOrigin: true,
+      },
+      "/api/editor": {
+        target: "https://editor.kg-dev.tds.cscs.ch",
         changeOrigin: true,
       },
     },

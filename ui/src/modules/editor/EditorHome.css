@@ -70,3 +70,8 @@
     padding: 12px 16px;
     margin-bottom: 16px;
 }
+
+.shared-queries-table tbody tr.instance-table-row--preview-active {
+    background-color: #eef0fb !important;
+    border-left-color: #5b5fc7;
+}

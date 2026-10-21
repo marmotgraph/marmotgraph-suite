@@ -8,7 +8,6 @@ import {
 type EntityType = {
   name: string;
   url: string;
-  description?: string;
 };
 
 type InstanceFilters = {
@@ -31,24 +30,17 @@ function ItemListFilter({
   onItemToggle,
   placeholder = "Filter...",
   emptyMessage = "No items found matching",
-  labels,
-  descriptions,
 }: {
   items: string[];
   selectedItems: string[];
   onItemToggle: (itemName: string) => void;
   placeholder?: string;
   emptyMessage?: string;
-  /** Optional labels of the items (by item) shown instead of the item itself */
-  labels?: Record<string, string>;
-  /** Optional descriptions of the items (by item) shown as tooltip */
-  descriptions?: Record<string, string | undefined>;
 }) {
   const [filter, setFilter] = useState("");
 
-  const labelOf = (item: string) => labels?.[item] ?? item;
   const filteredItems = items.filter((item) =>
-    labelOf(item).toLowerCase().includes(filter.toLowerCase()),
+    item.toLowerCase().includes(filter.toLowerCase()),
   );
 
   return (
@@ -67,8 +59,7 @@ function ItemListFilter({
               key={item}
               type="checkbox"
               id={`item-${item}`}
-              label={labelOf(item)}
-              title={descriptions?.[item]}
+              label={item}
               checked={selectedItems.includes(item)}
               onChange={() => onItemToggle(item)}
               className="mb-2"
@@ -93,10 +84,10 @@ export function InstanceFilterPanel({
   const [showTypeModal, setShowTypeModal] = useState(false);
   const [showSpaceModal, setShowSpaceModal] = useState(false);
 
-  const handleTypeToggle = (typeUrl: string) => {
-    const newTypes = filters.types.includes(typeUrl)
-      ? filters.types.filter((t) => t !== typeUrl)
-      : [...filters.types, typeUrl];
+  const handleTypeToggle = (typeName: string) => {
+    const newTypes = filters.types.includes(typeName)
+      ? filters.types.filter((t) => t !== typeName)
+      : [...filters.types, typeName];
     onFiltersChange({ ...filters, types: newTypes });
   };
 
@@ -178,13 +169,7 @@ export function InstanceFilterPanel({
         </Modal.Header>
         <Modal.Body>
           <ItemListFilter
-            items={availableTypes.map((t) => t.url)}
-            labels={Object.fromEntries(
-              availableTypes.map((t) => [t.url, t.name]),
-            )}
-            descriptions={Object.fromEntries(
-              availableTypes.map((t) => [t.url, t.description]),
-            )}
+            items={availableTypes.map((t) => t.name)}
             selectedItems={filters.types}
             onItemToggle={handleTypeToggle}
             placeholder="Filter types..."

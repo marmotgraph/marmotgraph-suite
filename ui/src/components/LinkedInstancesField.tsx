@@ -1,18 +1,12 @@
 import React, { useMemo, useState } from "react";
 import { Badge, Button } from "react-bootstrap";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import {
-  faCircle,
-  faLinkSlash,
-  faLock,
-} from "@fortawesome/free-solid-svg-icons";
+import { faCircle } from "@fortawesome/free-solid-svg-icons";
 import { useUnsavedInstances } from "../contexts/UnsavedInstancesContext";
 import {
   enrichLinkedInstancesWithDrafts,
-  isResolvedLink,
+  InstanceLinkedFieldKey,
   LinkedInstance,
-  linkedInstanceDisplayName,
-  linkedInstanceStatusDescription,
 } from "../modules/editor/editorMockData";
 import LinkedInstanceDraftBadge from "./LinkedInstanceDraftBadge";
 import LinkedInstancesEditModal from "./LinkedInstancesEditModal";
@@ -29,12 +23,10 @@ const typeColors: Record<string, string> = {
 };
 
 const PREVIEW_LIMIT = 10;
-const NO_TYPES: string[] = [];
 
 type LinkedInstancesFieldProps = {
+  fieldKey: InstanceLinkedFieldKey;
   fieldLabel: string;
-  /** The types (names) of the instances which can be linked - all if empty */
-  allowedTypes?: string[];
   linkedInstances: LinkedInstance[];
   onInstanceClick: (instanceId: string) => void;
   isEditMode?: boolean;
@@ -45,8 +37,8 @@ type LinkedInstancesFieldProps = {
 };
 
 export default function LinkedInstancesField({
+  fieldKey,
   fieldLabel,
-  allowedTypes = NO_TYPES,
   linkedInstances,
   onInstanceClick,
   isEditMode = false,
@@ -82,31 +74,7 @@ export default function LinkedInstancesField({
           </span>
         ) : (
           previewInstances.map((instance) => {
-            const typeColor =
-              instance.typeColor || typeColors[instance.type] || "#6c757d";
-
-            if (!isResolvedLink(instance)) {
-              const restricted = instance.linkStatus === "restricted";
-              return (
-                <Badge
-                  key={instance.instanceId}
-                  bg="light"
-                  text="dark"
-                  className={`${badgeClassName} linked-instance-badge linked-instance-badge--${instance.linkStatus}`}
-                  title={linkedInstanceStatusDescription(instance)}
-                >
-                  <FontAwesomeIcon
-                    icon={restricted ? faLock : faLinkSlash}
-                    className="linked-instance-badge-status-icon"
-                    style={restricted ? { color: typeColor } : undefined}
-                  />
-                  <span className="linked-instance-badge-name">
-                    {linkedInstanceDisplayName(instance)}
-                    {restricted && instance.type ? ` (${instance.type})` : ""}
-                  </span>
-                </Badge>
-              );
-            }
+            const typeColor = typeColors[instance.type] || "#6c757d";
 
             return (
               <Badge
@@ -168,8 +136,7 @@ export default function LinkedInstancesField({
         <LinkedInstancesEditModal
           show={showEditModal}
           onHide={() => setShowEditModal(false)}
-          fieldLabel={fieldLabel}
-          allowedTypes={allowedTypes}
+          fieldKey={fieldKey}
           linkedInstances={linkedInstances}
           currentInstanceId={currentInstanceId}
           parentSpace={parentSpace}

@@ -2,7 +2,6 @@ export type LinkedInstance = {
   instanceId: string;
   instanceName: string;
   type: string;
-  typeColor?: string;
   space: string;
   fieldLabel?: string;
   hasDirectLinks?: boolean;
@@ -11,55 +10,12 @@ export type LinkedInstance = {
   isDraft?: boolean;
   /** Brand-new instance that has never been saved. */
   isNew?: boolean;
-  /**
-   * Whether the link could be resolved by the backend (resolved if absent): a restricted target exists but is not
-   * readable by the user (only its id and type are known), an unresolved one doesn't point to any known instance (the
-   * instanceId then holds the identifier the instance is linked with).
-   */
-  linkStatus?: LinkStatus;
 };
 
-export type LinkStatus = "resolved" | "restricted" | "unresolved";
-
-/** Only resolved links can be opened - the target of the others is either not readable or not known. */
-export function isResolvedLink(instance: Pick<LinkedInstance, "linkStatus">) {
-  return !instance.linkStatus || instance.linkStatus === "resolved";
-}
-
-/** The name shown for a linked instance - the label of the target is only available for resolved links. */
-export function linkedInstanceDisplayName(
-  instance: Pick<LinkedInstance, "linkStatus" | "instanceName">,
-) {
-  switch (instance.linkStatus) {
-    case "restricted":
-      return "Restricted instance";
-    case "unresolved":
-      return "Unknown connection";
-    default:
-      return instance.instanceName;
-  }
-}
-
-/** Explains why a linked instance which is not resolved can not be opened. */
-export function linkedInstanceStatusDescription(
-  instance: Pick<LinkedInstance, "linkStatus" | "instanceId">,
-) {
-  switch (instance.linkStatus) {
-    case "restricted":
-      return `You don't have access to this instance (${instance.instanceId})`;
-    case "unresolved":
-      return `No instance is known for the identifier ${instance.instanceId}`;
-    default:
-      return undefined;
-  }
-}
-
-export type InstanceSummary = {
+export type Instance = {
   id: number;
   instanceId: string;
   type: string;
-  typeDescription?: string;
-  typeColor?: string;
   instanceName: string;
   space: string;
   permissions: string;
@@ -70,10 +26,32 @@ export type InstanceSummary = {
   reverseLinks?: LinkedInstance[];
 };
 
-/** The values of the fields of an instance by the identifier of the field - in the shape required by the kind of the field. */
-export type InstanceFieldValues = Record<string, unknown>;
+export type InstanceFieldValues = {
+  field1: string;
+  field2: string;
+  field3: LinkedInstance[];
+  field4: LinkedInstance[];
+  field5: LinkedInstance[];
+};
 
-export const emptyInstanceFieldValues: InstanceFieldValues = {};
+export const emptyInstanceFieldValues: InstanceFieldValues = {
+  field1: "",
+  field2: "",
+  field3: [],
+  field4: [],
+  field5: [],
+};
+
+export const mandatoryInstanceFields: ReadonlyArray<keyof InstanceFieldValues> = [
+  "field1",
+  "field2",
+];
+
+export function isMandatoryInstanceField(
+  key: keyof InstanceFieldValues,
+): boolean {
+  return mandatoryInstanceFields.includes(key);
+}
 
 export function areInstanceFieldValuesEqual(
   left: InstanceFieldValues,
@@ -81,6 +59,14 @@ export function areInstanceFieldValuesEqual(
 ): boolean {
   return getChangedInstanceFieldKeys(left, right).length === 0;
 }
+
+const INSTANCE_FIELD_KEYS: Array<keyof InstanceFieldValues> = [
+  "field1",
+  "field2",
+  "field3",
+  "field4",
+  "field5",
+];
 
 function getStoredDraftMetadata(instance: LinkedInstance): {
   isDraft: boolean;
@@ -121,44 +107,28 @@ function areLinkedInstanceListsEqual(
   });
 }
 
-function isLinkedInstance(value: unknown): value is LinkedInstance {
-  return typeof value === "object" && value !== null && "instanceId" in value;
-}
-
-/** Empty values (no value, an empty text) are considered equal. */
-function normalizeFieldValue(value: unknown): unknown {
-  return value === undefined || value === "" ? null : value;
-}
-
-function isInstanceFieldValueEqual(left: unknown, right: unknown): boolean {
-  const normalizedLeft = normalizeFieldValue(left);
-  const normalizedRight = normalizeFieldValue(right);
-
-  if (
-    Array.isArray(normalizedLeft) &&
-    Array.isArray(normalizedRight) &&
-    normalizedLeft.every(isLinkedInstance) &&
-    normalizedRight.every(isLinkedInstance)
-  ) {
-    return areLinkedInstanceListsEqual(normalizedLeft, normalizedRight);
+function isInstanceFieldValueEqual(
+  key: keyof InstanceFieldValues,
+  left: InstanceFieldValues,
+  right: InstanceFieldValues,
+): boolean {
+  if (key === "field1" || key === "field2") {
+    return left[key] === right[key];
   }
 
-  if (isLinkedInstance(normalizedLeft) && isLinkedInstance(normalizedRight)) {
-    return areLinkedInstanceListsEqual([normalizedLeft], [normalizedRight]);
-  }
-
-  return JSON.stringify(normalizedLeft) === JSON.stringify(normalizedRight);
+  return areLinkedInstanceListsEqual(left[key], right[key]);
 }
 
 export function getChangedInstanceFieldKeys(
   current: InstanceFieldValues,
   baseline: InstanceFieldValues,
-): string[] {
-  return [...new Set([...Object.keys(current), ...Object.keys(baseline)])].filter(
-    (key) => !isInstanceFieldValueEqual(current[key], baseline[key]),
+): Array<keyof InstanceFieldValues> {
+  return INSTANCE_FIELD_KEYS.filter(
+    (key) => !isInstanceFieldValueEqual(key, current, baseline),
   );
 }
 
+const SERVER_RACK_A1_ID = "inst-47b94e45-5435-49a8-aba3-3d482fabced3";
 const SERVER_RACK_SPACE = "private-25ae0198-753b-497d-9163-67488442f64";
 
 function generateLinkedInstances(
@@ -181,16 +151,172 @@ function generateLinkedInstances(
   });
 }
 
+const serverRackField3Links: LinkedInstance[] = [
+  {
+    instanceId: "draft-blade-001",
+    instanceName: "New-Blade-001",
+    type: "Blade",
+    space: SERVER_RACK_SPACE,
+    hasDirectLinks: false,
+    hasReverseLinks: false,
+    isDraft: true,
+    isNew: true,
+  },
+  {
+    instanceId: "draft-cabinet-002",
+    instanceName: "Staging-Cabinet-02",
+    type: "Cabinet",
+    space: "team-infrastructure-ops",
+    hasDirectLinks: false,
+    hasReverseLinks: false,
+    isDraft: true,
+  },
+  {
+    instanceId: "inst-b2c3d4e5-f6a7-4b5c-8d9e-0f1a2b3c4d5e",
+    instanceName: "Compute-Blade-12",
+    type: "Blade",
+    space: "team-compute-ops",
+    hasDirectLinks: true,
+    hasReverseLinks: false,
+  },
+  {
+    instanceId: "inst-a7b8c9d0-e1f2-4a5b-3c4d-5e6f7a8b9c0d",
+    instanceName: "GPU-Blade-Tesla-8",
+    type: "Blade",
+    space: SERVER_RACK_SPACE,
+    hasDirectLinks: false,
+    hasReverseLinks: true,
+  },
+  ...generateLinkedInstances("blade", 480, "Blade", SERVER_RACK_SPACE, 3),
+  ...generateLinkedInstances("cabinet", 50, "Cabinet", "team-infrastructure-ops"),
+];
+
+function createSimpleLinkedInstance(
+  name: string,
+  index: number,
+  type = "Appliance",
+): LinkedInstance {
+  return {
+    instanceId: `inst-default-field-${index}`,
+    instanceName: name,
+    type,
+    space: "default-space",
+    hasDirectLinks: false,
+    hasReverseLinks: false,
+  };
+}
+
+const defaultFieldValues: InstanceFieldValues = {
+  field1: "Field value",
+  field2: "Field value",
+  field3: [
+    createSimpleLinkedInstance("Field value 1", 1),
+    createSimpleLinkedInstance("Field value 2", 2),
+    createSimpleLinkedInstance("Field value 3", 3),
+    createSimpleLinkedInstance("Field value 4", 4),
+  ],
+  field4: [createSimpleLinkedInstance("Field value 1", 5)],
+  field5: [
+    createSimpleLinkedInstance("Field value 1", 6),
+    createSimpleLinkedInstance("Field value 2", 7),
+    createSimpleLinkedInstance("Field value 3", 8),
+    createSimpleLinkedInstance("Field value 4", 9),
+  ],
+};
+
+const instanceFieldValues: Record<string, InstanceFieldValues> = {
+  [SERVER_RACK_A1_ID]: {
+    field1: "Rack Unit 42",
+    field2: "Primary compute enclosure",
+    field3: serverRackField3Links,
+    field4: [
+      {
+        instanceId: "inst-c3d4e5f6-a7b8-4c5d-9e0f-1a2b3c4d5e6f",
+        instanceName: "Asset-2023-1547",
+        type: "Asset Tag",
+        space: SERVER_RACK_SPACE,
+        hasDirectLinks: false,
+        hasReverseLinks: false,
+      },
+    ],
+    field5: [
+      {
+        instanceId: "inst-c3d4e5f6-a7b8-4c5d-9e0f-1a2b3c4d5e6f",
+        instanceName: "Asset-2023-1547",
+        type: "Asset Tag",
+        space: SERVER_RACK_SPACE,
+        hasDirectLinks: false,
+        hasReverseLinks: false,
+      },
+    ],
+  },
+};
+
+export function getInstanceFieldValues(
+  instanceId: string,
+): InstanceFieldValues {
+  return instanceFieldValues[instanceId] ?? defaultFieldValues;
+}
+
+export function setInstanceFieldValues(
+  instanceId: string,
+  values: InstanceFieldValues,
+): void {
+  instanceFieldValues[instanceId] = normalizeInstanceFieldValues(values);
+}
+
+export type InstanceLinkedFieldKey = "field3" | "field4" | "field5";
+
+export const LINKED_INSTANCE_FIELD_KEYS: InstanceLinkedFieldKey[] = [
+  "field3",
+  "field4",
+  "field5",
+];
+
+export function getLinkedInstanceIdsFromFieldValues(
+  values: InstanceFieldValues,
+): string[] {
+  const ids = new Set<string>();
+
+  for (const fieldKey of LINKED_INSTANCE_FIELD_KEYS) {
+    for (const linkedInstance of values[fieldKey]) {
+      ids.add(linkedInstance.instanceId);
+    }
+  }
+
+  return [...ids];
+}
+
+export const instanceLinkedFieldConfig: Record<
+  InstanceLinkedFieldKey,
+  { label: string; allowedTypes: string[] }
+> = {
+  field3: { label: "Field 3", allowedTypes: ["Blade", "Cabinet"] },
+  field4: { label: "Field 4", allowedTypes: ["Asset Tag"] },
+  field5: { label: "Field 5", allowedTypes: ["Asset Tag"] },
+};
+
+export function getInstanceFieldLabel(key: keyof InstanceFieldValues): string {
+  if (key === "field3") {
+    return instanceLinkedFieldConfig.field3.label;
+  }
+
+  if (key === "field4") {
+    return instanceLinkedFieldConfig.field4.label;
+  }
+
+  if (key === "field5") {
+    return instanceLinkedFieldConfig.field5.label;
+  }
+
+  return key === "field1" ? "Field 1" : "Field 2";
+}
+
 export function getChangedInstanceFieldLabels(
   current: InstanceFieldValues,
   baseline: InstanceFieldValues,
-  fields: Array<{ identifier: string; label: string }>,
 ): string[] {
-  const labels = new Map(fields.map((field) => [field.identifier, field.label]));
-
-  return getChangedInstanceFieldKeys(current, baseline).map(
-    (key) => labels.get(key) ?? key,
-  );
+  return getChangedInstanceFieldKeys(current, baseline).map(getInstanceFieldLabel);
 }
 
 export function normalizeLinkedInstanceForStorage(
@@ -219,6 +345,18 @@ export function normalizeLinkedInstancesForField(
   instances: LinkedInstance[],
 ): LinkedInstance[] {
   return instances.map(normalizeLinkedInstanceForStorage);
+}
+
+export function normalizeInstanceFieldValues(
+  values: InstanceFieldValues,
+): InstanceFieldValues {
+  return {
+    field1: values.field1,
+    field2: values.field2,
+    field3: normalizeLinkedInstancesForField(values.field3),
+    field4: normalizeLinkedInstancesForField(values.field4),
+    field5: normalizeLinkedInstancesForField(values.field5),
+  };
 }
 
 export function buildBulkInstanceNames(
@@ -259,7 +397,7 @@ export function createDraftLinkedInstances(
   }));
 }
 
-function instanceToLinkedInstance(instance: InstanceSummary): LinkedInstance {
+function instanceToLinkedInstance(instance: Instance): LinkedInstance {
   return {
     instanceId: instance.instanceId,
     instanceName: instance.instanceName,
@@ -300,14 +438,15 @@ export function getSelectableInstanceCatalog(): LinkedInstance[] {
   return selectableInstanceCatalog;
 }
 
-/** The instances which can be linked by a field - restricted to the allowed types (if there are any). */
 export function getSelectableInstancesForField(
-  allowedTypes: string[],
+  fieldKey: InstanceLinkedFieldKey,
   excludeInstanceId?: string,
 ): LinkedInstance[] {
+  const { allowedTypes } = instanceLinkedFieldConfig[fieldKey];
+
   return getSelectableInstanceCatalog().filter(
     (instance) =>
-      (allowedTypes.length === 0 || allowedTypes.includes(instance.type)) &&
+      allowedTypes.includes(instance.type) &&
       instance.instanceId !== excludeInstanceId,
   );
 }
@@ -392,7 +531,7 @@ export function isLinkedInstanceDraft(instance: LinkedInstance): boolean {
   );
 }
 
-export const mockInstances: InstanceSummary[] = [
+export const mockInstances: Instance[] = [
   {
     id: 1,
     instanceId: "inst-47b94e45-5435-49a8-aba3-3d482fabced3",

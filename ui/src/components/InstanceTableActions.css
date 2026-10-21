@@ -1,0 +1,40 @@
+.instance-table-actions-col {
+  width: 1%;
+  white-space: nowrap;
+  padding-left: 0.5rem !important;
+  padding-right: 0.5rem !important;
+}
+
+.instance-table-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 0;
+}
+
+.instance-table-actions-btn {
+  color: #6c757d !important;
+  padding: 0.12rem 0.25rem !important;
+  line-height: 1;
+  border-radius: 4px;
+  text-decoration: none !important;
+  font-size: 0.75rem;
+}
+
+.instance-table-actions-btn:hover:not(:disabled) {
+  color: #212529 !important;
+  background-color: #eef0f4 !important;
+}
+
+.instance-table-actions-btn:focus-visible {
+  box-shadow: 0 0 0 0.15rem rgba(91, 95, 199, 0.25);
+}
+
+.instance-table-actions-btn:disabled {
+  opacity: 0.35;
+  pointer-events: none;
+}
+
+.shared-queries-table tbody td.instance-table-actions-col {
+  padding-top: 1rem;
+  padding-bottom: 1rem;
+}

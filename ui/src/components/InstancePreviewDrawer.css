@@ -1,0 +1,96 @@
+.instance-preview-drawer {
+  width: min(440px, 92vw);
+}
+
+.instance-preview-drawer .type-color-icon {
+  font-size: 0.6rem;
+  vertical-align: middle;
+}
+
+.instance-preview-drawer-header {
+  border-bottom: 1px solid #e9ecef;
+  padding-bottom: 1rem;
+}
+
+.instance-preview-drawer-title {
+  font-size: 1.15rem;
+  font-weight: 600;
+  margin-bottom: 0.35rem;
+}
+
+.instance-preview-drawer-meta {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  font-size: 0.875rem;
+  color: #6c757d;
+}
+
+.instance-preview-drawer-meta-separator {
+  color: #adb5bd;
+}
+
+.instance-preview-drawer-body {
+  padding-top: 1rem;
+  padding-bottom: 1rem;
+}
+
+.instance-preview-drawer-section {
+  margin-bottom: 1rem;
+}
+
+.instance-preview-drawer-label {
+  font-weight: 600;
+  color: #495057;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  margin-bottom: 0.35rem;
+}
+
+.instance-preview-drawer-value {
+  font-size: 0.925rem;
+  color: #212529;
+  word-break: break-word;
+}
+
+.instance-preview-drawer-id-row {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.instance-preview-drawer-id {
+  font-size: 0.8rem;
+  color: #495057;
+  word-break: break-all;
+}
+
+.instance-preview-drawer-copy-btn {
+  color: #6c757d !important;
+  flex-shrink: 0;
+}
+
+.instance-preview-drawer-copy-btn:hover {
+  color: #212529 !important;
+}
+
+.instance-preview-drawer-fields {
+  border-top: 1px solid #f1f3f5;
+  padding-top: 0.5rem;
+  margin-top: 0.25rem;
+}
+
+.instance-preview-drawer-linked-field {
+  font-size: 0.925rem;
+}
+
+.instance-preview-drawer-footer {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  padding: 1rem 1.25rem;
+  border-top: 1px solid #dee2e6;
+  background-color: #fff;
+}

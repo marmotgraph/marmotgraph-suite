@@ -7,9 +7,6 @@ import marmotGraphLogo from "../assets/marmotgraph_dark.svg";
 import marmotGraphIcon from "../assets/marmotgraph_dark_icon.svg";
 
 import "./SidebarMG.css";
-import { useCurrentUser } from "../hooks/useCurrentUser";
-import { useAuth } from "../contexts/AuthContext";
-import { userLabel } from "../services/users";
 import {
   Blocks,
   BookmarkCheck,
@@ -18,6 +15,7 @@ import {
   Edit3Icon,
   PanelLeftClose,
   PanelRightOpenIcon,
+  Search,
 } from "lucide-react";
 
 interface SidebarMGProps {
@@ -27,9 +25,6 @@ interface SidebarMGProps {
 
 function SidebarMG({ isCollapsed, onToggle }: SidebarMGProps) {
   const navigate = useNavigate();
-  const user = useCurrentUser();
-  const { logout } = useAuth();
-  const userName = (user && userLabel(user)) || "User";
 
   // @ts-ignore
   return (
@@ -91,6 +86,15 @@ function SidebarMG({ isCollapsed, onToggle }: SidebarMGProps) {
           <CodeXml size={18} />
           {!isCollapsed && <span className="ms-2">API</span>}
         </NavLink>
+        <NavLink
+          to="/search"
+          className={({ isActive }) =>
+            `d-flex align-items-center py-2 px-3 mb-1 text-dark rounded sidebar-nav-link ${isActive ? "active" : ""}`
+          }
+        >
+          <Search size={18} />
+          {!isCollapsed && <span className="ms-2">Search</span>}
+        </NavLink>
       </div>
 
       {/* Bottom Section */}
@@ -116,12 +120,10 @@ function SidebarMG({ isCollapsed, onToggle }: SidebarMGProps) {
                 style={{ cursor: "pointer" }}
               >
                 <div className="rounded-circle bg-dark text-white d-flex align-items-center justify-content-center sidebar-user-avatar">
-                  {userName.charAt(0).toUpperCase()}
+                  A
                 </div>
                 {!isCollapsed && (
-                  <span className="ms-2 text-dark fw-medium">
-                    {userName}
-                  </span>
+                  <span className="ms-2 text-dark fw-medium">User</span>
                 )}
               </div>
             </Dropdown.Toggle>
@@ -130,13 +132,7 @@ function SidebarMG({ isCollapsed, onToggle }: SidebarMGProps) {
               <Dropdown.Item href="#/profile">Profile</Dropdown.Item>
               <Dropdown.Item href="#/settings">Settings</Dropdown.Item>
               <Dropdown.Divider />
-              <Dropdown.Item
-                disabled={!logout}
-                title={logout ? undefined : "Logging out is not supported by the identity provider"}
-                onClick={() => logout?.()}
-              >
-                Logout
-              </Dropdown.Item>
+              <Dropdown.Item href="#/logout">Logout</Dropdown.Item>
             </Dropdown.Menu>
           </Dropdown>
 
