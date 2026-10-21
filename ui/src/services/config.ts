@@ -1,3 +1,5 @@
+import { getJson } from "./http";
+
 export interface AppConfig {
   authUrl: string;
   authTokenUrl: string;
@@ -8,15 +10,7 @@ export interface AppConfig {
 }
 
 export async function fetchConfig(): Promise<AppConfig> {
-  const response = await fetch("/api/config", {
-    headers: { Accept: "application/json" },
-  });
-  if (!response.ok) {
-    throw new Error(
-      `Failed to load the configuration (${response.status} ${response.statusText})`,
-    );
-  }
-  const config = (await response.json()) as AppConfig;
+  const config = await getJson<AppConfig>("/api/config", "the configuration");
   if (!config.authUrl || !config.authTokenUrl || !config.authClientId) {
     throw new Error("The configuration is missing authentication details");
   }

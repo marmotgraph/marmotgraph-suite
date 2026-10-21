@@ -1,4 +1,21 @@
-import { Instance } from "../modules/editor/editorMockData";
+import { InstanceSummary, LinkedInstance } from "../modules/editor/editorMockData";
+import { getJson } from "./http";
+
+/** A single instance as shown in its detail view - to be extended with the properties of the instance. */
+export interface InstanceDetail {
+  instanceId: string;
+  type: string;
+  typeDescription?: string;
+  typeColor?: string;
+  instanceName: string;
+  space: string;
+  permissions: string;
+  releaseStatus: "released" | "in progress";
+  /** Not (yet) provided by the backend */
+  directLinks?: LinkedInstance[];
+  /** Not (yet) provided by the backend */
+  reverseLinks?: LinkedInstance[];
+}
 
 export interface InstanceQuery {
   /** Restricts the instances to those whose label matches the term */
@@ -10,10 +27,10 @@ export interface InstanceQuery {
 }
 
 /** Fetches the instances shown in the editor - the restrictions of the query are applied by the backend. */
-export async function fetchInstances(
+export function fetchInstances(
   accessToken: string,
   { search, types = [], spaces = [] }: InstanceQuery = {},
-): Promise<Instance[]> {
+): Promise<InstanceSummary[]> {
   const params = new URLSearchParams();
   if (search?.trim()) {
     params.set("search", search.trim());
@@ -21,16 +38,17 @@ export async function fetchInstances(
   types.forEach((type) => params.append("type", type));
   spaces.forEach((space) => params.append("space", space));
   const query = params.toString() ? `?${params}` : "";
-  const response = await fetch(`/api/instances${query}`, {
-    headers: {
-      Accept: "application/json",
-      Authorization: `Bearer ${accessToken}`,
-    },
-  });
-  if (!response.ok) {
-    throw new Error(
-      `Failed to load the instances (${response.status} ${response.statusText})`,
-    );
-  }
-  return (await response.json()) as Instance[];
+  return getJson(`/api/instances${query}`, "the instances", accessToken);
+}
+
+/** Fetches a single instance (by its uuid) for the detail view. */
+export function fetchInstance(
+  accessToken: string,
+  instanceId: string,
+): Promise<InstanceDetail> {
+  return getJson(
+    `/api/instances/${encodeURIComponent(instanceId)}`,
+    "the instance",
+    accessToken,
+  );
 }

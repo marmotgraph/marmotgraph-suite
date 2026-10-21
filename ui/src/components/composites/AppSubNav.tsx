@@ -63,7 +63,7 @@ export default function AppSubNav({ title, ctas }: AppSubNavProps) {
     // Generate a temporary ID for the new instance
     const tempId = `new-${Date.now()}`;
     // Navigate to the instance form with the name and type as query params
-    window.location.href = `/editor/instance/${tempId}?name=${encodeURIComponent(instanceName)}&type=${encodeURIComponent(selectedType || '')}`;
+    window.location.href = `/editor/instances/${tempId}?name=${encodeURIComponent(instanceName)}&type=${encodeURIComponent(selectedType || '')}`;
   };
 
   return (

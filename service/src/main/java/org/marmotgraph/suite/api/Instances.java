@@ -12,6 +12,7 @@ import org.marmotgraph.suite.auth.AuthenticatedClient;
 import org.marmotgraph.suite.types.TypeCache;
 import org.marmotgraph.suite.types.TypeCache.TypeDefinition;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
@@ -26,7 +27,7 @@ import java.util.UUID;
 import java.util.stream.Collectors;
 
 /**
- * Provides the instances shown in the editor by listing them from the MarmotGraph core - on behalf of the user who
+ * Provides the instances shown in the editor by listing / fetching them from the MarmotGraph core - on behalf of the user who
  * issued the request. The type information (name, description, color, label property) is taken from the {@link TypeCache}.
  * <p>
  * TODO bookmarks and the last visit are not (yet) provided by the core - they are always reported as not bookmarked /
@@ -42,9 +43,21 @@ public class Instances {
                                  Boolean hasDirectLinks, Boolean hasReverseLinks) {
     }
 
+    /**
+     * The condensed representation of an instance as listed in the overview of the editor.
+     */
     @JsonInclude(JsonInclude.Include.NON_NULL)
-    public record Instance(int id, String instanceId, String type, String typeDescription, String typeColor, String instanceName, String space,
+    public record InstanceSummary(int id, String instanceId, String type, String typeDescription, String typeColor, String instanceName, String space,
                            String permissions, boolean bookmarked, String lastVisited, String releaseStatus) {
+    }
+
+    /**
+     * The representation of a single instance as shown in its detail view - this is going to be extended with the
+     * properties and links of the instance.
+     */
+    @JsonInclude(JsonInclude.Include.NON_NULL)
+    public record InstanceDetail(String instanceId, String type, String typeDescription, String typeColor, String instanceName,
+                                 String space, String permissions, String releaseStatus) {
     }
 
     static final String SPACE = "https://core.kg.ebrains.eu/vocab/meta/space";
@@ -73,7 +86,7 @@ public class Instances {
      * @param spaceFilter optional spaces the instances are restricted to - instances in any of them are returned
      */
     @GetMapping
-    public List<Instance> list(@AuthenticatedClient MarmotGraphClient client, @RequestParam(required = false) String search,
+    public List<InstanceSummary> list(@AuthenticatedClient MarmotGraphClient client, @RequestParam(required = false) String search,
                                @RequestParam(name = "type", required = false) List<String> typeFilter,
                                @RequestParam(name = "space", required = false) List<String> spaceFilter) {
         List<org.marmotgraph.sdk.model.Instance> instances = client.instances().list(InstanceListOptions.builder()
@@ -91,17 +104,33 @@ public class Instances {
         List<UUID> ids = instances.stream().map(i -> i.getUuid().orElse(null)).filter(Objects::nonNull).toList();
         Map<String, ReleaseStatus> releaseStatuses = ids.isEmpty() ? Map.of() : client.instances().releaseStatusByIds(ids, ReleaseTreeScope.TOP_INSTANCE_ONLY);
 
-        List<Instance> result = new ArrayList<>(instances.size());
+        List<InstanceSummary> result = new ArrayList<>(instances.size());
         for (org.marmotgraph.sdk.model.Instance instance : instances) {
             String instanceId = instance.getUuid().map(UUID::toString).orElse(instance.getId());
             String typeName = primaryType(instance);
             TypeDefinition type = typeName != null ? types.get(typeName) : null;
-            result.add(new Instance(result.size() + 1, instanceId, typeLabel(typeName, type), type != null ? type.description() : null, type != null ? type.color() : null,
+            result.add(new InstanceSummary(result.size() + 1, instanceId, typeLabel(typeName, type), type != null ? type.description() : null, type != null ? type.color() : null,
                     instanceName(instance, type, instanceId), firstString(instance.get(SPACE)),
                     permissions(instance.get(PERMISSIONS)), false, null,
                     releaseStatuses.get(instanceId) == ReleaseStatus.RELEASED ? RELEASED : IN_PROGRESS));
         }
         return result;
+    }
+
+    /**
+     * @param id the uuid of the instance as known by the core
+     */
+    @GetMapping("/{id}")
+    public InstanceDetail get(@AuthenticatedClient MarmotGraphClient client, @PathVariable UUID id) {
+        org.marmotgraph.sdk.model.Instance instance = client.instances().get(id, Stage.IN_PROGRESS,
+                ResponseOptions.builder().returnPermissions(true).build());
+        String instanceId = instance.getUuid().map(UUID::toString).orElse(id.toString());
+        String typeName = primaryType(instance);
+        TypeDefinition type = typeName != null ? typeCache.get(client, List.of(typeName)).get(typeName) : null;
+        ReleaseStatus releaseStatus = client.instances().releaseStatus(id, ReleaseTreeScope.TOP_INSTANCE_ONLY);
+        return new InstanceDetail(instanceId, typeLabel(typeName, type), type != null ? type.description() : null, type != null ? type.color() : null,
+                instanceName(instance, type, instanceId), firstString(instance.get(SPACE)), permissions(instance.get(PERMISSIONS)),
+                releaseStatus == ReleaseStatus.RELEASED ? RELEASED : IN_PROGRESS);
     }
 
     private static List<String> nonBlank(List<String> values) {

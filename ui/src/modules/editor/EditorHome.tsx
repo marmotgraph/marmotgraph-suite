@@ -58,7 +58,7 @@ export default function EditorHome() {
     spaceFilter,
     setSpaceFilter,
     deleteInstances,
-  } = useInstances();
+  } = useInstances({ load: true });
   const types = useTypes();
   const spaces = useSpaces();
   const [showBookmarkedOnly, setShowBookmarkedOnly] = useState(false);
@@ -264,7 +264,7 @@ export default function EditorHome() {
   };
 
   const handleRowClick = (instanceId: string) => {
-    navigate(`/instances/${instanceId}`);
+    navigate(`/editor/instances/${instanceId}`);
   };
 
   return (

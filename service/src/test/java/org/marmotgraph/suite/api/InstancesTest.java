@@ -12,6 +12,7 @@ import org.marmotgraph.sdk.model.TypeInformation;
 import org.marmotgraph.sdk.pagination.Page;
 import org.marmotgraph.sdk.resources.InstanceListOptions;
 import org.marmotgraph.sdk.resources.InstancesResource;
+import org.marmotgraph.sdk.resources.ResponseOptions;
 import org.marmotgraph.sdk.resources.TypesResource;
 import org.marmotgraph.suite.auth.AuthenticatedClientResolver;
 import org.marmotgraph.suite.configuration.ArgumentResolvers;
@@ -187,6 +188,60 @@ class InstancesTest {
                 .andExpect(jsonPath("$.length()").value(0));
         verifyNoInteractions(typesResource);
         verify(instancesResource, never()).releaseStatusByIds(any(), any());
+    }
+
+    @Test
+    void getMapsTheInstanceOfTheCore() throws Exception {
+        when(instancesResource.get(any(UUID.class), any(), any())).thenReturn(
+                instance(RELEASED_ID, DEVICE, Map.of(NAME, "Server-Rack-A1", Instances.PERMISSIONS, List.of("READ", "WRITE"))));
+        when(typesResource.getByNames(List.of(DEVICE), Stage.IN_PROGRESS, null, false, false))
+                .thenReturn(Map.of(DEVICE, new TypeInformation(DEVICE, "A device in the data center", "Device", "#ff9800", NAME, null, null, List.of(), List.of(), List.of(), Map.of())));
+        when(instancesResource.releaseStatus(RELEASED_ID, ReleaseTreeScope.TOP_INSTANCE_ONLY)).thenReturn(ReleaseStatus.RELEASED);
+
+        mockMvc.perform(get("/instances/" + RELEASED_ID).header(HttpHeaders.AUTHORIZATION, "Bearer theToken"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.instanceId").value(RELEASED_ID.toString()))
+                .andExpect(jsonPath("$.type").value("Device"))
+                .andExpect(jsonPath("$.typeDescription").value("A device in the data center"))
+                .andExpect(jsonPath("$.typeColor").value("#ff9800"))
+                .andExpect(jsonPath("$.instanceName").value("Server-Rack-A1"))
+                .andExpect(jsonPath("$.space").value("myspace"))
+                .andExpect(jsonPath("$.permissions").value("View, Edit"))
+                .andExpect(jsonPath("$.releaseStatus").value("released"));
+
+        ArgumentCaptor<ResponseOptions> options = ArgumentCaptor.forClass(ResponseOptions.class);
+        verify(instancesResource).get(Mockito.eq(RELEASED_ID), Mockito.eq(Stage.IN_PROGRESS), options.capture());
+        assertTrue(options.getValue().returnPermissions());
+    }
+
+    @Test
+    void getOfAnUnknownTypeFallsBackToTheIdentifiers() throws Exception {
+        when(instancesResource.get(any(UUID.class), any(), any())).thenReturn(
+                instance(UNRELEASED_ID, "https://example.org/types/Unknown", Map.of()));
+        when(instancesResource.releaseStatus(UNRELEASED_ID, ReleaseTreeScope.TOP_INSTANCE_ONLY)).thenReturn(ReleaseStatus.HAS_CHANGED);
+
+        mockMvc.perform(get("/instances/" + UNRELEASED_ID).header(HttpHeaders.AUTHORIZATION, "Bearer theToken"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.type").value("Unknown"))
+                .andExpect(jsonPath("$.typeColor").doesNotExist())
+                .andExpect(jsonPath("$.instanceName").value(UNRELEASED_ID.toString()))
+                .andExpect(jsonPath("$.permissions").value(""))
+                .andExpect(jsonPath("$.releaseStatus").value("in progress"));
+    }
+
+    @Test
+    void getWithAnInvalidIdIsABadRequest() throws Exception {
+        mockMvc.perform(get("/instances/not-a-uuid").header(HttpHeaders.AUTHORIZATION, "Bearer theToken"))
+                .andExpect(status().isBadRequest());
+        verifyNoInteractions(instancesResource);
+    }
+
+    @Test
+    void getForwardsANotFoundOfTheCore() throws Exception {
+        when(instancesResource.get(any(UUID.class), any(), any())).thenThrow(new MarmotGraphApiException(404, "Not found", null, null));
+
+        mockMvc.perform(get("/instances/" + RELEASED_ID).header(HttpHeaders.AUTHORIZATION, "Bearer theToken"))
+                .andExpect(status().isNotFound());
     }
 
     @Test

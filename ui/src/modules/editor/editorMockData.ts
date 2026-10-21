@@ -12,7 +12,7 @@ export type LinkedInstance = {
   isNew?: boolean;
 };
 
-export type Instance = {
+export type InstanceSummary = {
   id: number;
   instanceId: string;
   type: string;
@@ -361,7 +361,7 @@ export function createDraftLinkedInstances(
   }));
 }
 
-function instanceToLinkedInstance(instance: Instance): LinkedInstance {
+function instanceToLinkedInstance(instance: InstanceSummary): LinkedInstance {
   return {
     instanceId: instance.instanceId,
     instanceName: instance.instanceName,
@@ -495,7 +495,7 @@ export function isLinkedInstanceDraft(instance: LinkedInstance): boolean {
   );
 }
 
-export const mockInstances: Instance[] = [
+export const mockInstances: InstanceSummary[] = [
   {
     id: 1,
     instanceId: "inst-47b94e45-5435-49a8-aba3-3d482fabced3",

@@ -26,8 +26,7 @@ function App() {
           <Route path="queries/:queryId" element={<QueryDetail />} />
           <Route path="queries/test/*" element={<Test />} />
           <Route path="editor" element={<EditorHome />} />
-          <Route path="editor/instance/:instanceId" element={<InstanceDetail />} />
-          <Route path="instances/:instanceId" element={<InstanceDetail />} />
+          <Route path="editor/instances/:instanceId" element={<InstanceDetail />} />
           <Route path="visualizer/*" element={<VisualizerHome />} />
           <Route path="*" element={<h4>Page not found</h4>} />
         </Routes>

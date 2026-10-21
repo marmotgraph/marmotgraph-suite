@@ -34,7 +34,7 @@ export default function UnsavedInstancesPanel({
   const [isExpanded, setIsExpanded] = useState(true);
 
   const handleOpen = (instanceId: string) => {
-    navigate(`/editor/instance/${instanceId}`);
+    navigate(`/editor/instances/${instanceId}`);
   };
 
   const handleDiscard = (instanceId: string) => {

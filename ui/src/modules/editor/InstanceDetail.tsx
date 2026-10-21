@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { Breadcrumb, Button, Form } from "react-bootstrap";
+import { Breadcrumb, Button, Form, Spinner } from "react-bootstrap";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faCircle, faCopy, faPencil } from "@fortawesome/free-solid-svg-icons";
 import {
@@ -9,10 +9,15 @@ import {
   getChangedInstanceFieldKeys,
   getChangedInstanceFieldLabels,
   getInstanceFieldValues,
-  Instance,
-  InstanceFieldValues
+  InstanceFieldValues,
+  InstanceSummary
 } from "./editorMockData";
+import { useAuth } from "../../contexts/AuthContext";
 import { useInstances } from "../../contexts/InstancesContext";
+import {
+  fetchInstance,
+  InstanceDetail as InstanceDetailData,
+} from "../../services/instances";
 import { useUnsavedInstances } from "../../contexts/UnsavedInstancesContext";
 import InstanceLinksPanel from "../../components/InstanceLinksPanel";
 import LinkedInstancesField from "../../components/LinkedInstancesField";
@@ -49,7 +54,8 @@ export default function InstanceDetail() {
 
 function InstanceDetailView({ instanceId }: { instanceId: string }) {
   const navigate = useNavigate();
-  const { getInstance, addInstance, instances } = useInstances();
+  const { getAccessToken } = useAuth();
+  const { addInstance, instances } = useInstances();
   const { getDraft, upsertDraft, removeDraft } = useUnsavedInstances();
   const [searchParams] = useState(
     () => new URLSearchParams(window.location.search),
@@ -77,24 +83,47 @@ function InstanceDetailView({ instanceId }: { instanceId: string }) {
     InstanceFieldValues["field5"]
   >([]);
 
-  const instance = isNewInstance
-    ? {
-        id: instances.length + 1,
-        instanceId: instanceId || "",
-        type: newInstanceType,
-        instanceName: newInstanceName,
-        space: "",
-        permissions: "",
-        bookmarked: false,
-        releaseStatus: "in progress" as const,
-        directLinks: [],
-        reverseLinks: [],
-      }
-    : getInstance(instanceId || "");
+  const [instance, setInstance] = useState<InstanceDetailData | undefined>(
+    () =>
+      isNewInstance
+        ? {
+            instanceId,
+            type: newInstanceType,
+            instanceName: newInstanceName,
+            space: "",
+            permissions: "",
+            releaseStatus: "in progress",
+            directLinks: [],
+            reverseLinks: [],
+          }
+        : undefined,
+  );
+  const [loading, setLoading] = useState(!isNewInstance);
+  const [loadError, setLoadError] = useState<string>();
 
-  const typeColor = instance
-    ? typeColors[instance.type] || "#6c757d"
-    : "#6c757d";
+  useEffect(() => {
+    if (isNewInstance) {
+      return;
+    }
+
+    let cancelled = false;
+    getAccessToken()
+      .then((token) => fetchInstance(token, instanceId))
+      .then((loaded) => !cancelled && setInstance(loaded))
+      .catch((e: unknown) => {
+        console.error("Failed to load the instance", e);
+        if (!cancelled) {
+          setLoadError(e instanceof Error ? e.message : String(e));
+        }
+      })
+      .finally(() => !cancelled && setLoading(false));
+    return () => {
+      cancelled = true;
+    };
+  }, [getAccessToken, instanceId, isNewInstance]);
+
+  const typeColor =
+    instance?.typeColor || (instance && typeColors[instance.type]) || "#6c757d";
 
   const getSavedFieldValues = useCallback((): InstanceFieldValues => {
     if (isNewInstance) {
@@ -214,11 +243,21 @@ function InstanceDetailView({ instanceId }: { instanceId: string }) {
     upsertDraft,
   ]);
 
+  if (loading) {
+    return (
+      <div className="text-center py-4">
+        <Spinner animation="border" size="sm" role="status" className="me-2" />
+        Loading instance...
+      </div>
+    );
+  }
+
   if (!instance) {
     return (
       <div>
         <h2>Instance not found</h2>
         <p>No instance found with ID: {instanceId}</p>
+        {loadError && <p className="text-muted">{loadError}</p>}
       </div>
     );
   }
@@ -236,7 +275,7 @@ function InstanceDetailView({ instanceId }: { instanceId: string }) {
     if (isNewInstance) {
       const newId = `inst-${crypto.randomUUID()}`;
 
-      const newInstance: Instance = {
+      const newInstance: InstanceSummary = {
         id: instances.length + 1,
         instanceId: newId,
         type: instance.type,
@@ -251,7 +290,7 @@ function InstanceDetailView({ instanceId }: { instanceId: string }) {
 
       removeDraft(instanceId || "");
       addInstance(newInstance);
-      navigate(`/editor/instance/${newId}`);
+      navigate(`/editor/instances/${newId}`);
       return;
     }
 
@@ -270,7 +309,7 @@ function InstanceDetailView({ instanceId }: { instanceId: string }) {
   };
 
   const handleLinkClick = (linkedInstanceId: string) => {
-    navigate(`/editor/instance/${linkedInstanceId}`);
+    navigate(`/editor/instances/${linkedInstanceId}`);
   };
 
   const getLinkStatusIcon = () => {
@@ -319,7 +358,7 @@ function InstanceDetailView({ instanceId }: { instanceId: string }) {
                   onClick={
                     isLast
                       ? undefined
-                      : () => navigate(`/editor/instance/${item.id}`)
+                      : () => navigate(`/editor/instances/${item.id}`)
                   }
                   style={isLast ? {} : { cursor: "pointer" }}
                 >
