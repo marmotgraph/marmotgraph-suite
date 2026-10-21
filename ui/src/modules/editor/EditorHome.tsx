@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { Button, Col, Form, Modal, Row, Table } from "react-bootstrap";
+import { Button, Col, Form, Modal, Row, Spinner, Table } from "react-bootstrap";
 import { useNavigate } from "react-router-dom";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
@@ -48,7 +48,7 @@ const typeColors: Record<string, string> = {
 export default function EditorHome() {
   const navigate = useNavigate();
   // const location = useLocation();
-  const { instances, searchTerm, setSearchTerm, deleteInstances } =
+  const { instances, loading, searchTerm, setSearchTerm, deleteInstances } =
     useInstances();
   const types = useTypes();
   const spaces = useSpaces();
@@ -395,7 +395,20 @@ export default function EditorHome() {
                 </tr>
               </thead>
               <tbody>
-                {filteredAndSortedInstances
+                {loading && (
+                  <tr>
+                    <td colSpan={7} className="text-center py-4">
+                      <Spinner
+                        animation="border"
+                        size="sm"
+                        role="status"
+                        className="me-2"
+                      />
+                      Loading instances...
+                    </td>
+                  </tr>
+                )}
+                {!loading && filteredAndSortedInstances
                   .slice(0, itemsToShow)
                   .map((instance) => (
                     <tr
@@ -504,7 +517,7 @@ export default function EditorHome() {
               </tbody>
             </Table>
           </div>
-          {itemsToShow < filteredAndSortedInstances.length && (
+          {!loading && itemsToShow < filteredAndSortedInstances.length && (
             <div className="text-center mt-3 mb-3">
               <Button
                 variant="outline-secondary"
