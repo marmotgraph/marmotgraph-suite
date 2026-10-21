@@ -31,6 +31,7 @@ function ItemListFilter({
   onItemToggle,
   placeholder = "Filter...",
   emptyMessage = "No items found matching",
+  labels,
   descriptions,
 }: {
   items: string[];
@@ -38,13 +39,16 @@ function ItemListFilter({
   onItemToggle: (itemName: string) => void;
   placeholder?: string;
   emptyMessage?: string;
+  /** Optional labels of the items (by item) shown instead of the item itself */
+  labels?: Record<string, string>;
   /** Optional descriptions of the items (by item) shown as tooltip */
   descriptions?: Record<string, string | undefined>;
 }) {
   const [filter, setFilter] = useState("");
 
+  const labelOf = (item: string) => labels?.[item] ?? item;
   const filteredItems = items.filter((item) =>
-    item.toLowerCase().includes(filter.toLowerCase()),
+    labelOf(item).toLowerCase().includes(filter.toLowerCase()),
   );
 
   return (
@@ -63,7 +67,7 @@ function ItemListFilter({
               key={item}
               type="checkbox"
               id={`item-${item}`}
-              label={item}
+              label={labelOf(item)}
               title={descriptions?.[item]}
               checked={selectedItems.includes(item)}
               onChange={() => onItemToggle(item)}
@@ -89,10 +93,10 @@ export function InstanceFilterPanel({
   const [showTypeModal, setShowTypeModal] = useState(false);
   const [showSpaceModal, setShowSpaceModal] = useState(false);
 
-  const handleTypeToggle = (typeName: string) => {
-    const newTypes = filters.types.includes(typeName)
-      ? filters.types.filter((t) => t !== typeName)
-      : [...filters.types, typeName];
+  const handleTypeToggle = (typeUrl: string) => {
+    const newTypes = filters.types.includes(typeUrl)
+      ? filters.types.filter((t) => t !== typeUrl)
+      : [...filters.types, typeUrl];
     onFiltersChange({ ...filters, types: newTypes });
   };
 
@@ -174,9 +178,12 @@ export function InstanceFilterPanel({
         </Modal.Header>
         <Modal.Body>
           <ItemListFilter
-            items={availableTypes.map((t) => t.name)}
+            items={availableTypes.map((t) => t.url)}
+            labels={Object.fromEntries(
+              availableTypes.map((t) => [t.url, t.name]),
+            )}
             descriptions={Object.fromEntries(
-              availableTypes.map((t) => [t.name, t.description]),
+              availableTypes.map((t) => [t.url, t.description]),
             )}
             selectedItems={filters.types}
             onItemToggle={handleTypeToggle}

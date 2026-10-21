@@ -136,6 +136,22 @@ class InstancesTest {
         assertEquals(Stage.IN_PROGRESS, options.getValue().stage());
         assertTrue(options.getValue().responseOptions().returnPermissions());
         assertNull(options.getValue().searchByLabel());
+        assertEquals(List.of(), options.getValue().types());
+        assertEquals(List.of(), options.getValue().spaces());
+    }
+
+    @Test
+    void listForwardsTheTypeAndSpaceFiltersToTheCore() throws Exception {
+        when(instancesResource.list(any(InstanceListOptions.class))).thenReturn(page(List.of()));
+
+        mockMvc.perform(get("/instances").param("type", DEVICE, "https://example.org/types/Building", " ")
+                        .param("space", "myspace", "otherspace").header(HttpHeaders.AUTHORIZATION, "Bearer theToken"))
+                .andExpect(status().isOk());
+
+        ArgumentCaptor<InstanceListOptions> options = ArgumentCaptor.forClass(InstanceListOptions.class);
+        verify(instancesResource).list(options.capture());
+        assertEquals(List.of(DEVICE, "https://example.org/types/Building"), options.getValue().types());
+        assertEquals(List.of("myspace", "otherspace"), options.getValue().spaces());
     }
 
     @Test

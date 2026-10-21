@@ -48,8 +48,17 @@ const typeColors: Record<string, string> = {
 export default function EditorHome() {
   const navigate = useNavigate();
   // const location = useLocation();
-  const { instances, loading, searchTerm, setSearchTerm, deleteInstances } =
-    useInstances();
+  const {
+    instances,
+    loading,
+    searchTerm,
+    setSearchTerm,
+    typeFilter,
+    setTypeFilter,
+    spaceFilter,
+    setSpaceFilter,
+    deleteInstances,
+  } = useInstances();
   const types = useTypes();
   const spaces = useSpaces();
   const [showBookmarkedOnly, setShowBookmarkedOnly] = useState(false);
@@ -62,28 +71,37 @@ export default function EditorHome() {
     new Set(),
   );
   const [showDeleteModal, setShowDeleteModal] = useState(false);
-  const [filters, setFilters] = useState<InstanceFilters>({
-    types: [],
-    spaces: [],
+  const [localFilters, setLocalFilters] = useState<
+    Pick<InstanceFilters, "permissions" | "releaseStatuses">
+  >({
     permissions: [],
     releaseStatuses: [],
   });
+  // The type and space filters are applied by the backend (see InstancesContext) - the others on the client
+  const filters: InstanceFilters = useMemo(
+    () => ({ ...localFilters, types: typeFilter, spaces: spaceFilter }),
+    [localFilters, typeFilter, spaceFilter],
+  );
+  const setFilters = ({ types, spaces, ...rest }: InstanceFilters) => {
+    setLocalFilters(rest);
+    setTypeFilter(types);
+    setSpaceFilter(spaces);
+  };
 
   // Reset items to show when filters or search change
   useEffect(() => {
     setItemsToShow(10);
   }, [searchTerm, filters, showBookmarkedOnly]);
 
-  // The types and spaces to filter by (instances are matched by the type label and the space identifier)
+  // The types (filtered by their identifier) and spaces to filter by
   const availableTypes = useMemo(() => {
-    const byName = new Map(types.map((type) => [typeLabel(type), type]));
-    return Array.from(byName.keys())
-      .sort()
-      .map((name) => ({
-        name,
-        url: byName.get(name)!.identifier,
-        description: byName.get(name)!.description,
-      }));
+    return types
+      .map((type) => ({
+        name: typeLabel(type),
+        url: type.identifier,
+        description: type.description,
+      }))
+      .sort((a, b) => a.name.localeCompare(b.name));
   }, [types]);
 
   const availableSpaces = useMemo(() => {
@@ -94,25 +112,11 @@ export default function EditorHome() {
   const filteredAndSortedInstances = useMemo(() => {
     let result = [...instances];
 
-    // The search term is applied by the backend (see InstancesContext)
+    // The search term, type and space filters are applied by the backend (see InstancesContext)
 
     // Apply bookmarked filter
     if (showBookmarkedOnly) {
       result = result.filter((instance) => instance.bookmarked);
-    }
-
-    // Apply type filters
-    if (filters.types.length > 0) {
-      result = result.filter((instance) =>
-        filters.types.includes(instance.type),
-      );
-    }
-
-    // Apply space filters
-    if (filters.spaces.length > 0) {
-      result = result.filter((instance) =>
-        filters.spaces.includes(instance.space),
-      );
     }
 
     // Apply release status filters
@@ -175,10 +179,10 @@ export default function EditorHome() {
     filterType: keyof InstanceFilters,
     value: string,
   ) => {
-    setFilters((prev) => ({
-      ...prev,
-      [filterType]: prev[filterType].filter((item) => item !== value),
-    }));
+    setFilters({
+      ...filters,
+      [filterType]: filters[filterType].filter((item) => item !== value),
+    });
   };
 
   const handleSort = (field: SortField) => {
@@ -314,9 +318,11 @@ export default function EditorHome() {
                 <FilterPill
                   key={type}
                   label="Type"
-                  value={type}
+                  value={
+                    availableTypes.find((t) => t.url === type)?.name ?? type
+                  }
                   title={
-                    availableTypes.find((t) => t.name === type)?.description
+                    availableTypes.find((t) => t.url === type)?.description
                   }
                   onRemove={() => handleRemoveFilter("types", type)}
                 />

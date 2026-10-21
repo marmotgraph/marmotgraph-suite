@@ -8,6 +8,12 @@ interface InstancesContextType {
   loading: boolean;
   searchTerm: string;
   setSearchTerm: (searchTerm: string) => void;
+  /** The identifiers of the types the instances are restricted to (applied by the backend) */
+  typeFilter: string[];
+  setTypeFilter: (types: string[]) => void;
+  /** The spaces the instances are restricted to (applied by the backend) */
+  spaceFilter: string[];
+  setSpaceFilter: (spaces: string[]) => void;
   addInstance: (instance: Instance) => void;
   updateInstance: (instanceId: string, updates: Partial<Instance>) => void;
   deleteInstances: (instanceIds: string[]) => void;
@@ -21,19 +27,21 @@ export function InstancesProvider({ children }: { children: ReactNode }) {
   const [instances, setInstances] = useState<Instance[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [searchTerm, setSearchTerm] = useState<string>('');
+  const [typeFilter, setTypeFilter] = useState<string[]>([]);
+  const [spaceFilter, setSpaceFilter] = useState<string[]>([]);
 
   useEffect(() => {
     let cancelled = false;
     setLoading(true);
     getAccessToken()
-      .then((token) => fetchInstances(token, searchTerm))
+      .then((token) => fetchInstances(token, { search: searchTerm, types: typeFilter, spaces: spaceFilter }))
       .then((loaded) => !cancelled && setInstances(loaded))
       .catch((e: unknown) => console.error('Failed to load the instances', e))
       .finally(() => !cancelled && setLoading(false));
     return () => {
       cancelled = true;
     };
-  }, [getAccessToken, searchTerm]);
+  }, [getAccessToken, searchTerm, typeFilter, spaceFilter]);
 
   const addInstance = (instance: Instance) => {
     setInstances(prev => [...prev, instance]);
@@ -58,7 +66,7 @@ export function InstancesProvider({ children }: { children: ReactNode }) {
   };
 
   return (
-    <InstancesContext.Provider value={{ instances, loading, searchTerm, setSearchTerm, addInstance, updateInstance, deleteInstances, getInstance }}>
+    <InstancesContext.Provider value={{ instances, loading, searchTerm, setSearchTerm, typeFilter, setTypeFilter, spaceFilter, setSpaceFilter, addInstance, updateInstance, deleteInstances, getInstance }}>
       {children}
     </InstancesContext.Provider>
   );

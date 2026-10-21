@@ -68,12 +68,18 @@ public class Instances {
     private final TypeCache typeCache;
 
     /**
-     * @param search an optional term the instances are filtered by (matched against their labels by the core)
+     * @param search      an optional term the instances are filtered by (matched against their labels by the core)
+     * @param typeFilter  optional types (IRIs) the instances are restricted to - instances of any of them are returned
+     * @param spaceFilter optional spaces the instances are restricted to - instances in any of them are returned
      */
     @GetMapping
-    public List<Instance> list(@AuthenticatedClient MarmotGraphClient client, @RequestParam(required = false) String search) {
+    public List<Instance> list(@AuthenticatedClient MarmotGraphClient client, @RequestParam(required = false) String search,
+                               @RequestParam(name = "type", required = false) List<String> typeFilter,
+                               @RequestParam(name = "space", required = false) List<String> spaceFilter) {
         List<org.marmotgraph.sdk.model.Instance> instances = client.instances().list(InstanceListOptions.builder()
                 .stage(Stage.IN_PROGRESS)
+                .types(nonBlank(typeFilter))
+                .spaces(nonBlank(spaceFilter))
                 .searchByLabel(search != null && !search.isBlank() ? search.trim() : null)
                 .responseOptions(ResponseOptions.builder().returnPermissions(true).build())
                 .build()).items();
@@ -96,6 +102,10 @@ public class Instances {
                     releaseStatuses.get(instanceId) == ReleaseStatus.RELEASED ? RELEASED : IN_PROGRESS));
         }
         return result;
+    }
+
+    private static List<String> nonBlank(List<String> values) {
+        return values == null ? List.of() : values.stream().filter(v -> v != null && !v.isBlank()).map(String::trim).distinct().toList();
     }
 
     private static String primaryType(org.marmotgraph.sdk.model.Instance instance) {
