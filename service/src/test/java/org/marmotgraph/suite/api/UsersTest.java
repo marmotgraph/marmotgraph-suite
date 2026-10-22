@@ -4,7 +4,10 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.marmotgraph.sdk.MarmotGraphApiException;
 import org.marmotgraph.sdk.MarmotGraphClient;
+import org.marmotgraph.sdk.model.Functionality;
+import org.marmotgraph.sdk.model.FunctionalityInstance;
 import org.marmotgraph.sdk.model.UserInfo;
+import org.marmotgraph.sdk.model.UserWithRoles;
 import org.marmotgraph.sdk.resources.UsersResource;
 import org.marmotgraph.suite.auth.AuthenticatedClientResolver;
 import org.marmotgraph.suite.configuration.ArgumentResolvers;
@@ -18,6 +21,8 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.web.context.WebApplicationContext;
 import org.springframework.web.servlet.config.annotation.EnableWebMvc;
+
+import java.util.List;
 
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -63,6 +68,22 @@ class UsersTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.userName").value("jdoe"))
                 .andExpect(jsonPath("$.displayName").value("Jane Doe"));
+    }
+
+    @Test
+    void functionalitiesAreRestrictedToTheGlobalOnes() throws Exception {
+        when(usersResource.myRoles()).thenReturn(new UserWithRoles(null, List.of(
+                new FunctionalityInstance(Functionality.TENANT_MANAGEMENT, null, null),
+                new FunctionalityInstance(Functionality.CREATE_PERMISSION, null, null),
+                new FunctionalityInstance(Functionality.CREATE_PERMISSION, null, null),
+                new FunctionalityInstance(Functionality.WRITE, "myspace", null),
+                new FunctionalityInstance(Functionality.UNKNOWN, null, null))));
+
+        mockMvc.perform(get("/users/me/functionalities").header(HttpHeaders.AUTHORIZATION, "Bearer theToken"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(2))
+                .andExpect(jsonPath("$[0]").value("CREATE_PERMISSION"))
+                .andExpect(jsonPath("$[1]").value("TENANT_MANAGEMENT"));
     }
 
     @Test

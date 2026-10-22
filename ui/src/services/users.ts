@@ -22,3 +22,8 @@ export function userLabel(user: UserInfo): string | undefined {
     user.userName
   );
 }
+
+/** Fetches the functionalities the user is granted globally (e.g. "TENANT_MANAGEMENT"). */
+export function fetchGlobalFunctionalities(accessToken: string): Promise<string[]> {
+  return getJson("/api/users/me/functionalities", "the permissions of the user", accessToken);
+}

@@ -1,0 +1,80 @@
+.admin-home {
+    padding-bottom: 1rem;
+}
+
+.admin-filter {
+    max-width: 320px;
+}
+
+.admin-role + .admin-role {
+    border-top: 1px solid var(--border-color);
+    margin-top: 0.5rem;
+    padding-top: 0.5rem;
+}
+
+.admin-role-badge {
+    font-size: 0.8rem;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+}
+
+.admin-claim {
+    padding: 0.25rem 0;
+}
+
+.admin-claim code {
+    word-break: break-all;
+}
+
+.admin-code {
+    font-family: SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    font-size: 0.85rem;
+}
+
+.admin-color-picker {
+    width: 2.5rem;
+    flex-shrink: 0;
+    padding: 0.15rem;
+}
+
+.admin-color-swatch {
+    width: 1.5rem;
+    height: 1.5rem;
+    flex-shrink: 0;
+    border-radius: 4px;
+    border: 1px solid var(--border-color);
+    /* Shows the transparency of colors with alpha channel */
+    background-image: repeating-conic-gradient(#ccc 0 25%, #fff 0 50%);
+    background-size: 8px 8px;
+}
+
+.admin-image-preview {
+    height: 120px;
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #f8f9fa;
+    overflow: hidden;
+}
+
+.admin-image-preview-dark {
+    background: #171D26;
+}
+
+.admin-image-preview img {
+    max-width: 100%;
+    max-height: 100%;
+    object-fit: contain;
+}
+
+.admin-resulting-css {
+    max-height: 60vh;
+    overflow: auto;
+    padding: 0.75rem;
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    background: #f8f9fa;
+    white-space: pre-wrap;
+}

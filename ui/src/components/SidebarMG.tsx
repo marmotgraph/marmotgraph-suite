@@ -10,6 +10,8 @@ import "./SidebarMG.css";
 import { useCurrentUser } from "../hooks/useCurrentUser";
 import { useAuth } from "../contexts/AuthContext";
 import { userLabel } from "../services/users";
+import { useGlobalFunctionalities } from "../hooks/useGlobalFunctionalities";
+import { adminSections } from "../modules/admin/adminSections";
 import {
   Blocks,
   BookmarkCheck,
@@ -18,6 +20,7 @@ import {
   Edit3Icon,
   PanelLeftClose,
   PanelRightOpenIcon,
+  ShieldCheck,
 } from "lucide-react";
 
 interface SidebarMGProps {
@@ -30,6 +33,8 @@ function SidebarMG({ isCollapsed, onToggle }: SidebarMGProps) {
   const user = useCurrentUser();
   const { logout } = useAuth();
   const userName = (user && userLabel(user)) || "User";
+  // The admin module is only shown if at least one of its sections is available to the user
+  const showAdmin = adminSections(useGlobalFunctionalities()).length > 0;
 
   // @ts-ignore
   return (
@@ -91,6 +96,17 @@ function SidebarMG({ isCollapsed, onToggle }: SidebarMGProps) {
           <CodeXml size={18} />
           {!isCollapsed && <span className="ms-2">API</span>}
         </NavLink>
+        {showAdmin && (
+          <NavLink
+            to="/admin"
+            className={({ isActive }) =>
+              `d-flex align-items-center py-2 px-3 mb-1 text-dark rounded sidebar-nav-link ${isActive ? "active" : ""}`
+            }
+          >
+            <ShieldCheck size={18} />
+            {!isCollapsed && <span className="ms-2">Admin</span>}
+          </NavLink>
+        )}
       </div>
 
       {/* Bottom Section */}
