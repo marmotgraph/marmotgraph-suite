@@ -1,9 +1,12 @@
 import React from "react";
 import { Button, Spinner } from "react-bootstrap";
-import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { faCircle } from "@fortawesome/free-solid-svg-icons";
 import { IncomingLinks, IncomingLinksOfType } from "../services/instances";
-import { FieldGroup, LinkItem, LinksPanelFrame } from "./InstanceLinksPanel";
+import {
+  FieldGroup,
+  LinkItem,
+  LinksPanelFrame,
+  TypeGroup,
+} from "./InstanceLinksPanel";
 import "./InstanceLinksPanel.css";
 
 interface IncomingLinksPanelProps {
@@ -87,18 +90,12 @@ export default function IncomingLinksPanel({
               type.typeIdentifier,
             );
             return (
-              <div key={type.typeIdentifier} className="incoming-type-group">
-                <div className="incoming-type-label">
-                  <FontAwesomeIcon
-                    icon={faCircle}
-                    className="link-type-icon"
-                    style={{ color: type.typeColor || "#6c757d" }}
-                  />
-                  {type.type}
-                  <span className="field-count">
-                    ({count(type.links.length, type.total)})
-                  </span>
-                </div>
+              <TypeGroup
+                key={type.typeIdentifier}
+                type={type.type}
+                typeColor={type.typeColor}
+                count={count(type.links.length, type.total)}
+              >
                 {type.links.map((link) => (
                   <LinkItem
                     key={link.instanceId}
@@ -129,7 +126,7 @@ export default function IncomingLinksPanel({
                     )}
                   </Button>
                 )}
-              </div>
+              </TypeGroup>
             );
           })}
         </FieldGroup>

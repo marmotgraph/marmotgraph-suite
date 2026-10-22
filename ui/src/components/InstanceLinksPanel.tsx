@@ -51,7 +51,7 @@ export default function InstanceLinksPanel({
   highlightedLink,
   onLinkHover,
 }: InstanceLinksPanelProps) {
-  // Group links by field label
+  // Group links by field label - and within a field by the type of the linked instance
   const groupedLinks = links.reduce(
     (acc, link) => {
       const field = (link.fieldLabel || "Unknown Field").trim();
@@ -76,29 +76,89 @@ export default function InstanceLinksPanel({
           label={fieldLabel}
           count={fieldLinks.length}
         >
-          {fieldLinks.map((link) => (
-            <LinkItem
-              key={link.instanceId}
-              link={link}
-              onLinkClick={onLinkClick}
-              highlighted={
-                highlightedLink?.fieldLabel === fieldLabel &&
-                highlightedLink.instanceId === link.instanceId
-              }
-              onHover={
-                onLinkHover &&
-                ((hovered) =>
-                  onLinkHover(
-                    hovered
-                      ? { fieldLabel, instanceId: link.instanceId }
-                      : undefined,
-                  ))
-              }
-            />
-          ))}
+          {groupByType(fieldLinks).map((typeLinks) => {
+            const first = typeLinks[0];
+            const unresolved = first.linkStatus === "unresolved";
+            return (
+              <TypeGroup
+                key={unresolved ? UNRESOLVED_TYPE : first.type}
+                type={unresolved ? "Unknown type" : first.type}
+                typeColor={
+                  first.typeColor || typeColors[first.type] || undefined
+                }
+                unresolved={unresolved}
+                count={typeLinks.length}
+              >
+                {typeLinks.map((link) => (
+                  <LinkItem
+                    key={link.instanceId}
+                    link={link}
+                    onLinkClick={onLinkClick}
+                    highlighted={
+                      highlightedLink?.fieldLabel === fieldLabel &&
+                      highlightedLink.instanceId === link.instanceId
+                    }
+                    onHover={
+                      onLinkHover &&
+                      ((hovered) =>
+                        onLinkHover(
+                          hovered
+                            ? { fieldLabel, instanceId: link.instanceId }
+                            : undefined,
+                        ))
+                    }
+                  />
+                ))}
+              </TypeGroup>
+            );
+          })}
         </FieldGroup>
       ))}
     </LinksPanelFrame>
+  );
+}
+
+/** The key the unresolved links are grouped by - their type is not known. */
+const UNRESOLVED_TYPE = "\u0000unresolved";
+
+/** The links grouped by the type of the linked instance (in the order the types first occur). */
+function groupByType(links: LinkedInstance[]) {
+  const byType = new Map<string, LinkedInstance[]>();
+  links.forEach((link) => {
+    const type = link.linkStatus === "unresolved" ? UNRESOLVED_TYPE : link.type;
+    byType.set(type, [...(byType.get(type) ?? []), link]);
+  });
+  return Array.from(byType.values());
+}
+
+/** The links to the instances of a type - labeled with the type (and the number of links). */
+export function TypeGroup({
+  type,
+  typeColor,
+  unresolved = false,
+  count,
+  children,
+}: {
+  type: string;
+  typeColor?: string;
+  /** Whether the type is not known since the links could not be resolved */
+  unresolved?: boolean;
+  count: React.ReactNode;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="type-group">
+      <div className="type-group-label">
+        <FontAwesomeIcon
+          icon={unresolved ? faLinkSlash : faCircle}
+          className={unresolved ? "link-type-status-icon" : "link-type-icon"}
+          style={unresolved ? undefined : { color: typeColor || "#6c757d" }}
+        />
+        {type}
+        <span className="field-count">({count})</span>
+      </div>
+      {children}
+    </div>
   );
 }
 
@@ -205,27 +265,29 @@ const getLinkStatusIcon = (
   return NoLinksIcon;
 };
 
-/**
- * A linked instance - it can only be opened if it is resolved. The type is only shown if it is given (it is omitted
- * where it is shown for a whole group of links).
- */
+/** A linked instance - it can only be opened if it is resolved (its type is shown for the whole group of links). */
 export function LinkItem({
   link,
   onLinkClick,
   highlighted = false,
   onHover,
 }: {
-  link: Omit<LinkedInstance, "type"> & { type?: string };
+  link: Pick<
+    LinkedInstance,
+    | "instanceId"
+    | "instanceName"
+    | "space"
+    | "linkStatus"
+    | "hasDirectLinks"
+    | "hasReverseLinks"
+  >;
   onLinkClick: (instanceId: string) => void;
   highlighted?: boolean;
   /** Called with true when the link is hovered and with false when it is left */
   onHover?: (hovered: boolean) => void;
 }) {
-  const linkTypeColor =
-    link.typeColor || (link.type && typeColors[link.type]) || "#6c757d";
   const resolved = isResolvedLink(link);
   const unresolved = link.linkStatus === "unresolved";
-  const showType = unresolved || link.type !== undefined;
   return (
     <div
       className={`link-item${
@@ -237,52 +299,16 @@ export function LinkItem({
       title={linkedInstanceStatusDescription(link)}
       style={resolved ? { cursor: "pointer" } : undefined}
     >
-      <div className="link-header">
-        <div className="link-type">
-          {showType ? (
-            <>
-              <FontAwesomeIcon
-                icon={unresolved ? faLinkSlash : resolved ? faCircle : faLock}
-                className={
-                  resolved ? "link-type-icon" : "link-type-status-icon"
-                }
-                style={unresolved ? undefined : { color: linkTypeColor }}
-              />
-              {unresolved ? "Unknown type" : link.type}
-            </>
-          ) : (
-            !resolved && (
-              <FontAwesomeIcon
-                icon={faLock}
-                className="link-type-status-icon"
-              />
-            )
-          )}
-        </div>
-        {resolved && (
-          <div className="d-flex align-items-center gap-2">
-            <img
-              src={getLinkStatusIcon(link)}
-              alt="Link status"
-              className="link-item-status-icon"
-            />
-            <Button
-              variant="link"
-              size="sm"
-              className="link-edit-btn"
-              onClick={(e) => {
-                e.stopPropagation();
-                onLinkClick(link.instanceId);
-              }}
-              title="Edit instance"
-            >
-              <FontAwesomeIcon icon={faPencil} />
-            </Button>
-          </div>
-        )}
-      </div>
       <div className="link-content">
-        <div className="link-name">{linkedInstanceDisplayName(link)}</div>
+        <div className="link-name">
+          {!resolved && (
+            <FontAwesomeIcon
+              icon={unresolved ? faLinkSlash : faLock}
+              className="link-type-status-icon me-1"
+            />
+          )}
+          {linkedInstanceDisplayName(link)}
+        </div>
         <div className="link-meta">
           <span className="link-id">
             {unresolved ? "Identifier" : "ID"}: {link.instanceId}
@@ -301,6 +327,27 @@ export function LinkItem({
         </div>
         {link.space && <div className="link-space">Space: {link.space}</div>}
       </div>
+      {resolved && (
+        <div className="link-actions">
+          <img
+            src={getLinkStatusIcon(link)}
+            alt="Link status"
+            className="link-item-status-icon"
+          />
+          <Button
+            variant="link"
+            size="sm"
+            className="link-edit-btn"
+            onClick={(e) => {
+              e.stopPropagation();
+              onLinkClick(link.instanceId);
+            }}
+            title="Edit instance"
+          >
+            <FontAwesomeIcon icon={faPencil} />
+          </Button>
+        </div>
+      )}
     </div>
   );
 }

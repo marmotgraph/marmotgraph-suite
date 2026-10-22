@@ -116,6 +116,9 @@
     border-radius: 4px;
     padding: 9px 10px;
     transition: background-color 0.15s ease, border-color 0.15s ease;
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
 }
 
 .link-item:hover {
@@ -130,20 +133,13 @@
     outline-offset: 1px;
 }
 
-.link-header {
+.link-actions {
     display: flex;
-    justify-content: space-between;
     align-items: center;
-    margin-bottom: 1px;
+    gap: 8px;
+    flex-shrink: 0;
 }
 
-.link-field-label {
-    font-size: 0.7rem;
-    color: #868e96;
-    text-transform: uppercase;
-    font-weight: 600;
-    letter-spacing: 0.3px;
-}
 
 .link-edit-btn {
     color: #6c757d !important;
@@ -168,24 +164,11 @@
 .link-content {
     display: flex;
     flex-direction: column;
+    flex: 1;
+    min-width: 0;
 }
 
-.link-type-row {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-}
 
-.link-type {
-    font-size: 0.65rem;
-    color: #868e96;
-    text-transform: uppercase;
-    font-weight: 600;
-    letter-spacing: 0.3px;
-    display: flex;
-    align-items: center;
-    gap: 4px;
-}
 
 .link-type-icon {
     font-size: 0.6rem;
@@ -252,13 +235,13 @@
     border-color: #6c8ebf;
 }
 
-.incoming-type-group {
+.type-group {
     display: flex;
     flex-direction: column;
     gap: 6px;
 }
 
-.incoming-type-label {
+.type-group-label {
     font-size: 0.65rem;
     color: #868e96;
     text-transform: uppercase;
