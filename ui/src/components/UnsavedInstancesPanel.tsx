@@ -31,7 +31,7 @@ export default function UnsavedInstancesPanel({
 }: UnsavedInstancesPanelProps) {
   const navigate = useNavigate();
   const { drafts, removeDraft } = useUnsavedInstances();
-  const [isExpanded, setIsExpanded] = useState(true);
+  const [isExpanded, setIsExpanded] = useState(false);
 
   const handleOpen = (instanceId: string) => {
     navigate(`/editor/instances/${instanceId}`);
