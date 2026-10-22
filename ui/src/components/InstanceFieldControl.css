@@ -1,0 +1,32 @@
+/* JSON editor / viewer for unsupported fields */
+.json-field {
+  font-size: 0.85rem;
+  overflow: hidden;
+}
+
+.json-field .cm-editor {
+  background: transparent;
+}
+
+.json-field .cm-editor.cm-focused {
+  outline: none;
+}
+
+.json-field.form-control:focus-within {
+  border-color: #6c8ebf;
+  box-shadow: 0 0 0 0.2rem rgba(108, 142, 191, 0.25);
+}
+
+.json-field.form-control.is-invalid:focus-within {
+  border-color: var(--bs-form-invalid-border-color);
+  box-shadow: 0 0 0 0.25rem rgba(var(--bs-danger-rgb), 0.25);
+}
+
+.json-field .cm-gutters {
+  background: transparent;
+  border-right: none;
+}
+
+.json-field--readonly .cm-cursor {
+  display: none !important;
+}

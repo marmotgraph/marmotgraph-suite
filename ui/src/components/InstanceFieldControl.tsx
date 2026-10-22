@@ -1,6 +1,9 @@
-import React from "react";
+import React, { useState } from "react";
 import { Form } from "react-bootstrap";
+import CodeMirror from "@uiw/react-codemirror";
+import { json } from "@codemirror/lang-json";
 import LinkedInstancesField from "./LinkedInstancesField";
+import "./InstanceFieldControl.css";
 import { LinkedInstance } from "../modules/editor/editorMockData";
 import { FieldKind, InstanceField } from "../services/instances";
 import { typeLabel } from "../services/types";
@@ -121,16 +124,72 @@ function linkedInstances(single: boolean) {
   };
 }
 
-function UnsupportedField({ value }: InstanceFieldControlProps) {
+const jsonExtensions = [json()];
+const jsonEditorSetup = { lineNumbers: false, foldGutter: true, highlightActiveLine: false };
+
+function toJsonText(value: unknown): string {
+  return value === null || value === undefined ? "" : JSON.stringify(value, null, 2);
+}
+
+/** Fields of unknown shape - edited as raw JSON (an empty text clears the value). */
+function UnsupportedField({ value, onChange, isEditMode }: InstanceFieldControlProps) {
+  const [text, setText] = useState(() => toJsonText(value));
+  const [emittedValue, setEmittedValue] = useState(value);
+  const [isValid, setIsValid] = useState(true);
+
+  // The value was changed from outside (e.g. reset) - show it instead of the local text
+  if (value !== emittedValue) {
+    setEmittedValue(value);
+    setText(toJsonText(value));
+    setIsValid(true);
+  }
+
+  if (!isEditMode) {
+    return (
+      <div className="view-value">
+        {value === null || value === undefined ? (
+          <em className="text-muted">No value</em>
+        ) : (
+          <CodeMirror
+            className="json-field json-field--readonly"
+            value={toJsonText(value)}
+            extensions={jsonExtensions}
+            basicSetup={jsonEditorSetup}
+            editable={false}
+          />
+        )}
+      </div>
+    );
+  }
+
+  const handleChange = (newText: string) => {
+    setText(newText);
+    let parsed: unknown;
+    try {
+      parsed = newText.trim() === "" ? null : JSON.parse(newText);
+    } catch {
+      setIsValid(false);
+      return;
+    }
+    setIsValid(true);
+    setEmittedValue(parsed);
+    onChange(parsed);
+  };
+
   return (
-    <div className="view-value text-muted">
-      {value === null || value === undefined ? (
-        <em>No value</em>
-      ) : (
-        <code>{JSON.stringify(value)}</code>
-      )}
-      <div className="small">This kind of field is not supported (yet).</div>
-    </div>
+    <>
+      <CodeMirror
+        className={`json-field form-control p-0${isValid ? "" : " is-invalid"}`}
+        value={text}
+        minHeight="6em"
+        extensions={jsonExtensions}
+        basicSetup={jsonEditorSetup}
+        onChange={handleChange}
+      />
+      <Form.Control.Feedback type="invalid">
+        Invalid JSON - the last valid value is kept.
+      </Form.Control.Feedback>
+    </>
   );
 }
 
@@ -152,7 +211,7 @@ const fieldControls: Record<FieldKind, React.ComponentType<InstanceFieldControlP
 
 export default function InstanceFieldControl(props: InstanceFieldControlProps) {
   const Control = fieldControls[props.field.kind] ?? UnsupportedField;
-  // Read only fields (and unsupported ones) are never edited
-  const isEditMode = props.isEditMode && !props.field.readOnly && props.field.kind !== "UNSUPPORTED";
+  // Read only fields are never edited
+  const isEditMode = props.isEditMode && !props.field.readOnly;
   return <Control {...props} isEditMode={isEditMode} />;
 }

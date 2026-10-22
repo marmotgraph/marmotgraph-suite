@@ -252,3 +252,35 @@
     font-size: 0.9rem !important;
     border-radius: 4px;
 }
+
+/* Unsupported fields */
+.instance-unsupported-fields {
+    margin-top: 16px;
+    padding-top: 12px;
+    border-top: 1px solid #e9ecef;
+}
+
+.instance-unsupported-fields-toggle {
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: #495057 !important;
+    text-decoration: none !important;
+}
+
+.instance-unsupported-fields-toggle:hover {
+    color: #212529 !important;
+    text-decoration: underline !important;
+}
+
+.instance-unsupported-fields-toggle-icon {
+    font-size: 0.7rem;
+    color: #868e96;
+}
+
+.instance-unsupported-fields .instance-view {
+    padding-top: 12px;
+}
+
+.instance-unsupported-fields .instance-form {
+    padding-top: 12px;
+}

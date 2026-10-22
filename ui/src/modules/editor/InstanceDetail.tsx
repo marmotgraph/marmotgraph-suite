@@ -1,8 +1,14 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { Breadcrumb, Button, Form, Spinner } from "react-bootstrap";
+import { Breadcrumb, Button, Collapse, Form, Spinner } from "react-bootstrap";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { faCircle, faCopy, faPencil } from "@fortawesome/free-solid-svg-icons";
+import {
+  faChevronDown,
+  faChevronUp,
+  faCircle,
+  faCopy,
+  faPencil,
+} from "@fortawesome/free-solid-svg-icons";
 import {
   areInstanceFieldValuesEqual,
   emptyInstanceFieldValues,
@@ -196,6 +202,19 @@ function InstanceDetailView({ instanceId }: { instanceId: string }) {
     instance?.typeColor || (instance && typeColors[instance.type]) || "#6c757d";
 
   const fields = useMemo(() => instance?.fields ?? [], [instance]);
+
+  // Unsupported fields are shown separately (alphabetically) at the bottom of the view
+  const supportedFields = useMemo(
+    () => fields.filter((field) => field.kind !== "UNSUPPORTED"),
+    [fields],
+  );
+  const unsupportedFields = useMemo(
+    () =>
+      fields
+        .filter((field) => field.kind === "UNSUPPORTED")
+        .sort((a, b) => a.label.localeCompare(b.label)),
+    [fields],
+  );
 
   const savedFieldValues = useMemo<InstanceFieldValues>(
     () =>
@@ -516,7 +535,7 @@ function InstanceDetailView({ instanceId }: { instanceId: string }) {
             )}
             {!isEditMode ? (
               <div className="instance-view">
-                {fields.map((field) => (
+                {supportedFields.map((field) => (
                   <div key={field.identifier} className="mb-4">
                     <div className="view-label" title={field.tooltip}>
                       {field.label}
@@ -534,7 +553,7 @@ function InstanceDetailView({ instanceId }: { instanceId: string }) {
               </div>
             ) : (
               <div className="instance-form">
-                {fields.map((field) => (
+                {supportedFields.map((field) => (
                   <Form.Group key={field.identifier} className="mb-4">
                     <InstanceFieldLabel
                       isChanged={changedFieldKeys.has(field.identifier)}
@@ -556,6 +575,17 @@ function InstanceDetailView({ instanceId }: { instanceId: string }) {
                   </Form.Group>
                 ))}
 
+                {unsupportedFields.length > 0 && (
+                  <UnsupportedFieldsSection
+                    fields={unsupportedFields}
+                    values={currentFieldValues}
+                    onChange={setFieldValue}
+                    isEditMode
+                    changedFieldKeys={changedFieldKeys}
+                    onInstanceClick={handleLinkClick}
+                  />
+                )}
+
                 <div className="d-flex gap-2 mt-4">
                   <Button variant="dark" onClick={handleSave}>
                     Save
@@ -565,6 +595,17 @@ function InstanceDetailView({ instanceId }: { instanceId: string }) {
                   </Button>
                 </div>
               </div>
+            )}
+
+            {!isEditMode && unsupportedFields.length > 0 && (
+              <UnsupportedFieldsSection
+                fields={unsupportedFields}
+                values={currentFieldValues}
+                onChange={setFieldValue}
+                isEditMode={false}
+                changedFieldKeys={changedFieldKeys}
+                onInstanceClick={handleLinkClick}
+              />
             )}
           </div>
         </div>
@@ -585,6 +626,80 @@ function InstanceDetailView({ instanceId }: { instanceId: string }) {
         onDiscardCurrent={resetToSaved}
       />
     </>
+  );
+}
+
+/** The fields not supported by the editor (yet) - shown as raw JSON and collapsed by default. */
+function UnsupportedFieldsSection({
+  fields,
+  values,
+  onChange,
+  isEditMode,
+  changedFieldKeys,
+  onInstanceClick,
+}: {
+  fields: InstanceField[];
+  values: InstanceFieldValues;
+  onChange: (identifier: string, value: unknown) => void;
+  isEditMode: boolean;
+  changedFieldKeys: Set<string>;
+  onInstanceClick: (instanceId: string) => void;
+}) {
+  const [isExpanded, setIsExpanded] = useState(false);
+  return (
+    <div className="instance-unsupported-fields">
+      <Button
+        type="button"
+        variant="link"
+        size="sm"
+        className="instance-unsupported-fields-toggle p-0"
+        onClick={() => setIsExpanded((previous) => !previous)}
+        aria-expanded={isExpanded}
+        aria-controls="instance-unsupported-fields-list"
+      >
+        Unsupported fields ({fields.length})
+        <FontAwesomeIcon
+          icon={isExpanded ? faChevronUp : faChevronDown}
+          className="ms-2 instance-unsupported-fields-toggle-icon"
+        />
+      </Button>
+      <Collapse in={isExpanded}>
+        <div id="instance-unsupported-fields-list">
+          <div className={isEditMode ? "instance-form" : "instance-view"}>
+            {fields.map((field) => {
+              const control = (
+                <InstanceFieldControl
+                  field={field}
+                  value={values[field.identifier]}
+                  onChange={(value) => onChange(field.identifier, value)}
+                  isEditMode={isEditMode}
+                  onInstanceClick={onInstanceClick}
+                />
+              );
+              return isEditMode ? (
+                <Form.Group key={field.identifier} className="mb-4">
+                  <InstanceFieldLabel
+                    isChanged={changedFieldKeys.has(field.identifier)}
+                    tooltip={field.tooltip}
+                  >
+                    {field.label}
+                    {field.required && " *"}
+                  </InstanceFieldLabel>
+                  {control}
+                </Form.Group>
+              ) : (
+                <div key={field.identifier} className="mb-4">
+                  <div className="view-label" title={field.tooltip}>
+                    {field.label}
+                  </div>
+                  {control}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </Collapse>
+    </div>
   );
 }
 

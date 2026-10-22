@@ -131,7 +131,7 @@ function groupByType(links: LinkedInstance[]) {
   return Array.from(byType.values());
 }
 
-/** The links to the instances of a type - labeled with the type (and the number of links). */
+/** The (collapsible) links to the instances of a type - labeled with the type (and the number of links). */
 export function TypeGroup({
   type,
   typeColor,
@@ -146,9 +146,18 @@ export function TypeGroup({
   count: React.ReactNode;
   children: React.ReactNode;
 }) {
+  const [isCollapsed, setIsCollapsed] = useState(false);
   return (
     <div className="type-group">
-      <div className="type-group-label">
+      <div
+        className="type-group-label"
+        onClick={() => setIsCollapsed(!isCollapsed)}
+        style={{ cursor: "pointer" }}
+      >
+        <FontAwesomeIcon
+          icon={isCollapsed ? faChevronRight : faChevronDown}
+          className="type-group-toggle-icon"
+        />
         <FontAwesomeIcon
           icon={unresolved ? faLinkSlash : faCircle}
           className={unresolved ? "link-type-status-icon" : "link-type-icon"}
@@ -157,7 +166,7 @@ export function TypeGroup({
         {type}
         <span className="field-count">({count})</span>
       </div>
-      {children}
+      {!isCollapsed && children}
     </div>
   );
 }
