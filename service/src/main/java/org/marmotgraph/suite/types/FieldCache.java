@@ -32,6 +32,7 @@ public class FieldCache extends DefinitionCache<List<FieldCache.FieldDefinition>
     static final String LABEL_TOOLTIP = "https://editor.kg.ebrains.eu/vocab/meta/property/labelTooltip";
     static final String REQUIRED = "https://core.kg.ebrains.eu/vocab/meta/required";
     static final String ORDER_NUMBER = "https://core.kg.ebrains.eu/vocab/meta/orderNumber";
+    static final String NAME_FOR_REVERSE_LINK = "https://core.kg.ebrains.eu/vocab/meta/nameForReverseLink";
 
     /**
      * Properties without an order number are placed after those with one (keeping the order of the core)
@@ -42,17 +43,20 @@ public class FieldCache extends DefinitionCache<List<FieldCache.FieldDefinition>
      * The definition of a field of a type.
      *
      * @param identifier  the full name of the property
-     * @param targetTypes the types (full names) the property can link to
+     * @param targetTypes      the types (full names) the property can link to
+     * @param reverseLinkLabel the label of the property when shown from the perspective of the linked instance (e.g.
+     *                         "Is language of" for "Language") - null if there is none
      */
     public record FieldDefinition(String identifier, String label, FieldKind kind, Integer order, boolean required, boolean readOnly,
-                                  String tooltip, List<String> targetTypes) {
+                                  String tooltip, List<String> targetTypes, String reverseLinkLabel) {
 
         static FieldDefinition of(Property property) {
             Map<String, Object> extra = property.extra();
             return new FieldDefinition(property.identifier(), label(property), FieldKind.ofWidget(JsonUtil.str(extra, WIDGET)),
                     JsonUtil.intVal(extra, ORDER_NUMBER), JsonUtil.boolVal(extra, REQUIRED, false), JsonUtil.boolVal(extra, READ_ONLY, false),
                     JsonUtil.str(extra, LABEL_TOOLTIP),
-                    property.targetTypes().stream().map(TargetType::type).filter(Objects::nonNull).toList());
+                    property.targetTypes().stream().map(TargetType::type).filter(Objects::nonNull).toList(),
+                    JsonUtil.str(extra, NAME_FOR_REVERSE_LINK));
         }
 
         /**

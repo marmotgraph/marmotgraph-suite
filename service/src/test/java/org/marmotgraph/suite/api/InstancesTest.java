@@ -5,6 +5,7 @@ import org.junit.jupiter.api.Test;
 import org.marmotgraph.sdk.MarmotGraphApiException;
 import org.marmotgraph.sdk.MarmotGraphClient;
 import org.marmotgraph.sdk.model.Instance;
+import org.marmotgraph.sdk.model.LinkingInstance;
 import org.marmotgraph.sdk.model.Property;
 import org.marmotgraph.sdk.model.ReleaseStatus;
 import org.marmotgraph.sdk.model.ReleaseTreeScope;
@@ -236,9 +237,9 @@ class InstancesTest {
                 "https://example.org/height", 42,
                 "https://example.org/active", List.of("true"),
                 "https://example.org/blades", List.of(
-                        link("https://example.org/blades/7", "resolved", linkedId, blade, "Blade-7", "otherspace"),
-                        link("https://example.org/blades/8", "restricted", restrictedId, blade, null, null),
-                        link(unresolvedIdentifier, "unresolved", null, null, null, null)),
+                        link("https://example.org/blades/7", "resolved", linkedId, blade, "Blade-7", "otherspace", false),
+                        link("https://example.org/blades/8", "restricted", restrictedId, blade, null, null, null),
+                        link(unresolvedIdentifier, "unresolved", null, null, null, null, null)),
                 "https://example.org/components", List.of(Map.of("x", "y")))));
         when(typesResource.getByNames(List.of(rack), Stage.IN_PROGRESS, null, false, false))
                 .thenReturn(Map.of(rack, new TypeInformation(rack, null, "Rack", "#4caf50", NAME, null, null, List.of(), List.of(), List.of(), Map.of())));
@@ -296,9 +297,13 @@ class InstancesTest {
                 .andExpect(jsonPath("$.directLinks[0].instanceName").value("Blade-7"))
                 .andExpect(jsonPath("$.directLinks[0].fieldLabel").value("Blades"))
                 .andExpect(jsonPath("$.directLinks[0].linkStatus").value("resolved"))
+                .andExpect(jsonPath("$.directLinks[0].hasDirectLinks").value(false))
+                .andExpect(jsonPath("$.directLinks[0].hasReverseLinks").value(true))
                 .andExpect(jsonPath("$.directLinks[1].instanceId").value(restrictedId))
                 .andExpect(jsonPath("$.directLinks[1].fieldLabel").value("Blades"))
                 .andExpect(jsonPath("$.directLinks[1].linkStatus").value("restricted"))
+                .andExpect(jsonPath("$.directLinks[1].hasDirectLinks").doesNotExist())
+                .andExpect(jsonPath("$.directLinks[1].hasReverseLinks").doesNotExist())
                 .andExpect(jsonPath("$.directLinks[2].instanceId").value(unresolvedIdentifier))
                 .andExpect(jsonPath("$.directLinks[2].fieldLabel").value("Blades"))
                 .andExpect(jsonPath("$.directLinks[2].linkStatus").value("unresolved"));
@@ -311,7 +316,8 @@ class InstancesTest {
     /**
      * A link as summarized by the core (all properties are present - with null values if not applicable).
      */
-    private static Map<String, Object> link(String id, String status, String resolvedId, String type, String label, String space) {
+    private static Map<String, Object> link(String id, String status, String resolvedId, String type, String label, String space,
+                                            Boolean hasOutgoingLinks) {
         Map<String, Object> link = new HashMap<>();
         link.put("@id", id);
         link.put("@type", type);
@@ -319,6 +325,7 @@ class InstancesTest {
         link.put(Instances.LINK_RESOLVED_ID, resolvedId);
         link.put(Instances.LINK_LABEL, label);
         link.put(Instances.LINK_SPACE, space);
+        link.put(Instances.LINK_HAS_OUTGOING_LINKS, hasOutgoingLinks);
         return link;
     }
 
@@ -337,6 +344,78 @@ class InstancesTest {
                 .andExpect(jsonPath("$.releaseStatus").value("in progress"))
                 .andExpect(jsonPath("$.fields.length()").value(0))
                 .andExpect(jsonPath("$.directLinks.length()").value(0));
+    }
+
+    @Test
+    void incomingLinksAreGroupedByPropertyAndTypeAndLabeledWithTheNameForTheReverseLink() throws Exception {
+        String dataset = "https://example.org/types/IncomingDataset";
+        String person = "https://example.org/types/IncomingPerson";
+        String author = "https://example.org/author";
+        String contact = "https://example.org/contact";
+        UUID datasetId = UUID.fromString("11111111-2222-4333-8444-555555555555");
+        UUID restrictedId = UUID.fromString("99999999-2222-4333-8444-555555555555");
+        Map<String, Map<String, Page<LinkingInstance>>> byProperty = new java.util.LinkedHashMap<>();
+        byProperty.put(author, Map.of(dataset, new Page<>(List.of(
+                new LinkingInstance(datasetId, dataset, "Dataset-1", "otherspace", LinkingInstance.RESOLVED, true),
+                new LinkingInstance(restrictedId, dataset, null, null, LinkingInstance.RESTRICTED, null)), 12, 2, "m1", null, Map.of(), null)));
+        byProperty.put(contact, Map.of(person, new Page<>(List.of(
+                new LinkingInstance(datasetId, person, "", "people", LinkingInstance.RESOLVED, false)), 1, 1, null, null, Map.of(), null)));
+        when(instancesResource.incomingLinks(RELEASED_ID, null, null, Stage.IN_PROGRESS, null, 10, true)).thenReturn(byProperty);
+        when(typesResource.getByNames(List.of(dataset, person), Stage.IN_PROGRESS, null, false, false))
+                .thenReturn(Map.of(dataset, new TypeInformation(dataset, null, "Dataset", "#2196f3", NAME, null, null, List.of(), List.of(), List.of(), Map.of())));
+        when(typesResource.getByNames(List.of(dataset, person), Stage.IN_PROGRESS, null, true, false))
+                .thenReturn(Map.of(
+                        dataset, new TypeInformation(dataset, null, "Dataset", "#2196f3", NAME, null, null, List.of(), List.of(
+                                new Property(author, "author", null, List.of(), Map.of("https://core.kg.ebrains.eu/vocab/meta/nameForReverseLink", "Is author of"))
+                        ), List.of(), Map.of()),
+                        person, new TypeInformation(person, null, null, null, NAME, null, null, List.of(), List.of(
+                                new Property(contact, "contact", null, List.of(), Map.of())
+                        ), List.of(), Map.of())));
+
+        mockMvc.perform(get("/instances/" + RELEASED_ID + "/incomingLinks").header(HttpHeaders.AUTHORIZATION, "Bearer theToken"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(2))
+                .andExpect(jsonPath("$[0].property").value(author))
+                .andExpect(jsonPath("$[0].label").value("Is author of"))
+                .andExpect(jsonPath("$[0].types.length()").value(1))
+                .andExpect(jsonPath("$[0].types[0].typeIdentifier").value(dataset))
+                .andExpect(jsonPath("$[0].types[0].type").value("Dataset"))
+                .andExpect(jsonPath("$[0].types[0].typeColor").value("#2196f3"))
+                .andExpect(jsonPath("$[0].types[0].total").value(12))
+                .andExpect(jsonPath("$[0].types[0].nextMarker").value("m1"))
+                .andExpect(jsonPath("$[0].types[0].links[0].instanceId").value(datasetId.toString()))
+                .andExpect(jsonPath("$[0].types[0].links[0].instanceName").value("Dataset-1"))
+                .andExpect(jsonPath("$[0].types[0].links[0].type").doesNotExist())
+                .andExpect(jsonPath("$[0].types[0].links[0].typeColor").doesNotExist())
+                .andExpect(jsonPath("$[0].types[0].links[0].space").value("otherspace"))
+                .andExpect(jsonPath("$[0].types[0].links[0].linkStatus").value("resolved"))
+                .andExpect(jsonPath("$[0].types[0].links[0].hasDirectLinks").value(true))
+                .andExpect(jsonPath("$[0].types[0].links[0].hasReverseLinks").value(true))
+                .andExpect(jsonPath("$[0].types[0].links[1].instanceId").value(restrictedId.toString()))
+                .andExpect(jsonPath("$[0].types[0].links[1].space").value(""))
+                .andExpect(jsonPath("$[0].types[0].links[1].linkStatus").value("restricted"))
+                .andExpect(jsonPath("$[0].types[0].links[1].hasDirectLinks").doesNotExist())
+                .andExpect(jsonPath("$[0].types[0].links[1].hasReverseLinks").doesNotExist())
+                .andExpect(jsonPath("$[1].label").value("Contact"))
+                .andExpect(jsonPath("$[1].types[0].type").value("IncomingPerson"))
+                .andExpect(jsonPath("$[1].types[0].typeColor").doesNotExist())
+                .andExpect(jsonPath("$[1].types[0].nextMarker").doesNotExist())
+                .andExpect(jsonPath("$[1].types[0].links[0].instanceName").value(datasetId.toString()))
+                .andExpect(jsonPath("$[1].types[0].links[0].hasDirectLinks").value(true))
+                .andExpect(jsonPath("$[1].types[0].links[0].hasReverseLinks").value(false));
+    }
+
+    @Test
+    void incomingLinksForwardTheMarkerAndPageSizeToTheCore() throws Exception {
+        when(instancesResource.incomingLinks(RELEASED_ID, null, null, Stage.IN_PROGRESS, "m1", 5, true)).thenReturn(Map.of());
+
+        mockMvc.perform(get("/instances/" + RELEASED_ID + "/incomingLinks").param("size", "5").param("marker", "m1")
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer theToken"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(0));
+
+        verify(instancesResource).incomingLinks(RELEASED_ID, null, null, Stage.IN_PROGRESS, "m1", 5, true);
+        verifyNoInteractions(typesResource);
     }
 
     @Test

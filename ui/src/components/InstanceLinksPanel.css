@@ -251,3 +251,36 @@
     background-color: #eef3fa;
     border-color: #6c8ebf;
 }
+
+.incoming-type-group {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.incoming-type-label {
+    font-size: 0.65rem;
+    color: #868e96;
+    text-transform: uppercase;
+    font-weight: 600;
+    letter-spacing: 0.3px;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.links-load-more-btn {
+    align-self: center;
+    font-size: 0.75rem !important;
+    color: #6c757d !important;
+    text-decoration: none !important;
+}
+
+.links-load-more-btn:hover {
+    color: #495057 !important;
+}
+
+.links-panel-count {
+    font-weight: 400;
+    color: #adb5bd;
+}

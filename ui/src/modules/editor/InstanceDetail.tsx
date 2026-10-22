@@ -14,7 +14,11 @@ import {
 import { useAuth } from "../../contexts/AuthContext";
 import { useInstances } from "../../contexts/InstancesContext";
 import {
+  appendIncomingLinks,
+  fetchIncomingLinks,
   fetchInstance,
+  IncomingLinks,
+  IncomingLinksOfType,
   InstanceDetail as InstanceDetailData,
   InstanceField,
 } from "../../services/instances";
@@ -23,6 +27,7 @@ import InstanceFieldControl from "../../components/InstanceFieldControl";
 import InstanceLinksPanel, {
   HoveredLink,
 } from "../../components/InstanceLinksPanel";
+import IncomingLinksPanel from "../../components/IncomingLinksPanel";
 import UnsavedInstancesPanel from "../../components/UnsavedInstancesPanel";
 import DirLinkIcon from "../../assets/icons/DirLink.svg";
 import RevLinkIcon from "../../assets/icons/RevLink.svg";
@@ -89,7 +94,6 @@ function InstanceDetailView({ instanceId }: { instanceId: string }) {
             permissions: "",
             releaseStatus: "in progress",
             directLinks: [],
-            reverseLinks: [],
           }
         : undefined,
   );
@@ -97,6 +101,14 @@ function InstanceDetailView({ instanceId }: { instanceId: string }) {
   const [hoveredLink, setHoveredLink] = useState<HoveredLink>();
   const [loading, setLoading] = useState(!isNewInstance);
   const [loadError, setLoadError] = useState<string>();
+  const [incomingLinks, setIncomingLinks] = useState<IncomingLinks[]>([]);
+  const [incomingLinksLoading, setIncomingLinksLoading] =
+    useState(!isNewInstance);
+  const [incomingLinksError, setIncomingLinksError] = useState<string>();
+  /** The groups of incoming links whose following page is being loaded (by property and type) */
+  const [incomingLinksLoadingMore, setIncomingLinksLoadingMore] = useState<
+    Set<string>
+  >(new Set());
 
   useEffect(() => {
     if (isNewInstance) {
@@ -118,6 +130,67 @@ function InstanceDetailView({ instanceId }: { instanceId: string }) {
       cancelled = true;
     };
   }, [getAccessToken, instanceId, isNewInstance]);
+
+  useEffect(() => {
+    if (isNewInstance) {
+      return;
+    }
+
+    let cancelled = false;
+    getAccessToken()
+      .then((token) => fetchIncomingLinks(token, instanceId))
+      .then((loaded) => !cancelled && setIncomingLinks(loaded))
+      .catch((e: unknown) => {
+        console.error("Failed to load the incoming links", e);
+        if (!cancelled) {
+          setIncomingLinksError(e instanceof Error ? e.message : String(e));
+        }
+      })
+      .finally(() => !cancelled && setIncomingLinksLoading(false));
+    return () => {
+      cancelled = true;
+    };
+  }, [getAccessToken, instanceId, isNewInstance]);
+
+  const loadMoreIncomingLinks = useCallback(
+    (property: string, type: IncomingLinksOfType) => {
+      const marker = type.nextMarker;
+      if (!marker) {
+        return;
+      }
+      const key = `${property} ${type.typeIdentifier}`;
+      setIncomingLinksLoadingMore((prev) => new Set(prev).add(key));
+      getAccessToken()
+        .then((token) => fetchIncomingLinks(token, instanceId, marker))
+        .then((nextPage) =>
+          setIncomingLinks((current) =>
+            appendIncomingLinks(
+              current,
+              property,
+              type.typeIdentifier,
+              nextPage,
+            ),
+          ),
+        )
+        .catch((e: unknown) =>
+          console.error("Failed to load more incoming links", e),
+        )
+        .finally(() =>
+          setIncomingLinksLoadingMore((prev) => {
+            const next = new Set(prev);
+            next.delete(key);
+            return next;
+          }),
+        );
+    },
+    [getAccessToken, instanceId],
+  );
+
+  const isLoadingMoreIncomingLinks = useCallback(
+    (property: string, typeIdentifier: string) =>
+      incomingLinksLoadingMore.has(`${property} ${typeIdentifier}`),
+    [incomingLinksLoadingMore],
+  );
 
   const typeColor =
     instance?.typeColor || (instance && typeColors[instance.type]) || "#6c757d";
@@ -313,8 +386,7 @@ function InstanceDetailView({ instanceId }: { instanceId: string }) {
   const getLinkStatusIcon = () => {
     const hasDirectLinks =
       instance?.directLinks && instance.directLinks.length > 0;
-    const hasReverseLinks =
-      instance?.reverseLinks && instance.reverseLinks.length > 0;
+    const hasReverseLinks = incomingLinks.length > 0;
 
     if (hasDirectLinks && hasReverseLinks) {
       return RevDirLinkIcon;
@@ -331,11 +403,13 @@ function InstanceDetailView({ instanceId }: { instanceId: string }) {
     <>
       <div className="instance-detail-layout">
         <aside className="instance-detail-side instance-detail-side--reverse">
-          <InstanceLinksPanel
-            links={instance?.reverseLinks || []}
+          <IncomingLinksPanel
+            incomingLinks={incomingLinks}
+            loading={incomingLinksLoading}
+            error={incomingLinksError}
             onLinkClick={handleLinkClick}
-            title="Incoming Links"
-            isReverse={true}
+            onLoadMore={loadMoreIncomingLinks}
+            isLoadingMore={isLoadingMoreIncomingLinks}
           />
         </aside>
 
@@ -500,7 +574,6 @@ function InstanceDetailView({ instanceId }: { instanceId: string }) {
             links={instance?.directLinks || []}
             onLinkClick={handleLinkClick}
             title="Outgoing Links"
-            isReverse={false}
             highlightedLink={hoveredLink}
             onLinkHover={setHoveredLink}
           />

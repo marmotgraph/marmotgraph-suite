@@ -4,9 +4,11 @@ import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.AllArgsConstructor;
 import org.marmotgraph.sdk.MarmotGraphClient;
+import org.marmotgraph.sdk.model.LinkingInstance;
 import org.marmotgraph.sdk.model.ReleaseStatus;
 import org.marmotgraph.sdk.model.ReleaseTreeScope;
 import org.marmotgraph.sdk.model.Stage;
+import org.marmotgraph.sdk.pagination.Page;
 import org.marmotgraph.sdk.resources.InstanceListOptions;
 import org.marmotgraph.sdk.resources.ResponseOptions;
 import org.marmotgraph.suite.auth.AuthenticatedClient;
@@ -62,7 +64,8 @@ public class Instances {
     /**
      * An instance linked from another one. The instanceId is the id of the target in the core - except for unresolved
      * links for which it is the identifier the target is linked with. The name falls back to the instanceId if the
-     * label of the target is not available.
+     * label of the target is not available. hasDirectLinks / hasReverseLinks tell whether the target has outgoing /
+     * incoming links itself (unknown if the target is not readable).
      */
     @JsonInclude(JsonInclude.Include.NON_NULL)
     public record LinkedInstance(String instanceId, String instanceName, String type, String typeColor, String space, String fieldLabel,
@@ -93,12 +96,40 @@ public class Instances {
     /**
      * The representation of a single instance as shown in its detail view - its fields are sorted in the order they are
      * to be shown in. The direct links are the instances linked by its fields (labeled with the field they are linked
-     * by, in the order of the fields). This is going to be extended with the reverse links of the instance.
+     * by, in the order of the fields). The incoming links are provided separately (see {@link #incomingLinks}) since they are paginated.
      */
     @JsonInclude(JsonInclude.Include.NON_NULL)
     public record InstanceDetail(String instanceId, String type, String typeDescription, String typeColor, String instanceName,
                                  String space, String permissions, String releaseStatus, List<Field> fields,
                                  List<LinkedInstance> directLinks) {
+    }
+
+    /**
+     * An instance linking to another one - its type is given by the group it is listed in (see
+     * {@link IncomingLinksOfType}). The name falls back to the instanceId if the label is not available (e.g. because
+     * the instance is restricted). hasDirectLinks / hasReverseLinks tell whether the instance has outgoing / incoming
+     * links itself (unknown if the instance is restricted).
+     */
+    @JsonInclude(JsonInclude.Include.NON_NULL)
+    public record IncomingLink(String instanceId, String instanceName, String space, Boolean hasDirectLinks, Boolean hasReverseLinks,
+                               LinkStatus linkStatus) {
+    }
+
+    /**
+     * The instances of a type linking to an instance - one page of them. If there are more, they can be loaded with the
+     * nextMarker (it identifies the group as well).
+     */
+    @JsonInclude(JsonInclude.Include.NON_NULL)
+    public record IncomingLinksOfType(String typeIdentifier, String type, String typeColor, List<IncomingLink> links, Integer total,
+                                      String nextMarker) {
+    }
+
+    /**
+     * The instances linking to an instance by a property - grouped by their type. The label describes the property from
+     * the perspective of the linked instance (e.g. "Is language of") - it falls back to the name of the property.
+     */
+    @JsonInclude(JsonInclude.Include.NON_NULL)
+    public record IncomingLinks(String property, String label, List<IncomingLinksOfType> types) {
     }
 
     static final String SPACE = "https://core.kg.ebrains.eu/vocab/meta/space";
@@ -111,6 +142,7 @@ public class Instances {
     static final String LINK_RESOLVED_ID = "_resolvedId";
     static final String LINK_LABEL = "_label";
     static final String LINK_SPACE = "_space";
+    static final String LINK_HAS_OUTGOING_LINKS = "_hasOutgoingLinks";
 
     private static final String RELEASED = "released";
     private static final String IN_PROGRESS = "in progress";
@@ -182,6 +214,66 @@ public class Instances {
         return new InstanceDetail(instanceId, typeLabel(typeName, type), type != null ? type.description() : null, type != null ? type.color() : null,
                 instanceName(instance, type, instanceId), firstString(instance.get(SPACE)), permissions(instance.get(PERMISSIONS)),
                 releaseStatus == ReleaseStatus.RELEASED ? RELEASED : IN_PROGRESS, fields, directLinks(fields));
+    }
+
+    /**
+     * The instances linking to the given one - grouped by the property they link with and their type (in the order of
+     * the core). Every group is paginated on its own: if a marker (the nextMarker of a group) is given, only the
+     * following page of this group is returned.
+     *
+     * @param id the uuid of the instance as known by the core
+     */
+    @GetMapping("/{id}/incomingLinks")
+    public List<IncomingLinks> incomingLinks(@AuthenticatedClient MarmotGraphClient client, @PathVariable UUID id,
+                                             @RequestParam(defaultValue = "10") int size, @RequestParam(required = false) String marker) {
+        Map<String, Map<String, Page<LinkingInstance>>> byProperty = client.instances().incomingLinks(id, null, null, Stage.IN_PROGRESS,
+                marker != null && !marker.isBlank() ? marker : null, size, true);
+        if (byProperty.isEmpty()) {
+            return List.of();
+        }
+        List<String> typeNames = byProperty.values().stream().flatMap(byType -> byType.keySet().stream()).distinct().toList();
+        Map<String, TypeDefinition> types = typeCache.get(client, typeNames);
+        Map<String, List<FieldDefinition>> fields = fieldCache.get(client, typeNames);
+
+        List<IncomingLinks> result = new ArrayList<>(byProperty.size());
+        byProperty.forEach((property, byType) -> {
+            List<IncomingLinksOfType> groups = new ArrayList<>();
+            byType.forEach((typeName, page) -> {
+                TypeDefinition type = types.get(typeName);
+                List<IncomingLink> links = page.stream().map(Instances::incomingLink).filter(Objects::nonNull).toList();
+                groups.add(new IncomingLinksOfType(typeName, typeLabel(typeName, type), type != null ? type.color() : null, links,
+                        page.total(), page.nextMarker()));
+            });
+            result.add(new IncomingLinks(property, incomingLinksLabel(property, groups, fields), groups));
+        });
+        return result;
+    }
+
+    /**
+     * The name for the reverse link defined for the property by any of the linking types - or the name of the property
+     * if there is none.
+     */
+    private static String incomingLinksLabel(String property, List<IncomingLinksOfType> groups, Map<String, List<FieldDefinition>> fields) {
+        List<FieldDefinition> definitions = groups.stream().flatMap(g -> fields.getOrDefault(g.typeIdentifier(), List.of()).stream())
+                .filter(d -> property.equals(d.identifier())).toList();
+        return definitions.stream().map(FieldDefinition::reverseLinkLabel).filter(l -> l != null && !l.isBlank()).findFirst()
+                .orElseGet(() -> definitions.stream().map(FieldDefinition::label).findFirst().orElseGet(() -> typeLabel(property, null)));
+    }
+
+    /**
+     * Translates an instance linking to another one into an incoming link - its label and space are only known if it is
+     * readable by the user. Since it links to the instance, it has outgoing links in any case.
+     */
+    private static IncomingLink incomingLink(LinkingInstance link) {
+        if (link.id() == null) {
+            return null;
+        }
+        String id = link.id().toString();
+        if (link.isRestricted()) {
+            return new IncomingLink(id, id, "", null, null, LinkStatus.RESTRICTED);
+        }
+        return new IncomingLink(id, link.label() != null && !link.label().isBlank() ? link.label() : id,
+                Objects.requireNonNullElse(link.space(), ""), true, link.hasIncomingLinks(), LinkStatus.RESOLVED);
     }
 
     /**
@@ -262,8 +354,10 @@ public class Instances {
         TypeDefinition type = typeName != null ? linkedTypes.get(typeName) : null;
         String label = status == LinkStatus.RESOLVED ? firstString(link.get(LINK_LABEL)) : null;
         String space = status == LinkStatus.RESOLVED ? firstString(link.get(LINK_SPACE)) : null;
+        // the target is linked by the instance itself, so it has incoming links in any case
+        Boolean hasOutgoingLinks = status == LinkStatus.RESOLVED && link.get(LINK_HAS_OUTGOING_LINKS) instanceof Boolean b ? b : null;
         return new LinkedInstance(id, label != null && !label.isBlank() ? label : id, typeLabel(typeName, type), type != null ? type.color() : null,
-                Objects.requireNonNullElse(space, ""), null, null, null, status);
+                Objects.requireNonNullElse(space, ""), null, hasOutgoingLinks, status == LinkStatus.RESOLVED ? true : null, status);
     }
 
     private static List<String> nonBlank(List<String> values) {

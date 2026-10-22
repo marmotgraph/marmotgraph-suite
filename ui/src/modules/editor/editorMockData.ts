@@ -5,7 +5,9 @@ export type LinkedInstance = {
   typeColor?: string;
   space: string;
   fieldLabel?: string;
+  /** Whether the linked instance has outgoing links itself (unknown if it is not readable) */
   hasDirectLinks?: boolean;
+  /** Whether the linked instance has incoming links itself (unknown if it is not readable) */
   hasReverseLinks?: boolean;
   /** Instance is not yet persisted or has unsaved edits. */
   isDraft?: boolean;
