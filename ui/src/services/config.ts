@@ -8,6 +8,8 @@ export interface AppConfig {
   authLogoutUrl?: string;
   /** The base URL of the linked MarmotGraph core */
   coreUrl: string;
+  /** The tenant of the core whose customizations (e.g. the logo) are applied to the UI */
+  tenant: string;
   commit?: string;
 }
 

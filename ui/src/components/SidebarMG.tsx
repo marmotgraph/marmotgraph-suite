@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import { Button, Dropdown, Nav } from "react-bootstrap";
 import { NavLink, useNavigate } from "react-router-dom";
 // @ts-ignore
@@ -9,6 +9,8 @@ import marmotGraphIcon from "../assets/marmotgraph_dark_icon.svg";
 import "./SidebarMG.css";
 import { useCurrentUser } from "../hooks/useCurrentUser";
 import { useAuth } from "../contexts/AuthContext";
+import { useConfig } from "../contexts/ConfigContext";
+import { imageUrl } from "../services/tenants";
 import { userLabel } from "../services/users";
 import { useGlobalFunctionalities } from "../hooks/useGlobalFunctionalities";
 import { adminSections } from "../modules/admin/adminSections";
@@ -35,6 +37,10 @@ function SidebarMG({ isCollapsed, onToggle }: SidebarMGProps) {
   const userName = (user && userLabel(user)) || "User";
   // The admin module is only shown if at least one of its sections is available to the user
   const showAdmin = adminSections(useGlobalFunctionalities()).length > 0;
+  const { coreUrl, tenant } = useConfig();
+  // The logo of the tenant (light mode) - the MarmotGraph logo is shown if the core can't provide it
+  const [tenantLogoFailed, setTenantLogoFailed] = useState(false);
+  const logo = tenantLogoFailed ? marmotGraphLogo : imageUrl(coreUrl, tenant, "logo", false);
 
   // @ts-ignore
   return (
@@ -51,9 +57,10 @@ function SidebarMG({ isCollapsed, onToggle }: SidebarMGProps) {
           />
         ) : (
           <img
-            src={marmotGraphLogo}
-            alt="MarmotGraph"
+            src={logo}
+            alt={tenantLogoFailed ? "MarmotGraph" : tenant}
             className="sidebar-logo-full"
+            onError={() => setTenantLogoFailed(true)}
           />
         )}
       </div>

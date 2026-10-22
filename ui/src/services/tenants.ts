@@ -83,10 +83,14 @@ export function uploadImage(
  * The url of an image of the tenant as provided (publicly) by the core - the version allows to bypass the cache of
  * the browser after an upload.
  */
-export function imageUrl(coreUrl: string, name: string, image: TenantImage, darkMode: boolean, version: number): string {
-  const params = new URLSearchParams({ v: String(version) });
+export function imageUrl(coreUrl: string, name: string, image: TenantImage, darkMode: boolean, version?: number): string {
+  const params = new URLSearchParams();
+  if (version !== undefined) {
+    params.set("v", String(version));
+  }
   if (MODE_SPECIFIC_IMAGES.includes(image)) {
     params.set("darkMode", String(darkMode));
   }
-  return `${coreUrl.replace(/\/+$/, "")}/v4/tenants/${encodeURIComponent(name)}/theme/${image}?${params}`;
+  const query = params.toString();
+  return `${coreUrl.replace(/\/+$/, "")}/v4/tenants/${encodeURIComponent(name)}/theme/${image}${query ? `?${query}` : ""}`;
 }
