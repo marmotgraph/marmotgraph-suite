@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Button, Col, Form, Modal, Row, Spinner, Table } from "react-bootstrap";
 import { useNavigate } from "react-router-dom";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
@@ -35,6 +35,9 @@ type InstanceFilters = {
 type SortField = "type" | "instanceName" | "space" | "lastVisited";
 type SortDirection = "asc" | "desc" | null;
 
+// The number of instances additionally rendered whenever the end of the list is scrolled into view
+const PAGE_SIZE = 50;
+
 // Type color mapping
 const typeColors: Record<string, string> = {
   Appliance: "#ff9800",
@@ -66,7 +69,7 @@ export default function EditorHome() {
   const [sortDirection, setSortDirection] = useState<SortDirection>("desc");
   const [searchQuery, setSearchQuery] = useState<string>(searchTerm);
   const [copiedId, setCopiedId] = useState<string | null>(null);
-  const [itemsToShow, setItemsToShow] = useState<number>(10);
+  const [itemsToShow, setItemsToShow] = useState<number>(PAGE_SIZE);
   const [selectedInstances, setSelectedInstances] = useState<Set<string>>(
     new Set(),
   );
@@ -90,7 +93,7 @@ export default function EditorHome() {
 
   // Reset items to show when filters or search change
   useEffect(() => {
-    setItemsToShow(10);
+    setItemsToShow(PAGE_SIZE);
   }, [searchTerm, filters, showBookmarkedOnly]);
 
   // The types (filtered by their identifier) and spaces to filter by
@@ -170,6 +173,29 @@ export default function EditorHome() {
     sortField,
     sortDirection,
   ]);
+
+  // Infinite scrolling: render more instances once the sentinel below the table becomes visible. The observer is
+  // recreated after each increment so it fires again if the sentinel is still visible (e.g. the rows don't fill the
+  // container yet).
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const loadMoreRef = useRef<HTMLDivElement>(null);
+  const hasMore = !loading && itemsToShow < filteredAndSortedInstances.length;
+  useEffect(() => {
+    const sentinel = loadMoreRef.current;
+    if (!hasMore || !sentinel) {
+      return;
+    }
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries.some((entry) => entry.isIntersecting)) {
+          setItemsToShow((prev) => prev + PAGE_SIZE);
+        }
+      },
+      { root: scrollContainerRef.current, rootMargin: "0px 0px 200px 0px" },
+    );
+    observer.observe(sentinel);
+    return () => observer.disconnect();
+  }, [hasMore, itemsToShow]);
 
   const handleSearch = () => {
     setSearchTerm(searchQuery.trim());
@@ -268,7 +294,7 @@ export default function EditorHome() {
   };
 
   return (
-    <div>
+    <div className="editor-home">
       <div className="mb-4">
         <h2>Instances</h2>
       </div>
@@ -367,181 +393,178 @@ export default function EditorHome() {
         </div>
       )}
 
-      <div className="row">
-        <div className="layout-content-bordless">
-          <div className="table-scroll-container">
-            <Table className="shared-queries-table" responsive="sm" striped>
-              <thead>
-                <tr>
-                  <th style={{ width: "40px" }}>
+      <div className="instances-result-count text-muted small">
+        {!loading &&
+          `${filteredAndSortedInstances.length} result${filteredAndSortedInstances.length !== 1 ? "s" : ""}`}
+      </div>
+
+      {/* The table takes the remaining height of the page and only scrolls its body (the header is sticky) */}
+      <div className="table-scroll-container" ref={scrollContainerRef}>
+        <Table className="shared-queries-table instances-table" striped>
+          <thead>
+            <tr>
+              <th style={{ width: "40px" }}>
+                <Form.Check
+                  type="checkbox"
+                  checked={
+                    selectedInstances.size ===
+                      filteredAndSortedInstances.slice(0, itemsToShow)
+                        .length && selectedInstances.size > 0
+                  }
+                  onChange={handleSelectAll}
+                />
+              </th>
+              <th>Fav</th>
+              <th
+                onClick={() => handleSort("type")}
+                style={{ cursor: "pointer", userSelect: "none" }}
+              >
+                Type {getSortIcon("type")}
+              </th>
+              <th
+                onClick={() => handleSort("instanceName")}
+                style={{ cursor: "pointer", userSelect: "none" }}
+              >
+                Instance Name {getSortIcon("instanceName")}
+              </th>
+              <th>Permissions</th>
+              <th
+                onClick={() => handleSort("lastVisited")}
+                style={{ cursor: "pointer", userSelect: "none" }}
+              >
+                Last visited {getSortIcon("lastVisited")}
+              </th>
+              <th>Release status</th>
+            </tr>
+          </thead>
+          <tbody>
+            {loading && (
+              <tr>
+                <td colSpan={7} className="text-center py-4">
+                  <Spinner
+                    animation="border"
+                    size="sm"
+                    role="status"
+                    className="me-2"
+                  />
+                  Loading instances...
+                </td>
+              </tr>
+            )}
+            {!loading && filteredAndSortedInstances
+              .slice(0, itemsToShow)
+              .map((instance) => (
+                <tr
+                  key={instance.id}
+                  onClick={(e) => {
+                    // Don't navigate if clicking checkbox
+                    if (
+                      (e.target as HTMLElement).closest(
+                        'input[type="checkbox"]',
+                      )
+                    ) {
+                      return;
+                    }
+                    handleRowClick(instance.instanceId);
+                  }}
+                  style={{ cursor: "pointer" }}
+                >
+                  <td onClick={(e) => e.stopPropagation()}>
                     <Form.Check
                       type="checkbox"
-                      checked={
-                        selectedInstances.size ===
-                          filteredAndSortedInstances.slice(0, itemsToShow)
-                            .length && selectedInstances.size > 0
+                      checked={selectedInstances.has(instance.instanceId)}
+                      onChange={() =>
+                        handleSelectInstance(instance.instanceId)
                       }
-                      onChange={handleSelectAll}
                     />
-                  </th>
-                  <th>Fav</th>
-                  <th
-                    onClick={() => handleSort("type")}
-                    style={{ cursor: "pointer", userSelect: "none" }}
-                  >
-                    Type {getSortIcon("type")}
-                  </th>
-                  <th
-                    onClick={() => handleSort("instanceName")}
-                    style={{ cursor: "pointer", userSelect: "none" }}
-                  >
-                    Instance Name {getSortIcon("instanceName")}
-                  </th>
-                  <th>Permissions</th>
-                  <th
-                    onClick={() => handleSort("lastVisited")}
-                    style={{ cursor: "pointer", userSelect: "none" }}
-                  >
-                    Last visited {getSortIcon("lastVisited")}
-                  </th>
-                  <th>Release status</th>
-                </tr>
-              </thead>
-              <tbody>
-                {loading && (
-                  <tr>
-                    <td colSpan={7} className="text-center py-4">
-                      <Spinner
-                        animation="border"
-                        size="sm"
-                        role="status"
+                  </td>
+                  <td>
+                    <FontAwesomeIcon
+                      icon={
+                        instance.bookmarked
+                          ? faBookmarkSolid
+                          : faBookmarkRegular
+                      }
+                    />
+                  </td>
+                  <td title={instance.typeDescription}>
+                    <FontAwesomeIcon
+                      icon={faCircle}
+                      className="type-color-icon me-2"
+                      style={{ color: instance.typeColor || typeColors[instance.type] || "#999" }}
+                    />
+                    {instance.type}
+                  </td>
+                  <td>
+                    <div>{instance.instanceName}</div>
+                    <div className="instance-id-info">
+                      <span className="instance-id-text">
+                        {instance.instanceId}
+                      </span>
+                      <span
+                        className="copy-id-wrapper"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          navigator.clipboard.writeText(
+                            instance.instanceId,
+                          );
+                          setCopiedId(instance.instanceId);
+                          setTimeout(() => setCopiedId(null), 2000);
+                        }}
+                      >
+                        <FontAwesomeIcon
+                          icon={faCopy}
+                          className="ms-2 copy-icon"
+                        />
+                        <span className="copy-id-tooltip">
+                          {copiedId === instance.instanceId
+                            ? "ID copied!"
+                            : "Copy ID"}
+                        </span>
+                      </span>
+                    </div>
+                    <div className="instance-space-info">
+                      Saved in space {instance.space}
+                    </div>
+                  </td>
+                  <td>
+                    {instance.permissions.includes("View") && (
+                      <FontAwesomeIcon
+                        icon={faGlasses}
                         className="me-2"
+                        title="View"
                       />
-                      Loading instances...
-                    </td>
-                  </tr>
-                )}
-                {!loading && filteredAndSortedInstances
-                  .slice(0, itemsToShow)
-                  .map((instance) => (
-                    <tr
-                      key={instance.id}
-                      onClick={(e) => {
-                        // Don't navigate if clicking checkbox
-                        if (
-                          (e.target as HTMLElement).closest(
-                            'input[type="checkbox"]',
-                          )
-                        ) {
-                          return;
-                        }
-                        handleRowClick(instance.instanceId);
-                      }}
-                      style={{ cursor: "pointer" }}
-                    >
-                      <td onClick={(e) => e.stopPropagation()}>
-                        <Form.Check
-                          type="checkbox"
-                          checked={selectedInstances.has(instance.instanceId)}
-                          onChange={() =>
-                            handleSelectInstance(instance.instanceId)
-                          }
-                        />
-                      </td>
-                      <td>
-                        <FontAwesomeIcon
-                          icon={
-                            instance.bookmarked
-                              ? faBookmarkSolid
-                              : faBookmarkRegular
-                          }
-                        />
-                      </td>
-                      <td title={instance.typeDescription}>
-                        <FontAwesomeIcon
-                          icon={faCircle}
-                          className="type-color-icon me-2"
-                          style={{ color: instance.typeColor || typeColors[instance.type] || "#999" }}
-                        />
-                        {instance.type}
-                      </td>
-                      <td>
-                        <div>{instance.instanceName}</div>
-                        <div className="instance-id-info">
-                          <span className="instance-id-text">
-                            {instance.instanceId}
-                          </span>
-                          <span
-                            className="copy-id-wrapper"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              navigator.clipboard.writeText(
-                                instance.instanceId,
-                              );
-                              setCopiedId(instance.instanceId);
-                              setTimeout(() => setCopiedId(null), 2000);
-                            }}
-                          >
-                            <FontAwesomeIcon
-                              icon={faCopy}
-                              className="ms-2 copy-icon"
-                            />
-                            <span className="copy-id-tooltip">
-                              {copiedId === instance.instanceId
-                                ? "ID copied!"
-                                : "Copy ID"}
-                            </span>
-                          </span>
-                        </div>
-                        <div className="instance-space-info">
-                          Saved in space {instance.space}
-                        </div>
-                      </td>
-                      <td>
-                        {instance.permissions.includes("View") && (
-                          <FontAwesomeIcon
-                            icon={faGlasses}
-                            className="me-2"
-                            title="View"
-                          />
-                        )}
-                        {instance.permissions.includes("Edit") && (
-                          <FontAwesomeIcon
-                            icon={faPen}
-                            className="me-2"
-                            title="Edit"
-                          />
-                        )}
-                        {instance.permissions.includes("Review") && (
-                          <FontAwesomeIcon
-                            icon={faClipboardCheck}
-                            className="me-2"
-                            title="Review"
-                          />
-                        )}
-                        {instance.permissions.includes("Release") && (
-                          <FontAwesomeIcon icon={faRocket} title="Release" />
-                        )}
-                      </td>
-                      <td>{instance.lastVisited || ""}</td>
-                      <td>{instance.releaseStatus}</td>
-                    </tr>
-                  ))}
-              </tbody>
-            </Table>
+                    )}
+                    {instance.permissions.includes("Edit") && (
+                      <FontAwesomeIcon
+                        icon={faPen}
+                        className="me-2"
+                        title="Edit"
+                      />
+                    )}
+                    {instance.permissions.includes("Review") && (
+                      <FontAwesomeIcon
+                        icon={faClipboardCheck}
+                        className="me-2"
+                        title="Review"
+                      />
+                    )}
+                    {instance.permissions.includes("Release") && (
+                      <FontAwesomeIcon icon={faRocket} title="Release" />
+                    )}
+                  </td>
+                  <td>{instance.lastVisited || ""}</td>
+                  <td>{instance.releaseStatus}</td>
+                </tr>
+              ))}
+          </tbody>
+        </Table>
+        {hasMore && (
+          <div ref={loadMoreRef} className="text-center text-muted small py-2">
+            <Spinner animation="border" size="sm" className="me-2" />
+            Loading more instances...
           </div>
-          {!loading && itemsToShow < filteredAndSortedInstances.length && (
-            <div className="text-center mt-3 mb-3">
-              <Button
-                variant="outline-secondary"
-                onClick={() => setItemsToShow((prev) => prev + 10)}
-              >
-                Show More ({filteredAndSortedInstances.length - itemsToShow}{" "}
-                remaining)
-              </Button>
-            </div>
-          )}
-        </div>
+        )}
       </div>
 
       {/* Delete Confirmation Modal */}
