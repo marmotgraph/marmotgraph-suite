@@ -72,7 +72,7 @@
 .search-input-submit {
   flex-shrink: 0;
   border: none;
-  background: var(--search-accent);
+  background: var(--search-action-primary);
   color: var(--search-white);
   font-weight: 600;
   font-size: 14.5px;
@@ -84,7 +84,11 @@
 }
 
 .search-input-submit:hover {
-  background: var(--search-accent-ink);
+  background: var(--search-action-primary-hover);
+}
+
+.search-input-submit:active {
+  background: var(--search-action-primary-active);
 }
 
 .search-input-submit:focus-visible {

@@ -1,5 +1,17 @@
 /* Root container */
 #root {
+    --text-primary: #344054;
+    --text-secondary: var(--bs-gray-600);
+    --text-faint: var(--bs-gray-500);
+    --border-color: var(--bs-border-color);
+    --bg-secondary: var(--bs-gray-100);
+    --bg-canvas: #eee;
+    --card-bg: var(--bs-white);
+    --button-bg: var(--bs-dark);
+    --button-hover: color-mix(in srgb, var(--bs-dark) 85%, white);
+    --button-active: color-mix(in srgb, var(--bs-dark) 80%, white);
+    --shadow: rgba(0, 0, 0, 0.08);
+
     margin: 0;
     padding: 0;
     font-family: "Inter", sans-serif;
@@ -8,12 +20,12 @@
     font-style: normal;
     line-height: 1.5;
     font-weight: 400;
-    background-color: #eee;
-    color: #344054;
+    background-color: var(--bg-canvas);
+    color: var(--text-primary);
 
     font-synthesis: none;
     text-rendering: optimizeLegibility;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
-    --bs-body-bg: #eee;
+    --bs-body-bg: var(--bg-canvas);
 }

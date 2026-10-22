@@ -152,14 +152,14 @@ export const SEARCH_SUGGESTIONS = [
   "protein folding",
 ] as const;
 
-/** Type accent colors mapped to HPC palette blues and slates. */
+/** Type accents use the suite text color so result cards stay in the grayscale UI. */
 export const SEARCH_TYPE_COLORS: Record<string, string> = {
-  Appliance: "#2b6cb0",
-  "Asset Tag": "#4a6278",
-  Blade: "#1a4e8a",
-  Building: "#8fa8c0",
-  Cabinet: "#2b6cb0",
-  Canton: "#4a6278",
+  Appliance: "var(--text-primary)",
+  "Asset Tag": "var(--text-primary)",
+  Blade: "var(--text-primary)",
+  Building: "var(--text-primary)",
+  Cabinet: "var(--text-primary)",
+  Canton: "var(--text-primary)",
 };
 
 export const SEARCH_PAGE_SIZE = 6;

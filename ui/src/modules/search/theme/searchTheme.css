@@ -1,25 +1,19 @@
 /**
- * HPC Scientific palette — scoped to .search-module for future detachment.
- * Layout tokens follow KG Search redesign; colors from hpc_scientific_palette.html
+ * Search layout tokens. Colors come from the suite theme on #root.
  */
 .search-module {
-  /* Brand (layer 1 — not used in search surfaces) */
-  --search-brand-red-200: #f09b9b;
-  --search-brand-red-500: #e2001a;
-  --search-brand-red-700: #a60b16;
-
-  /* UI chrome (layer 2) */
-  --search-slate-50: #f0f4f8;
-  --search-slate-100: #e2e8ee;
-  --search-white: #ffffff;
-  --search-slate-400: #8fa8c0;
-  --search-slate-600: #4a6278;
-  --search-slate-900: #1c2733;
-  --search-blue-50: #ebf4ff;
-  --search-blue-600: #2b6cb0;
-  --search-blue-800: #1a4e8a;
-  --search-nav-surface: #243447;
-  --search-nav-border: #3a5068;
+  /* UI chrome */
+  --search-slate-50: var(--bg-secondary);
+  --search-slate-100: var(--border-color);
+  --search-white: var(--card-bg);
+  --search-slate-400: var(--text-faint);
+  --search-slate-600: var(--text-secondary);
+  --search-slate-900: var(--text-primary);
+  --search-blue-50: var(--bg-secondary);
+  --search-blue-600: var(--button-bg);
+  --search-blue-800: var(--button-hover);
+  --search-nav-surface: var(--button-bg);
+  --search-nav-border: var(--border-color);
 
   /* Semantic (job states — reserved for status indicators only) */
   --search-status-running: #22c55e;
@@ -34,16 +28,16 @@
   --search-ink-2: var(--search-slate-600);
   --search-muted: var(--search-slate-600);
   --search-faint: var(--search-slate-400);
-  --search-canvas: var(--search-slate-50);
+  --search-canvas: var(--card-bg);
   --search-surface: var(--search-white);
   --search-surface-2: var(--search-slate-50);
   --search-line: var(--search-slate-100);
-  --search-line-2: #edf0f3;
-  --search-accent: var(--search-blue-600);
-  --search-accent-ink: var(--search-blue-800);
+  --search-line-2: var(--bs-gray-200);
+  --search-accent: var(--button-bg);
+  --search-accent-ink: var(--button-hover);
   --search-radius: 10px;
-  --search-shadow: 0 1px 2px rgba(28, 39, 51, 0.05),
-    0 4px 14px -8px rgba(28, 39, 51, 0.1);
+  --search-shadow: 0 1px 2px var(--shadow),
+    0 4px 14px -8px var(--shadow);
 
   /* Legacy aliases */
   --search-bg-page: var(--search-canvas);
@@ -55,15 +49,16 @@
   --search-text-tertiary: var(--search-faint);
   --search-border: var(--search-line);
   --search-border-focus: var(--search-accent);
-  --search-action-primary: var(--search-accent);
-  --search-action-primary-hover: var(--search-accent-ink);
+  --search-action-primary: var(--button-bg);
+  --search-action-primary-hover: var(--button-hover);
+  --search-action-primary-active: var(--button-active);
   --search-radius-sm: 4px;
   --search-radius-md: 6px;
   --search-radius-lg: var(--search-radius);
   --search-font-sans: "Inter", system-ui, -apple-system, sans-serif;
   --search-font-mono: ui-monospace, "Cascadia Code", "Source Code Pro", monospace;
   --search-shadow-sm: var(--search-shadow);
-  --search-focus-ring: 0 0 0 4px rgba(43, 108, 176, 0.16);
+  --search-focus-ring: 0 0 0 4px color-mix(in srgb, var(--button-bg) 16%, transparent);
 
   font-family: var(--search-font-sans);
   color: var(--search-text-primary);

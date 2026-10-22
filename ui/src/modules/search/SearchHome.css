@@ -6,13 +6,7 @@
 
 /* Search band (hero) */
 .search-home-band {
-  background:
-    radial-gradient(
-      120% 140% at 80% -20%,
-      color-mix(in srgb, var(--search-accent) 13%, transparent),
-      transparent 55%
-    ),
-    linear-gradient(var(--search-white), #fbfcfd);
+  background: var(--search-white);
   border-bottom: 1px solid var(--search-line);
 }
 

@@ -15,7 +15,7 @@ export function SearchResultCard({
   viewMode,
   onSelect,
 }: SearchResultCardProps) {
-  const typeColor = SEARCH_TYPE_COLORS[result.type] ?? "#2b6cb0";
+  const typeColor = SEARCH_TYPE_COLORS[result.type] ?? "var(--text-primary)";
 
   const handleClick = () => onSelect?.(result);
 

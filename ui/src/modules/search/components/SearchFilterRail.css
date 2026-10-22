@@ -177,7 +177,7 @@
   width: 17px;
   height: 17px;
   border-radius: 5px;
-  border: 1.5px solid #c4ccd4;
+  border: 1.5px solid var(--bs-gray-400);
   display: grid;
   place-items: center;
   color: var(--search-white);
