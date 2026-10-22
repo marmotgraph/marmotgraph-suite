@@ -246,16 +246,8 @@
     font-size: 0.7rem;
 }
 
-.field-group {
-    border-radius: 6px;
-    transition: background-color 0.15s ease, box-shadow 0.15s ease;
-}
-
-.field-group--highlighted {
+.link-item--highlighted,
+.link-item--highlighted:hover {
     background-color: #eef3fa;
-    box-shadow: 0 0 0 6px #eef3fa, inset 3px 0 0 #6c8ebf;
-}
-
-.field-group--highlighted .field-group-label {
-    color: #495057;
+    border-color: #6c8ebf;
 }

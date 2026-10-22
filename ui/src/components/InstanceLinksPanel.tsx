@@ -30,15 +30,18 @@ const typeColors: Record<string, string> = {
   Canton: "#00bcd4",
 };
 
+/** A link to an instance - identified by the field it is linked by and the linked instance */
+export type HoveredLink = { fieldLabel: string; instanceId: string };
+
 interface InstanceLinksPanelProps {
   links: LinkedInstance[];
   onLinkClick: (instanceId: string) => void;
   title: string;
   isReverse?: boolean;
-  /** The label of the field whose group is highlighted */
-  highlightedField?: string;
-  /** Called with the label of the field whose group is hovered (undefined when left) */
-  onFieldHover?: (fieldLabel: string | undefined) => void;
+  /** The link whose instance is highlighted */
+  highlightedLink?: HoveredLink;
+  /** Called with the link whose instance is hovered (undefined when left) */
+  onLinkHover?: (link: HoveredLink | undefined) => void;
 }
 
 export default function InstanceLinksPanel({
@@ -46,8 +49,8 @@ export default function InstanceLinksPanel({
   onLinkClick,
   title,
   isReverse = false,
-  highlightedField,
-  onFieldHover,
+  highlightedLink,
+  onLinkHover,
 }: InstanceLinksPanelProps) {
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [collapsedFields, setCollapsedFields] = useState<Set<string>>(
@@ -128,20 +131,7 @@ export default function InstanceLinksPanel({
               {Object.entries(groupedLinks).map(([fieldLabel, fieldLinks]) => {
                 const isFieldCollapsed = collapsedFields.has(fieldLabel);
                 return (
-                  <div
-                    key={fieldLabel}
-                    className={`field-group${
-                      highlightedField === fieldLabel
-                        ? " field-group--highlighted"
-                        : ""
-                    }`}
-                    onMouseEnter={
-                      onFieldHover && (() => onFieldHover(fieldLabel))
-                    }
-                    onMouseLeave={
-                      onFieldHover && (() => onFieldHover(undefined))
-                    }
-                  >
+                  <div key={fieldLabel} className="field-group">
                     <div
                       className="field-group-label"
                       onClick={() => toggleFieldCollapse(fieldLabel)}
@@ -163,12 +153,26 @@ export default function InstanceLinksPanel({
                           link.typeColor || typeColors[link.type] || "#6c757d";
                         const resolved = isResolvedLink(link);
                         const unresolved = link.linkStatus === "unresolved";
+                        const highlighted =
+                          highlightedLink?.fieldLabel === fieldLabel &&
+                          highlightedLink.instanceId === link.instanceId;
                         return (
                           <div
                             key={link.instanceId}
                             className={`link-item${
                               resolved ? "" : ` link-item--${link.linkStatus}`
-                            }`}
+                            }${highlighted ? " link-item--highlighted" : ""}`}
+                            onMouseEnter={
+                              onLinkHover &&
+                              (() =>
+                                onLinkHover({
+                                  fieldLabel,
+                                  instanceId: link.instanceId,
+                                }))
+                            }
+                            onMouseLeave={
+                              onLinkHover && (() => onLinkHover(undefined))
+                            }
                             onClick={
                               resolved
                                 ? () => onLinkClick(link.instanceId)

@@ -42,6 +42,10 @@ type LinkedInstancesFieldProps = {
   currentInstanceId?: string;
   parentSpace?: string;
   variant?: "view" | "edit";
+  /** The id of the linked instance to highlight */
+  highlightedInstanceId?: string;
+  /** Called with the id of the linked instance hovered (undefined when left) */
+  onInstanceHover?: (instanceId: string | undefined) => void;
 };
 
 export default function LinkedInstancesField({
@@ -54,6 +58,8 @@ export default function LinkedInstancesField({
   currentInstanceId,
   parentSpace,
   variant = "view",
+  highlightedInstanceId,
+  onInstanceHover,
 }: LinkedInstancesFieldProps) {
   const { getDraft } = useUnsavedInstances();
   const [showViewModal, setShowViewModal] = useState(false);
@@ -84,6 +90,16 @@ export default function LinkedInstancesField({
           previewInstances.map((instance) => {
             const typeColor =
               instance.typeColor || typeColors[instance.type] || "#6c757d";
+            const hoverProps = {
+              onMouseEnter:
+                onInstanceHover &&
+                (() => onInstanceHover(instance.instanceId)),
+              onMouseLeave: onInstanceHover && (() => onInstanceHover(undefined)),
+            };
+            const highlightClassName =
+              highlightedInstanceId === instance.instanceId
+                ? " linked-instance-badge--highlighted"
+                : "";
 
             if (!isResolvedLink(instance)) {
               const restricted = instance.linkStatus === "restricted";
@@ -92,7 +108,8 @@ export default function LinkedInstancesField({
                   key={instance.instanceId}
                   bg="light"
                   text="dark"
-                  className={`${badgeClassName} linked-instance-badge linked-instance-badge--${instance.linkStatus}`}
+                  className={`${badgeClassName} linked-instance-badge linked-instance-badge--${instance.linkStatus}${highlightClassName}`}
+                  {...hoverProps}
                   title={linkedInstanceStatusDescription(instance)}
                 >
                   <FontAwesomeIcon
@@ -113,7 +130,8 @@ export default function LinkedInstancesField({
                 key={instance.instanceId}
                 bg="light"
                 text="dark"
-                className={`${badgeClassName} linked-instance-badge`}
+                className={`${badgeClassName} linked-instance-badge${highlightClassName}`}
+                {...hoverProps}
                 onClick={() => onInstanceClick(instance.instanceId)}
                 role="button"
                 tabIndex={0}

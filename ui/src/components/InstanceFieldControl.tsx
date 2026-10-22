@@ -13,6 +13,10 @@ export type InstanceFieldControlProps = {
   onInstanceClick: (instanceId: string) => void;
   currentInstanceId?: string;
   parentSpace?: string;
+  /** The id of the linked instance to highlight */
+  highlightedInstanceId?: string;
+  /** Called with the id of the linked instance hovered (undefined when left) */
+  onInstanceHover?: (instanceId: string | undefined) => void;
 };
 
 function asText(value: unknown): string {
@@ -91,6 +95,8 @@ function linkedInstances(single: boolean) {
     onInstanceClick,
     currentInstanceId,
     parentSpace,
+    highlightedInstanceId,
+    onInstanceHover,
   }: InstanceFieldControlProps) {
     const allowedTypes = (field.targetTypes ?? []).map((identifier) => typeLabel({ identifier }));
     return (
@@ -108,6 +114,8 @@ function linkedInstances(single: boolean) {
         currentInstanceId={currentInstanceId}
         parentSpace={parentSpace}
         variant={isEditMode ? "edit" : "view"}
+        highlightedInstanceId={highlightedInstanceId}
+        onInstanceHover={onInstanceHover}
       />
     );
   };

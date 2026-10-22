@@ -20,7 +20,9 @@ import {
 } from "../../services/instances";
 import { useUnsavedInstances } from "../../contexts/UnsavedInstancesContext";
 import InstanceFieldControl from "../../components/InstanceFieldControl";
-import InstanceLinksPanel from "../../components/InstanceLinksPanel";
+import InstanceLinksPanel, {
+  HoveredLink,
+} from "../../components/InstanceLinksPanel";
 import UnsavedInstancesPanel from "../../components/UnsavedInstancesPanel";
 import DirLinkIcon from "../../assets/icons/DirLink.svg";
 import RevLinkIcon from "../../assets/icons/RevLink.svg";
@@ -91,8 +93,8 @@ function InstanceDetailView({ instanceId }: { instanceId: string }) {
           }
         : undefined,
   );
-  /** The label of the link field hovered - either in the form or in the outgoing links */
-  const [hoveredLinkField, setHoveredLinkField] = useState<string>();
+  /** The linked instance hovered - either in the form or in the outgoing links */
+  const [hoveredLink, setHoveredLink] = useState<HoveredLink>();
   const [loading, setLoading] = useState(!isNewInstance);
   const [loadError, setLoadError] = useState<string>();
 
@@ -292,18 +294,19 @@ function InstanceDetailView({ instanceId }: { instanceId: string }) {
     navigate(`/editor/instances/${linkedInstanceId}`);
   };
 
-  /** Highlights a link field together with its group in the outgoing links (and vice versa) when hovered. */
-  const linkFieldProps = (field: InstanceField, className: string) => {
+  /** Highlights a linked instance in a field together with its representation in the outgoing links (and vice versa) when hovered. */
+  const linkHoverProps = (field: InstanceField) => {
     if (field.kind !== "LINK" && field.kind !== "LINKS") {
-      return { className };
+      return {};
     }
-    const label = field.label.trim();
+    const fieldLabel = field.label.trim();
     return {
-      className: `${className} instance-link-field${
-        hoveredLinkField === label ? " instance-link-field--highlighted" : ""
-      }`,
-      onMouseEnter: () => setHoveredLinkField(label),
-      onMouseLeave: () => setHoveredLinkField(undefined),
+      highlightedInstanceId:
+        hoveredLink?.fieldLabel === fieldLabel
+          ? hoveredLink.instanceId
+          : undefined,
+      onInstanceHover: (instanceId: string | undefined) =>
+        setHoveredLink(instanceId ? { fieldLabel, instanceId } : undefined),
     };
   };
 
@@ -440,7 +443,7 @@ function InstanceDetailView({ instanceId }: { instanceId: string }) {
             {!isEditMode ? (
               <div className="instance-view">
                 {fields.map((field) => (
-                  <div key={field.identifier} {...linkFieldProps(field, "mb-4")}>
+                  <div key={field.identifier} className="mb-4">
                     <div className="view-label" title={field.tooltip}>
                       {field.label}
                     </div>
@@ -450,6 +453,7 @@ function InstanceDetailView({ instanceId }: { instanceId: string }) {
                       onChange={(value) => setFieldValue(field.identifier, value)}
                       isEditMode={false}
                       onInstanceClick={handleLinkClick}
+                      {...linkHoverProps(field)}
                     />
                   </div>
                 ))}
@@ -457,10 +461,7 @@ function InstanceDetailView({ instanceId }: { instanceId: string }) {
             ) : (
               <div className="instance-form">
                 {fields.map((field) => (
-                  <Form.Group
-                    key={field.identifier}
-                    {...linkFieldProps(field, "mb-4")}
-                  >
+                  <Form.Group key={field.identifier} className="mb-4">
                     <InstanceFieldLabel
                       isChanged={changedFieldKeys.has(field.identifier)}
                       tooltip={field.tooltip}
@@ -476,6 +477,7 @@ function InstanceDetailView({ instanceId }: { instanceId: string }) {
                       onInstanceClick={handleLinkClick}
                       currentInstanceId={instanceId}
                       parentSpace={instance.space}
+                      {...linkHoverProps(field)}
                     />
                   </Form.Group>
                 ))}
@@ -499,8 +501,8 @@ function InstanceDetailView({ instanceId }: { instanceId: string }) {
             onLinkClick={handleLinkClick}
             title="Outgoing Links"
             isReverse={false}
-            highlightedField={hoveredLinkField}
-            onFieldHover={setHoveredLinkField}
+            highlightedLink={hoveredLink}
+            onLinkHover={setHoveredLink}
           />
         </aside>
       </div>

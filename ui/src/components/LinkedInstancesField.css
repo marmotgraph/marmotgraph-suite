@@ -24,6 +24,11 @@
   border: 1px dashed #adb5bd;
 }
 
+.linked-instance-badge--highlighted {
+  background-color: #eef3fa !important;
+  border-color: #6c8ebf !important;
+}
+
 .linked-instance-badge-status-icon {
   font-size: 0.7rem;
   margin-right: 6px;
