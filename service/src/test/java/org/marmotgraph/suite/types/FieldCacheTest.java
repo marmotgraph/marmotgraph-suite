@@ -13,7 +13,6 @@ import org.mockito.Mockito;
 
 import java.time.Clock;
 import java.time.Duration;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -41,29 +40,26 @@ class FieldCacheTest {
         when(types.getByNames(any(), any(), any(), anyBoolean(), anyBoolean())).thenReturn(Map.of());
     }
 
-    private static Property property(String identifier, String name, String widget, Integer order, Map<String, Object> extra, List<TargetType> targetTypes) {
-        Map<String, Object> all = new HashMap<>(extra);
-        if (widget != null) {
-            all.put(FieldCache.WIDGET, widget);
-        }
-        if (order != null) {
-            all.put(FieldCache.ORDER_NUMBER, order);
-        }
-        return new Property(identifier, name, 3, targetTypes, all);
+    private static Property property(String identifier, String name, String widget, Integer order, List<TargetType> targetTypes) {
+        return property(identifier, name, null, widget, null, null, null, order, targetTypes);
+    }
+
+    private static Property property(String identifier, String name, String nameForReverseLink, String widget, Boolean readOnly,
+                                     String labelTooltip, Boolean required, Integer order, List<TargetType> targetTypes) {
+        return new Property(identifier, name, nameForReverseLink, widget, readOnly, labelTooltip, required, order, 3, targetTypes);
     }
 
     private static TypeInformation type(List<Property> properties) {
-        return new TypeInformation(DEVICE, null, "Device", null, null, null, null, List.of(), properties, List.of(), Map.of());
+        return new TypeInformation(DEVICE, null, "Device", null, null, null, null, List.of(), properties, List.of());
     }
 
     @Test
     void propertiesAreMappedToFieldsSortedByTheirOrderNumber() {
         when(types.getByNames(List.of(DEVICE), Stage.IN_PROGRESS, null, true, false)).thenReturn(Map.of(DEVICE, type(List.of(
-                property("https://example.org/serialNumber", null, null, null, Map.of(), List.of()),
-                property("https://example.org/blades", "blades", "DynamicTable", 3, Map.of(FieldCache.NAME_FOR_REVERSE_LINK, "Is blade of"), List.of(new TargetType("https://example.org/types/Blade", 4, List.of()))),
-                property("http://schema.org/name", "name", "InputText", 1,
-                        Map.of(FieldCache.REQUIRED, true, FieldCache.READ_ONLY, "true", FieldCache.LABEL_TOOLTIP, "The name of the device"), List.of()),
-                property("https://example.org/components", "components", "Nested", 2, Map.of(), List.of())
+                property("https://example.org/serialNumber", null, null, null, List.of()),
+                property("https://example.org/blades", "blades", "Is blade of", "DynamicTable", null, null, null, 3, List.of(new TargetType("https://example.org/types/Blade", 4, List.of()))),
+                property("http://schema.org/name", "name", null, "InputText", true, "The name of the device", true, 1, List.of()),
+                property("https://example.org/components", "components", "Nested", 2, List.of())
         ))));
 
         List<FieldDefinition> fields = cache.get(client, DEVICE);

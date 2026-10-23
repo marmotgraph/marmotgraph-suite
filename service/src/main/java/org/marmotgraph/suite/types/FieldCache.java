@@ -1,7 +1,6 @@
 package org.marmotgraph.suite.types;
 
 import org.marmotgraph.sdk.MarmotGraphClient;
-import org.marmotgraph.sdk.internal.JsonUtil;
 import org.marmotgraph.sdk.model.Property;
 import org.marmotgraph.sdk.model.Stage;
 import org.marmotgraph.sdk.model.TargetType;
@@ -27,13 +26,6 @@ import java.util.Objects;
 @Component
 public class FieldCache extends DefinitionCache<List<FieldCache.FieldDefinition>> {
 
-    static final String WIDGET = "https://editor.kg.ebrains.eu/vocab/meta/property/widget";
-    static final String READ_ONLY = "https://editor.kg.ebrains.eu/vocab/meta/property/readOnly";
-    static final String LABEL_TOOLTIP = "https://editor.kg.ebrains.eu/vocab/meta/property/labelTooltip";
-    static final String REQUIRED = "https://core.kg.ebrains.eu/vocab/meta/required";
-    static final String ORDER_NUMBER = "https://core.kg.ebrains.eu/vocab/meta/orderNumber";
-    static final String NAME_FOR_REVERSE_LINK = "https://core.kg.ebrains.eu/vocab/meta/nameForReverseLink";
-
     /**
      * Properties without an order number are placed after those with one (keeping the order of the core)
      */
@@ -51,12 +43,11 @@ public class FieldCache extends DefinitionCache<List<FieldCache.FieldDefinition>
                                   String tooltip, List<String> targetTypes, String reverseLinkLabel) {
 
         static FieldDefinition of(Property property) {
-            Map<String, Object> extra = property.extra();
-            return new FieldDefinition(property.identifier(), label(property), FieldKind.ofWidget(JsonUtil.str(extra, WIDGET)),
-                    JsonUtil.intVal(extra, ORDER_NUMBER), JsonUtil.boolVal(extra, REQUIRED, false), JsonUtil.boolVal(extra, READ_ONLY, false),
-                    JsonUtil.str(extra, LABEL_TOOLTIP),
+            return new FieldDefinition(property.identifier(), label(property), FieldKind.ofWidget(property.widget()),
+                    property.orderNumber(), Boolean.TRUE.equals(property.required()), Boolean.TRUE.equals(property.readOnly()),
+                    property.labelTooltip(),
                     property.targetTypes().stream().map(TargetType::type).filter(Objects::nonNull).toList(),
-                    JsonUtil.str(extra, NAME_FOR_REVERSE_LINK));
+                    property.nameForReverseLink());
         }
 
         /**

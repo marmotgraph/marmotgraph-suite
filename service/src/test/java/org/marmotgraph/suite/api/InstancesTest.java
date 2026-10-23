@@ -118,7 +118,7 @@ class InstancesTest {
                 instance(UNRELEASED_ID, "https://example.org/types/Unknown", Map.of(Instances.PERMISSIONS, List.of("READ")))
         )));
         when(typesResource.getByNames(List.of(DEVICE, "https://example.org/types/Unknown"), Stage.IN_PROGRESS, null, false, false))
-                .thenReturn(Map.of(DEVICE, new TypeInformation(DEVICE, "A device in the data center", "Device", "#ff9800", NAME, null, null, List.of(), List.of(), List.of(), Map.of())));
+                .thenReturn(Map.of(DEVICE, new TypeInformation(DEVICE, "A device in the data center", "Device", "#ff9800", NAME, null, null, List.of(), List.of(), List.of())));
         when(instancesResource.releaseStatusByIds(List.of(RELEASED_ID, UNRELEASED_ID), ReleaseTreeScope.TOP_INSTANCE_ONLY))
                 .thenReturn(Map.of(RELEASED_ID.toString(), ReleaseStatus.RELEASED, UNRELEASED_ID.toString(), ReleaseStatus.HAS_CHANGED));
 
@@ -206,7 +206,7 @@ class InstancesTest {
         when(instancesResource.get(any(UUID.class), any(), any())).thenReturn(
                 instance(RELEASED_ID, DEVICE, Map.of(NAME, "Server-Rack-A1", Instances.PERMISSIONS, List.of("READ", "WRITE"))));
         when(typesResource.getByNames(List.of(DEVICE), Stage.IN_PROGRESS, null, false, false))
-                .thenReturn(Map.of(DEVICE, new TypeInformation(DEVICE, "A device in the data center", "Device", "#ff9800", NAME, null, null, List.of(), List.of(), List.of(), Map.of())));
+                .thenReturn(Map.of(DEVICE, new TypeInformation(DEVICE, "A device in the data center", "Device", "#ff9800", NAME, null, null, List.of(), List.of(), List.of())));
         when(instancesResource.releaseStatus(RELEASED_ID, ReleaseTreeScope.TOP_INSTANCE_ONLY)).thenReturn(ReleaseStatus.RELEASED);
 
         mockMvc.perform(get("/instances/" + RELEASED_ID).header(HttpHeaders.AUTHORIZATION, "Bearer theToken"))
@@ -242,21 +242,17 @@ class InstancesTest {
                         link(unresolvedIdentifier, "unresolved", null, null, null, null, null)),
                 "https://example.org/components", List.of(Map.of("x", "y")))));
         when(typesResource.getByNames(List.of(rack), Stage.IN_PROGRESS, null, false, false))
-                .thenReturn(Map.of(rack, new TypeInformation(rack, null, "Rack", "#4caf50", NAME, null, null, List.of(), List.of(), List.of(), Map.of())));
+                .thenReturn(Map.of(rack, new TypeInformation(rack, null, "Rack", "#4caf50", NAME, null, null, List.of(), List.of(), List.of())));
         when(typesResource.getByNames(List.of(rack), Stage.IN_PROGRESS, null, true, false))
                 .thenReturn(Map.of(rack, new TypeInformation(rack, null, "Rack", "#4caf50", NAME, null, null, List.of(), List.of(
-                        new Property("https://example.org/components", "components", null, List.of(), Map.of()),
-                        new Property("https://example.org/blades", "blades", null, List.of(), Map.of("https://editor.kg.ebrains.eu/vocab/meta/property/widget", "DynamicDropdown",
-                                "https://core.kg.ebrains.eu/vocab/meta/orderNumber", 4)),
-                        new Property("https://example.org/active", "active", null, List.of(), Map.of("https://editor.kg.ebrains.eu/vocab/meta/property/widget", "CheckBox",
-                                "https://core.kg.ebrains.eu/vocab/meta/orderNumber", 3)),
-                        new Property("https://example.org/height", "height", null, List.of(), Map.of("https://editor.kg.ebrains.eu/vocab/meta/property/widget", "InputNumber",
-                                "https://core.kg.ebrains.eu/vocab/meta/orderNumber", 2)),
-                        new Property(NAME, "name", null, List.of(), Map.of("https://editor.kg.ebrains.eu/vocab/meta/property/widget", "InputText",
-                                "https://core.kg.ebrains.eu/vocab/meta/orderNumber", 1))
-                ), List.of(), Map.of())));
+                        new Property("https://example.org/components", "components", null, null, null, null, null, null, null, List.of()),
+                        new Property("https://example.org/blades", "blades", null, "DynamicDropdown", null, null, null, 4, null, List.of()),
+                        new Property("https://example.org/active", "active", null, "CheckBox", null, null, null, 3, null, List.of()),
+                        new Property("https://example.org/height", "height", null, "InputNumber", null, null, null, 2, null, List.of()),
+                        new Property(NAME, "name", null, "InputText", null, null, null, 1, null, List.of())
+                ), List.of())));
         when(typesResource.getByNames(List.of(blade), Stage.IN_PROGRESS, null, false, false))
-                .thenReturn(Map.of(blade, new TypeInformation(blade, null, "Blade", "#2196f3", NAME, null, null, List.of(), List.of(), List.of(), Map.of())));
+                .thenReturn(Map.of(blade, new TypeInformation(blade, null, "Blade", "#2196f3", NAME, null, null, List.of(), List.of(), List.of())));
         when(instancesResource.releaseStatus(RELEASED_ID, ReleaseTreeScope.TOP_INSTANCE_ONLY)).thenReturn(ReleaseStatus.RELEASED);
 
         mockMvc.perform(get("/instances/" + RELEASED_ID).header(HttpHeaders.AUTHORIZATION, "Bearer theToken"))
@@ -362,15 +358,15 @@ class InstancesTest {
                 new LinkingInstance(datasetId, person, "", "people", LinkingInstance.RESOLVED, false)), 1, 1, null, null, Map.of(), null)));
         when(instancesResource.incomingLinks(RELEASED_ID, null, null, Stage.IN_PROGRESS, null, 10, true)).thenReturn(byProperty);
         when(typesResource.getByNames(List.of(dataset, person), Stage.IN_PROGRESS, null, false, false))
-                .thenReturn(Map.of(dataset, new TypeInformation(dataset, null, "Dataset", "#2196f3", NAME, null, null, List.of(), List.of(), List.of(), Map.of())));
+                .thenReturn(Map.of(dataset, new TypeInformation(dataset, null, "Dataset", "#2196f3", NAME, null, null, List.of(), List.of(), List.of())));
         when(typesResource.getByNames(List.of(dataset, person), Stage.IN_PROGRESS, null, true, false))
                 .thenReturn(Map.of(
                         dataset, new TypeInformation(dataset, null, "Dataset", "#2196f3", NAME, null, null, List.of(), List.of(
-                                new Property(author, "author", null, List.of(), Map.of("https://core.kg.ebrains.eu/vocab/meta/nameForReverseLink", "Is author of"))
-                        ), List.of(), Map.of()),
+                                new Property(author, "author", "Is author of", null, null, null, null, null, null, List.of())
+                        ), List.of()),
                         person, new TypeInformation(person, null, null, null, NAME, null, null, List.of(), List.of(
-                                new Property(contact, "contact", null, List.of(), Map.of())
-                        ), List.of(), Map.of())));
+                                new Property(contact, "contact", null, null, null, null, null, null, null, List.of())
+                        ), List.of())));
 
         mockMvc.perform(get("/instances/" + RELEASED_ID + "/incomingLinks").header(HttpHeaders.AUTHORIZATION, "Bearer theToken"))
                 .andExpect(status().isOk())

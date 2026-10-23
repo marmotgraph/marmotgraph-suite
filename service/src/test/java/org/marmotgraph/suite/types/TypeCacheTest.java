@@ -52,7 +52,7 @@ class TypeCacheTest {
     }
 
     private static TypeInformation type(String identifier, String name, String color) {
-        return new TypeInformation(identifier, null, name, color, "http://schema.org/name", null, 42, List.of(), List.of(), List.of(), Map.of());
+        return new TypeInformation(identifier, null, name, color, "http://schema.org/name", null, 42, List.of(), List.of(), List.of());
     }
 
     @Test
