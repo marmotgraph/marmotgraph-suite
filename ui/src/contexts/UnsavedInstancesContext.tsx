@@ -16,6 +16,8 @@ export type UnsavedInstanceDraft = {
   updatedAt: number;
   isNew?: boolean;
   changedFieldLabels?: string[];
+  /** The edited JSON document if the instance was changed in the raw mode (the field values are unchanged then) */
+  rawJson?: string;
 };
 
 type UnsavedInstancesContextType = {

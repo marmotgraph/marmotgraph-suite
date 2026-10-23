@@ -6,8 +6,11 @@ import {
   faChevronDown,
   faChevronUp,
   faCircle,
+  faCode,
   faCopy,
+  faEye,
   faPencil,
+  IconDefinition,
 } from "@fortawesome/free-solid-svg-icons";
 import {
   areInstanceFieldValuesEqual,
@@ -15,7 +18,7 @@ import {
   getChangedInstanceFieldKeys,
   getChangedInstanceFieldLabels,
   InstanceFieldValues,
-  InstanceSummary
+  InstanceSummary,
 } from "./editorMockData";
 import { useAuth } from "../../contexts/AuthContext";
 import { useInstances } from "../../contexts/InstancesContext";
@@ -35,6 +38,7 @@ import InstanceLinksPanel, {
 } from "../../components/InstanceLinksPanel";
 import IncomingLinksPanel from "../../components/IncomingLinksPanel";
 import UnsavedInstancesPanel from "../../components/UnsavedInstancesPanel";
+import RawInstanceEditor from "../../components/RawInstanceEditor";
 import DirLinkIcon from "../../assets/icons/DirLink.svg";
 import RevLinkIcon from "../../assets/icons/RevLink.svg";
 import RevDirLinkIcon from "../../assets/icons/RevDirLink.svg";
@@ -49,6 +53,18 @@ const typeColors: Record<string, string> = {
   Cabinet: "#f44336",
   Canton: "#00bcd4",
 };
+
+/** The ways an instance can be shown - switched by the icons in the header */
+type InstanceMode = "read" | "edit" | "raw";
+
+const INSTANCE_MODES: Array<{ mode: InstanceMode; icon: IconDefinition }> = [
+  { mode: "read", icon: faEye },
+  { mode: "edit", icon: faPencil },
+  { mode: "raw", icon: faCode },
+];
+
+/** Names the change of an instance edited in the raw mode (e.g. in the unsaved instances) */
+const RAW_JSON_LABEL = "Raw JSON";
 
 export default function InstanceDetail() {
   const { instanceId } = useParams<{ instanceId: string }>();
@@ -86,6 +102,8 @@ function InstanceDetailView({ instanceId }: { instanceId: string }) {
   const newInstanceType = searchParams.get("type") || "";
 
   const [isEditMode, setIsEditMode] = useState(isNewInstance);
+  /** Shows the full JSON of the instance instead of its fields (only available when not editing the fields) */
+  const [isRawMode, setIsRawMode] = useState(false);
   const [currentFieldValues, setCurrentFieldValues] =
     useState<InstanceFieldValues>(emptyInstanceFieldValues);
 
@@ -157,6 +175,14 @@ function InstanceDetailView({ instanceId }: { instanceId: string }) {
       cancelled = true;
     };
   }, [getAccessToken, instanceId, isNewInstance]);
+
+  /** Reloads the instance after it was replaced in the raw mode - its fields and links are shown as stored by the core. */
+  const reloadInstance = useCallback(() => {
+    getAccessToken()
+      .then((token) => fetchInstance(token, instanceId))
+      .then(setInstance)
+      .catch((e: unknown) => console.error("Failed to reload the instance", e));
+  }, [getAccessToken, instanceId]);
 
   const loadMoreIncomingLinks = useCallback(
     (property: string, type: IncomingLinksOfType) => {
@@ -256,6 +282,14 @@ function InstanceDetailView({ instanceId }: { instanceId: string }) {
 
     const draft = getDraft(instanceId);
 
+    if (draft?.rawJson !== undefined) {
+      setCurrentFieldValues(savedFieldValues);
+      setBaseline(savedFieldValues);
+      setIsEditMode(false);
+      setIsRawMode(true);
+      return;
+    }
+
     if (draft) {
       setCurrentFieldValues(draft.fieldValues);
       setBaseline(savedFieldValues);
@@ -284,7 +318,11 @@ function InstanceDetailView({ instanceId }: { instanceId: string }) {
     [baseline, currentFieldValues, fields],
   );
 
-  const hasUnsavedChanges = isEditMode && changedFieldKeys.size > 0;
+  const rawDraft = getDraft(instanceId)?.rawJson;
+  const hasUnsavedChanges =
+    (isEditMode && changedFieldKeys.size > 0) || rawDraft !== undefined;
+  const unsavedChangeLabels =
+    rawDraft !== undefined ? [RAW_JSON_LABEL] : changedFieldLabels;
 
   useEffect(() => {
     if (!instanceId || !instance || !isEditMode) {
@@ -340,9 +378,66 @@ function InstanceDetailView({ instanceId }: { instanceId: string }) {
     navigator.clipboard.writeText(instanceId || "");
   };
 
-  const handleEdit = () => {
-    setBaseline(savedFieldValues);
-    setIsEditMode(true);
+  const canEdit = instance.permissions
+    .split(",")
+    .some((permission) => permission.trim() === "Edit");
+
+  /** Keeps the JSON edited in the raw mode as a draft - so it is listed with the unsaved instances. */
+  const handleRawDraftChange = (rawJson: string | undefined) => {
+    if (rawJson === undefined) {
+      removeDraft(instanceId);
+      return;
+    }
+    upsertDraft({
+      instanceId,
+      instanceName: instance.instanceName,
+      type: instance.type,
+      fieldValues: savedFieldValues,
+      updatedAt: Date.now(),
+      changedFieldLabels: [RAW_JSON_LABEL],
+      rawJson,
+    });
+  };
+
+  const handleRawSaved = () => {
+    removeDraft(instanceId);
+    reloadInstance();
+  };
+
+  const mode: InstanceMode = isRawMode ? "raw" : isEditMode ? "edit" : "read";
+
+  /** Leaves the current mode - unsaved changes (of the fields or the JSON) are discarded after confirmation. */
+  const leaveMode = () => {
+    if (
+      hasUnsavedChanges &&
+      !window.confirm(
+        `Discard the unsaved changes of ${instance.instanceName}?`,
+      )
+    ) {
+      return false;
+    }
+    removeDraft(instanceId);
+    resetToSaved();
+    setIsRawMode(false);
+    return true;
+  };
+
+  const switchMode = (target: InstanceMode) => {
+    if (target === mode || !leaveMode()) {
+      return;
+    }
+    if (target === "edit") {
+      setBaseline(savedFieldValues);
+      setIsEditMode(true);
+    } else if (target === "raw") {
+      setIsRawMode(true);
+    }
+  };
+
+  const modeTitles: Record<InstanceMode, string> = {
+    read: "Read",
+    edit: "Edit",
+    raw: canEdit ? "Show and edit the raw JSON" : "Show the raw JSON",
   };
 
   const handleSave = () => {
@@ -373,13 +468,10 @@ function InstanceDetailView({ instanceId }: { instanceId: string }) {
     setIsEditMode(false);
   };
 
-  const handleCancel = () => {
+  /** Reverts the changed fields - stays in the edit mode (like the reset of the raw mode). */
+  const handleReset = () => {
     removeDraft(instanceId || "");
-    resetToSaved();
-
-    if (isNewInstance) {
-      navigate("/editor");
-    }
+    setCurrentFieldValues(baseline);
   };
 
   const handleLinkClick = (linkedInstanceId: string) => {
@@ -480,10 +572,10 @@ function InstanceDetailView({ instanceId }: { instanceId: string }) {
                   {hasUnsavedChanges && (
                     <div className="instance-unsaved-summary" role="status">
                       Unsaved changes
-                      {changedFieldLabels.length > 0 && (
+                      {unsavedChangeLabels.length > 0 && (
                         <span className="instance-unsaved-summary-fields">
                           {" "}
-                          · {changedFieldLabels.join(", ")}
+                          · {unsavedChangeLabels.join(", ")}
                         </span>
                       )}
                     </div>
@@ -506,16 +598,26 @@ function InstanceDetailView({ instanceId }: { instanceId: string }) {
                   </div>
                 </div>
                 <div className="d-flex flex-column align-items-end gap-2">
-                  {!isEditMode && (
-                    <Button
-                      variant="link"
-                      className="edit-icon-btn"
-                      onClick={handleEdit}
-                      aria-label="Edit"
-                      title="Edit"
+                  {!isNewInstance && (
+                    <div
+                      className="d-flex gap-1"
+                      role="group"
+                      aria-label="Mode"
                     >
-                      <FontAwesomeIcon icon={faPencil} />
-                    </Button>
+                      {INSTANCE_MODES.map(({ mode: target, icon }) => (
+                        <Button
+                          key={target}
+                          variant="link"
+                          className={`edit-icon-btn${mode === target ? " edit-icon-btn--active" : ""}`}
+                          onClick={() => switchMode(target)}
+                          aria-label={modeTitles[target]}
+                          aria-pressed={mode === target}
+                          title={modeTitles[target]}
+                        >
+                          <FontAwesomeIcon icon={icon} />
+                        </Button>
+                      ))}
+                    </div>
                   )}
                   <img
                     src={getLinkStatusIcon()}
@@ -526,86 +628,110 @@ function InstanceDetailView({ instanceId }: { instanceId: string }) {
               </div>
             </div>
 
-            {fields.length === 0 && (
-              <p className="text-muted">
-                {isNewInstance
-                  ? "The fields of new instances are not available yet."
-                  : "This instance has no fields."}
-              </p>
-            )}
-            {!isEditMode ? (
-              <div className="instance-view">
-                {supportedFields.map((field) => (
-                  <div key={field.identifier} className="mb-4">
-                    <div className="view-label" title={field.tooltip}>
-                      {field.label}
-                    </div>
-                    <InstanceFieldControl
-                      field={field}
-                      value={currentFieldValues[field.identifier]}
-                      onChange={(value) => setFieldValue(field.identifier, value)}
-                      isEditMode={false}
-                      onInstanceClick={handleLinkClick}
-                      {...linkHoverProps(field)}
-                    />
-                  </div>
-                ))}
-              </div>
+            {isRawMode ? (
+              <RawInstanceEditor
+                instanceId={instanceId}
+                canEdit={canEdit}
+                draftText={rawDraft}
+                onDraftChange={handleRawDraftChange}
+                onSaved={handleRawSaved}
+              />
             ) : (
-              <div className="instance-form">
-                {supportedFields.map((field) => (
-                  <Form.Group key={field.identifier} className="mb-4">
-                    <InstanceFieldLabel
-                      isChanged={changedFieldKeys.has(field.identifier)}
-                      tooltip={field.tooltip}
-                    >
-                      {field.label}
-                      {field.required && " *"}
-                    </InstanceFieldLabel>
-                    <InstanceFieldControl
-                      field={field}
-                      value={currentFieldValues[field.identifier]}
-                      onChange={(value) => setFieldValue(field.identifier, value)}
-                      isEditMode
-                      onInstanceClick={handleLinkClick}
-                      currentInstanceId={instanceId}
-                      parentSpace={instance.space}
-                      {...linkHoverProps(field)}
-                    />
-                  </Form.Group>
-                ))}
+              <>
+                {fields.length === 0 && (
+                  <p className="text-muted">
+                    {isNewInstance
+                      ? "The fields of new instances are not available yet."
+                      : "This instance has no fields."}
+                  </p>
+                )}
+                {!isEditMode ? (
+                  <div className="instance-view">
+                    {supportedFields.map((field) => (
+                      <div key={field.identifier} className="mb-4">
+                        <div className="view-label" title={field.tooltip}>
+                          {field.label}
+                        </div>
+                        <InstanceFieldControl
+                          field={field}
+                          value={currentFieldValues[field.identifier]}
+                          onChange={(value) =>
+                            setFieldValue(field.identifier, value)
+                          }
+                          isEditMode={false}
+                          onInstanceClick={handleLinkClick}
+                          {...linkHoverProps(field)}
+                        />
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="instance-form">
+                    {supportedFields.map((field) => (
+                      <Form.Group key={field.identifier} className="mb-4">
+                        <InstanceFieldLabel
+                          isChanged={changedFieldKeys.has(field.identifier)}
+                          tooltip={field.tooltip}
+                        >
+                          {field.label}
+                          {field.required && " *"}
+                        </InstanceFieldLabel>
+                        <InstanceFieldControl
+                          field={field}
+                          value={currentFieldValues[field.identifier]}
+                          onChange={(value) =>
+                            setFieldValue(field.identifier, value)
+                          }
+                          isEditMode
+                          onInstanceClick={handleLinkClick}
+                          currentInstanceId={instanceId}
+                          parentSpace={instance.space}
+                          {...linkHoverProps(field)}
+                        />
+                      </Form.Group>
+                    ))}
 
-                {unsupportedFields.length > 0 && (
+                    {unsupportedFields.length > 0 && (
+                      <UnsupportedFieldsSection
+                        fields={unsupportedFields}
+                        values={currentFieldValues}
+                        onChange={setFieldValue}
+                        isEditMode
+                        changedFieldKeys={changedFieldKeys}
+                        onInstanceClick={handleLinkClick}
+                      />
+                    )}
+
+                    <div className="d-flex gap-2 mt-4">
+                      <Button
+                        variant="dark"
+                        onClick={handleSave}
+                        disabled={changedFieldKeys.size === 0}
+                      >
+                        Save
+                      </Button>
+                      <Button
+                        variant="outline-secondary"
+                        onClick={handleReset}
+                        disabled={changedFieldKeys.size === 0}
+                      >
+                        Reset
+                      </Button>
+                    </div>
+                  </div>
+                )}
+
+                {!isEditMode && unsupportedFields.length > 0 && (
                   <UnsupportedFieldsSection
                     fields={unsupportedFields}
                     values={currentFieldValues}
                     onChange={setFieldValue}
-                    isEditMode
+                    isEditMode={false}
                     changedFieldKeys={changedFieldKeys}
                     onInstanceClick={handleLinkClick}
                   />
                 )}
-
-                <div className="d-flex gap-2 mt-4">
-                  <Button variant="dark" onClick={handleSave}>
-                    Save
-                  </Button>
-                  <Button variant="outline-secondary" onClick={handleCancel}>
-                    Cancel
-                  </Button>
-                </div>
-              </div>
-            )}
-
-            {!isEditMode && unsupportedFields.length > 0 && (
-              <UnsupportedFieldsSection
-                fields={unsupportedFields}
-                values={currentFieldValues}
-                onChange={setFieldValue}
-                isEditMode={false}
-                changedFieldKeys={changedFieldKeys}
-                onInstanceClick={handleLinkClick}
-              />
+              </>
             )}
           </div>
         </div>

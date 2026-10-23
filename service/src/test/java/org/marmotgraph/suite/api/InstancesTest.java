@@ -27,6 +27,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
 import org.springframework.test.context.junit.jupiter.web.SpringJUnitWebConfig;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
@@ -47,6 +48,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -102,7 +104,7 @@ class InstancesTest {
 
     private static Instance instance(UUID id, String type, Map<String, Object> properties) {
         Instance instance = new Instance(Map.of("@id", id, "@type", type,
-                Instances.SPACE, "myspace"));
+                "_space", "myspace"));
         instance.putAll(properties);
         return instance;
     }
@@ -114,8 +116,8 @@ class InstancesTest {
     @Test
     void listMapsTheInstancesOfTheCore() throws Exception {
         when(instancesResource.list(any(InstanceListOptions.class))).thenReturn(page(List.of(
-                instance(RELEASED_ID, DEVICE, Map.of(NAME, "Server-Rack-A1", Instances.PERMISSIONS, List.of("RELEASE", "READ", "WRITE", "DELETE"))),
-                instance(UNRELEASED_ID, "https://example.org/types/Unknown", Map.of(Instances.PERMISSIONS, List.of("READ")))
+                instance(RELEASED_ID, DEVICE, Map.of(NAME, "Server-Rack-A1", "_permissions", List.of("RELEASE", "READ", "WRITE", "DELETE"))),
+                instance(UNRELEASED_ID, "https://example.org/types/Unknown", Map.of("_permissions", List.of("READ")))
         )));
         when(typesResource.getByNames(List.of(DEVICE, "https://example.org/types/Unknown"), Stage.IN_PROGRESS, null, false, false))
                 .thenReturn(Map.of(DEVICE, new TypeInformation(DEVICE, "A device in the data center", "Device", "#ff9800", NAME, null, null, List.of(), List.of(), List.of())));
@@ -204,7 +206,7 @@ class InstancesTest {
     @Test
     void getMapsTheInstanceOfTheCore() throws Exception {
         when(instancesResource.get(any(UUID.class), any(), any())).thenReturn(
-                instance(RELEASED_ID, DEVICE, Map.of(NAME, "Server-Rack-A1", Instances.PERMISSIONS, List.of("READ", "WRITE"))));
+                instance(RELEASED_ID, DEVICE, Map.of(NAME, "Server-Rack-A1", "_permissions", List.of("READ", "WRITE"))));
         when(typesResource.getByNames(List.of(DEVICE), Stage.IN_PROGRESS, null, false, false))
                 .thenReturn(Map.of(DEVICE, new TypeInformation(DEVICE, "A device in the data center", "Device", "#ff9800", NAME, null, null, List.of(), List.of(), List.of())));
         when(instancesResource.releaseStatus(RELEASED_ID, ReleaseTreeScope.TOP_INSTANCE_ONLY)).thenReturn(ReleaseStatus.RELEASED);
@@ -352,10 +354,10 @@ class InstancesTest {
         UUID restrictedId = UUID.fromString("99999999-2222-4333-8444-555555555555");
         Map<String, Map<String, Page<LinkingInstance>>> byProperty = new java.util.LinkedHashMap<>();
         byProperty.put(author, Map.of(dataset, new Page<>(List.of(
-                new LinkingInstance(datasetId, dataset, "Dataset-1", "otherspace", LinkingInstance.RESOLVED, true),
-                new LinkingInstance(restrictedId, dataset, null, null, LinkingInstance.RESTRICTED, null)), 12, 2, "m1", null, Map.of(), null)));
+                new LinkingInstance(datasetId, dataset, "Dataset-1", "otherspace", LinkingInstance.RESOLVED, true, null),
+                new LinkingInstance(restrictedId, dataset, null, null, LinkingInstance.RESTRICTED, null, null)), 12, 2, "m1", null, Map.of(), null)));
         byProperty.put(contact, Map.of(person, new Page<>(List.of(
-                new LinkingInstance(datasetId, person, "", "people", LinkingInstance.RESOLVED, false)), 1, 1, null, null, Map.of(), null)));
+                new LinkingInstance(datasetId, person, "", "people", LinkingInstance.RESOLVED, false, null)), 1, 1, null, null, Map.of(), null)));
         when(instancesResource.incomingLinks(RELEASED_ID, null, null, Stage.IN_PROGRESS, null, 10, true)).thenReturn(byProperty);
         when(typesResource.getByNames(List.of(dataset, person), Stage.IN_PROGRESS, null, false, false))
                 .thenReturn(Map.of(dataset, new TypeInformation(dataset, null, "Dataset", "#2196f3", NAME, null, null, List.of(), List.of(), List.of())));
@@ -412,6 +414,44 @@ class InstancesTest {
 
         verify(instancesResource).incomingLinks(RELEASED_ID, null, null, Stage.IN_PROGRESS, "m1", 5, true);
         verifyNoInteractions(typesResource);
+    }
+
+    @Test
+    void getRawProvidesTheDocumentOfTheCoreWithoutInternalProperties() throws Exception {
+        when(instancesResource.get(any(UUID.class), any(), any())).thenReturn(
+                instance(RELEASED_ID, DEVICE, Map.of(NAME, "Server-Rack-A1", "https://example.org/unknown", List.of(Map.of("@value", 42)))));
+
+        mockMvc.perform(get("/instances/" + RELEASED_ID + "/raw").header(HttpHeaders.AUTHORIZATION, "Bearer theToken"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$['@type']").value(DEVICE))
+                .andExpect(jsonPath("$['" + NAME + "']").value("Server-Rack-A1"))
+                .andExpect(jsonPath("$['https://example.org/unknown'][0]['@value']").value(42))
+                .andExpect(jsonPath("$._space").doesNotExist());
+
+        verify(instancesResource).get(RELEASED_ID, Stage.IN_PROGRESS, ResponseOptions.DEFAULT);
+    }
+
+    @Test
+    void replaceRawForwardsTheDocumentToTheCore() throws Exception {
+        when(instancesResource.replace(Mockito.eq(RELEASED_ID), any())).thenReturn(instance(RELEASED_ID, DEVICE, Map.of(NAME, "Renamed")));
+
+        mockMvc.perform(put("/instances/" + RELEASED_ID + "/raw").header(HttpHeaders.AUTHORIZATION, "Bearer theToken")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"@type\": \"" + DEVICE + "\", \"" + NAME + "\": \"Renamed\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$['" + NAME + "']").value("Renamed"))
+                .andExpect(jsonPath("$._space").doesNotExist());
+
+        verify(instancesResource).replace(RELEASED_ID, Map.of("@type", DEVICE, NAME, "Renamed"));
+    }
+
+    @Test
+    void replaceRawForwardsAForbiddenOfTheCore() throws Exception {
+        when(instancesResource.replace(Mockito.eq(RELEASED_ID), any())).thenThrow(new MarmotGraphApiException(403, "Forbidden", null, null));
+
+        mockMvc.perform(put("/instances/" + RELEASED_ID + "/raw").header(HttpHeaders.AUTHORIZATION, "Bearer theToken")
+                        .contentType(MediaType.APPLICATION_JSON).content("{}"))
+                .andExpect(status().isForbidden());
     }
 
     @Test

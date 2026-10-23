@@ -1,8 +1,8 @@
 import React, { useState } from "react";
 import { Form } from "react-bootstrap";
 import CodeMirror from "@uiw/react-codemirror";
-import { json } from "@codemirror/lang-json";
 import LinkedInstancesField from "./LinkedInstancesField";
+import { jsonEditorSetup, jsonExtensions } from "./jsonEditor";
 import "./InstanceFieldControl.css";
 import { LinkedInstance } from "../modules/editor/editorMockData";
 import { FieldKind, InstanceField } from "../services/instances";
@@ -123,9 +123,6 @@ function linkedInstances(single: boolean) {
     );
   };
 }
-
-const jsonExtensions = [json()];
-const jsonEditorSetup = { lineNumbers: false, foldGutter: true, highlightActiveLine: false };
 
 function toJsonText(value: unknown): string {
   return value === null || value === undefined ? "" : JSON.stringify(value, null, 2);

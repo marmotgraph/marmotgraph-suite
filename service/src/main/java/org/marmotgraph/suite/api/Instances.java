@@ -19,6 +19,8 @@ import org.marmotgraph.suite.types.TypeCache;
 import org.marmotgraph.suite.types.TypeCache.TypeDefinition;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
@@ -132,9 +134,6 @@ public class Instances {
     public record IncomingLinks(String property, String label, List<IncomingLinksOfType> types) {
     }
 
-    static final String SPACE = "https://core.kg.ebrains.eu/vocab/meta/space";
-    static final String PERMISSIONS = "https://core.kg.ebrains.eu/vocab/meta/permissions";
-
     /**
      * The properties added to each link by the core if a summary of the outgoing links is requested.
      */
@@ -192,8 +191,8 @@ public class Instances {
             String typeName = instance.getType();
             TypeDefinition type = typeName != null ? types.get(typeName) : null;
             result.add(new InstanceSummary(result.size() + 1, instanceId, typeLabel(typeName, type), type != null ? type.description() : null, type != null ? type.color() : null,
-                    instanceName(instance, type, instanceId), firstString(instance.get(SPACE)),
-                    permissions(instance.get(PERMISSIONS)), false, null,
+                    instanceName(instance, type, instanceId), instance.getSpace(),
+                    permissions(instance.getPermissions()), false, null,
                     releaseStatuses.get(instanceId) == ReleaseStatus.RELEASED ? RELEASED : IN_PROGRESS));
         }
         return result;
@@ -212,8 +211,42 @@ public class Instances {
         ReleaseStatus releaseStatus = client.instances().releaseStatus(id, ReleaseTreeScope.TOP_INSTANCE_ONLY);
         List<Field> fields = fields(client, instance, typeName);
         return new InstanceDetail(instanceId, typeLabel(typeName, type), type != null ? type.description() : null, type != null ? type.color() : null,
-                instanceName(instance, type, instanceId), firstString(instance.get(SPACE)), permissions(instance.get(PERMISSIONS)),
+                instanceName(instance, type, instanceId), instance.getSpace(), permissions(instance.getPermissions()),
                 releaseStatus == ReleaseStatus.RELEASED ? RELEASED : IN_PROGRESS, fields, directLinks(fields));
+    }
+
+    /**
+     * The instance as provided by the core (the full JSON-LD document without the internal properties) - for the raw
+     * view of the editor.
+     *
+     * @param id the uuid of the instance as known by the core
+     */
+    @GetMapping("/{id}/raw")
+    public Map<String, Object> getRaw(@AuthenticatedClient MarmotGraphClient client, @PathVariable UUID id) {
+        return withoutInternalProperties(client.instances().get(id, Stage.IN_PROGRESS, ResponseOptions.DEFAULT));
+    }
+
+    /**
+     * Replaces the instance by the given JSON-LD document (as edited in the raw view of the editor) - the core rejects
+     * the request if the user is not allowed to edit the instance.
+     *
+     * @param id the uuid of the instance as known by the core
+     * @return the instance as stored by the core (without the internal properties)
+     */
+    @PutMapping("/{id}/raw")
+    public Map<String, Object> replaceRaw(@AuthenticatedClient MarmotGraphClient client, @PathVariable UUID id,
+                                          @RequestBody Map<String, Object> payload) {
+        return withoutInternalProperties(client.instances().replace(id, payload));
+    }
+
+    /**
+     * Removes the internal properties of the core (prefixed with "_", e.g. _space or _permissions) - they are not part
+     * of the payload of the instance.
+     */
+    private static Map<String, Object> withoutInternalProperties(Map<String, Object> instance) {
+        Map<String, Object> result = new LinkedHashMap<>(instance);
+        result.keySet().removeIf(key -> key.startsWith("_"));
+        return result;
     }
 
     /**

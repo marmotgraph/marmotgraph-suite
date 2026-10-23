@@ -1,5 +1,5 @@
 import { InstanceSummary, LinkedInstance } from "../modules/editor/editorMockData";
-import { getJson } from "./http";
+import { getJson, send } from "./http";
 
 /** The kinds of fields as provided by the backend (translated from the widgets defined for the properties of the type). */
 export type FieldKind =
@@ -112,6 +112,36 @@ export function fetchInstance(
     `/api/instances/${encodeURIComponent(instanceId)}`,
     "the instance",
     accessToken,
+  );
+}
+
+/** An instance as provided by the core - the full JSON-LD document. */
+export type RawInstance = Record<string, unknown>;
+
+/** Fetches the full JSON-LD document of an instance (by its uuid) for the raw view. */
+export function fetchRawInstance(
+  accessToken: string,
+  instanceId: string,
+): Promise<RawInstance> {
+  return getJson(
+    `/api/instances/${encodeURIComponent(instanceId)}/raw`,
+    "the instance",
+    accessToken,
+  );
+}
+
+/** Replaces an instance by the given JSON-LD document - the instance as stored by the core is returned. */
+export function replaceRawInstance(
+  accessToken: string,
+  instanceId: string,
+  payload: RawInstance,
+): Promise<RawInstance> {
+  return send(
+    "PUT",
+    `/api/instances/${encodeURIComponent(instanceId)}/raw`,
+    "save the instance",
+    accessToken,
+    payload,
   );
 }
 
