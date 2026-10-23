@@ -1,0 +1,188 @@
+.breadcrumbs {
+    position: relative;
+    min-width: 0;
+    font-size: 0.875rem;
+    line-height: 1.4;
+}
+
+.breadcrumb-list {
+    display: flex;
+    align-items: center;
+    width: 100%;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    min-width: 0;
+}
+
+.breadcrumb-item {
+    display: flex;
+    align-items: center;
+    min-width: 0;
+    flex: 0 1 auto;
+}
+
+/* Prevent Bootstrap's default breadcrumb separator ("/") from appearing. */
+.breadcrumb-list .breadcrumb-item + .breadcrumb-item::before {
+    display: none;
+    content: "";
+    padding: 0;
+}
+
+.breadcrumb-item--ellipsis {
+    position: relative;
+    flex: 0 0 auto;
+}
+
+.breadcrumb-item--current {
+    flex: 0 1 auto;
+}
+
+.breadcrumb-link {
+    display: flex;
+    align-items: center;
+    min-width: 0;
+    max-width: 100%;
+    margin: 0;
+    padding: 5px 0;
+    border: 0;
+    background: transparent;
+    color: #2563EB;
+    font-size: inherit;
+    font-weight: 500;
+    line-height: inherit;
+    text-align: left;
+    cursor: pointer;
+}
+
+.breadcrumb-link:hover,
+.breadcrumb-link:focus {
+    color: #1D4ED8;
+    outline: none;
+}
+
+.breadcrumb-label {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    min-width: 0;
+    max-width: 100%;
+}
+
+.breadcrumb-dot {
+    font-size: 0.5rem;
+    flex-shrink: 0;
+}
+
+.breadcrumb-text {
+    min-width: 0;
+    max-width: 12em;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+}
+
+.breadcrumb-link:hover .breadcrumb-text,
+.breadcrumb-link:focus .breadcrumb-text {
+    text-decoration: underline;
+}
+
+.breadcrumb-separator {
+    margin: 0 5px;
+    color: #6c757d;
+    font-size: 12px;
+    font-weight: 400;
+    flex-shrink: 0;
+}
+
+.breadcrumb-current {
+    display: flex;
+    align-items: center;
+    min-width: 0;
+    max-width: 100%;
+    padding: 5px 0;
+    line-height: inherit;
+    cursor: default;
+}
+
+.breadcrumb-text.is-current {
+    color: #6c757d;
+    font-weight: 400;
+}
+
+.breadcrumb-ellipsis {
+    min-width: 26px;
+    margin: 0;
+    padding: 3px 7px;
+    border: 1px solid #E2E8F0;
+    border-radius: 6px;
+    background: #fff;
+    color: #64748B;
+    font-size: inherit;
+    font-weight: 600;
+    line-height: 1;
+    cursor: pointer;
+}
+
+.breadcrumb-ellipsis:hover,
+.breadcrumb-ellipsis:focus {
+    border-color: #2563EB;
+    color: #2563EB;
+    outline: none;
+}
+
+.breadcrumb-menu {
+    position: absolute;
+    top: calc(100% + 4px);
+    left: 0;
+    z-index: 1600;
+    min-width: 220px;
+    max-width: min(280px, calc(100vw - 24px));
+    margin: 0;
+    padding: 6px 0;
+    list-style: none;
+    border: 1px solid #E2E8F0;
+    border-radius: 8px;
+    background: #fff;
+    box-shadow: 0 8px 24px rgba(15, 23, 42, 0.12);
+}
+
+.breadcrumb-menu-item {
+    display: flex;
+    align-items: center;
+    width: 100%;
+    max-width: 100%;
+    margin: 0;
+    padding: 7px 12px;
+    border: 0;
+    background: transparent;
+    color: #2563EB;
+    font-size: inherit;
+    font-weight: 500;
+    line-height: inherit;
+    text-align: left;
+    cursor: pointer;
+}
+
+.breadcrumb-menu-item .breadcrumb-label {
+    min-width: 0;
+    max-width: 100%;
+}
+
+.breadcrumb-menu-item .breadcrumb-text {
+    max-width: none;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    min-width: 0;
+}
+
+.breadcrumb-menu-item:hover,
+.breadcrumb-menu-item:focus {
+    background: #F8FAFC;
+    color: #1D4ED8;
+    outline: none;
+}
+
+.instance-detail-main .breadcrumbs {
+    margin-bottom: 1rem;
+}

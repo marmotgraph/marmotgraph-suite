@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { Breadcrumb, Button, Collapse, Form, Spinner } from "react-bootstrap";
+import { Button, Collapse, Form, Spinner } from "react-bootstrap";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
   faChevronDown,
@@ -22,6 +22,9 @@ import {
 } from "./editorMockData";
 import { useAuth } from "../../contexts/AuthContext";
 import { useInstances } from "../../contexts/InstancesContext";
+import { useUnsavedInstances } from "../../contexts/UnsavedInstancesContext";
+import { useSessionStorage } from "../../hooks/useSessionStorage";
+import { EDITOR_BREADCRUMB_TRAIL_KEY } from "./editorConstants";
 import {
   appendIncomingLinks,
   fetchIncomingLinks,
@@ -31,7 +34,7 @@ import {
   InstanceDetail as InstanceDetailData,
   InstanceField,
 } from "../../services/instances";
-import { useUnsavedInstances } from "../../contexts/UnsavedInstancesContext";
+import { Breadcrumbs, BreadcrumbItem as BreadcrumbTrailItem } from "../../components/Breadcrumbs";
 import InstanceFieldControl from "../../components/InstanceFieldControl";
 import InstanceLinksPanel, {
   HoveredLink,
@@ -81,6 +84,47 @@ export default function InstanceDetail() {
   return <InstanceDetailView key={instanceId} instanceId={instanceId} />;
 }
 
+const BREADCRUMB_TRAIL_LIMIT = 10;
+
+type BreadcrumbItem = BreadcrumbTrailItem;
+
+function useBreadcrumbTrail(
+  instanceId: string,
+  instanceName?: string,
+  instanceColor?: string,
+) {
+  const [breadcrumbTrail, setBreadcrumbTrail] = useSessionStorage<
+    Array<BreadcrumbItem>
+  >(EDITOR_BREADCRUMB_TRAIL_KEY, []);
+
+  useEffect(() => {
+    if (!instanceName || !instanceColor) {
+      return;
+    }
+
+    setBreadcrumbTrail((prev) => {
+      const existingIndex = prev.findIndex((item) => item.id === instanceId);
+      const item = {
+        id: instanceId,
+        label: instanceName,
+        color: instanceColor,
+      };
+
+      if (existingIndex === -1) {
+        return [...prev, item].slice(-BREADCRUMB_TRAIL_LIMIT);
+      }
+
+      if (existingIndex === prev.length - 1) {
+        return [...prev.slice(0, existingIndex), item];
+      }
+
+      return prev.slice(0, existingIndex + 1);
+    });
+  }, [instanceId, instanceName, instanceColor, setBreadcrumbTrail]);
+
+  return breadcrumbTrail;
+}
+
 function InstanceDetailView({ instanceId }: { instanceId: string }) {
   const navigate = useNavigate();
   const { getAccessToken } = useAuth();
@@ -92,11 +136,6 @@ function InstanceDetailView({ instanceId }: { instanceId: string }) {
   const [baseline, setBaseline] = useState<InstanceFieldValues>(
     emptyInstanceFieldValues,
   );
-
-  const [breadcrumbTrail, setBreadcrumbTrail] = useState<
-    Array<{ id: string; name: string }>
-  >([]);
-
   const isNewInstance = instanceId?.startsWith("new-");
   const newInstanceName = searchParams.get("name") || "";
   const newInstanceType = searchParams.get("type") || "";
@@ -227,6 +266,12 @@ function InstanceDetailView({ instanceId }: { instanceId: string }) {
   const typeColor =
     instance?.typeColor || (instance && typeColors[instance.type]) || "#6c757d";
 
+  const breadcrumbTrail = useBreadcrumbTrail(
+    instanceId,
+    instance?.instanceName,
+    typeColor,
+  );
+
   const fields = useMemo(() => instance?.fields ?? [], [instance]);
 
   // Unsupported fields are shown separately (alphabetically) at the bottom of the view
@@ -258,22 +303,6 @@ function InstanceDetailView({ instanceId }: { instanceId: string }) {
     setCurrentFieldValues(savedFieldValues);
     setIsEditMode(false);
   }, [savedFieldValues]);
-
-  useEffect(() => {
-    if (instance && instanceId) {
-      setBreadcrumbTrail((prev) => {
-        const existingIndex = prev.findIndex((item) => item.id === instanceId);
-
-        if (existingIndex !== -1) {
-          return prev.slice(0, existingIndex + 1);
-        }
-
-        return [...prev, { id: instanceId, name: instance.instanceName }].slice(
-          -5,
-        );
-      });
-    }
-  }, [instanceId, instance]);
 
   useEffect(() => {
     if (!instanceId) {
@@ -525,31 +554,20 @@ function InstanceDetailView({ instanceId }: { instanceId: string }) {
         </aside>
 
         <div className="instance-detail-main">
-          <Breadcrumb className="instance-detail-breadcrumb mb-3">
-            <Breadcrumb.Item
-              onClick={() => navigate("/editor")}
-              style={{ cursor: "pointer" }}
-            >
-              Editor
-            </Breadcrumb.Item>
-            {breadcrumbTrail.map((item, index) => {
-              const isLast = index === breadcrumbTrail.length - 1;
-              return (
-                <Breadcrumb.Item
-                  key={item.id}
-                  active={isLast}
-                  onClick={
-                    isLast
-                      ? undefined
-                      : () => navigate(`/editor/instances/${item.id}`)
-                  }
-                  style={isLast ? {} : { cursor: "pointer" }}
-                >
-                  {item.name}
-                </Breadcrumb.Item>
-              );
-            })}
-          </Breadcrumb>
+          <Breadcrumbs
+            items={[
+              { id: "__editor__", label: "Editor" },
+              ...breadcrumbTrail,
+            ]}
+            onItemClick={(item, index) => {
+              if (index === 0) {
+                navigate("/editor");
+              } else {
+                navigate(`/editor/instances/${item.id}`);
+              }
+            }}
+            className="mb-3"
+          />
 
           <div
             className="instance-focus-panel"

@@ -22,8 +22,11 @@ import { FilterPill } from "../../components/FilterPill";
 import { useTypes } from "../../hooks/useTypes";
 import { useSpaces } from "../../hooks/useSpaces";
 import { typeLabel } from "../../services/types";
+import { EDITOR_BREADCRUMB_TRAIL_KEY } from "./editorConstants";
 import "../query-builder/SharedQueries.css";
 import "./EditorHome.css";
+
+const BREADCRUMB_TRAIL_STORAGE_KEY = EDITOR_BREADCRUMB_TRAIL_KEY;
 
 type InstanceFilters = {
   types: string[];
@@ -95,6 +98,16 @@ export default function EditorHome() {
   useEffect(() => {
     setItemsToShow(PAGE_SIZE);
   }, [searchTerm, filters, showBookmarkedOnly]);
+
+  // Reset the instance breadcrumb trail when the user returns to the editor home so that each new navigation
+  // session starts fresh.
+  useEffect(() => {
+    try {
+      sessionStorage.removeItem(BREADCRUMB_TRAIL_STORAGE_KEY);
+    } catch {
+      // Ignore storage errors.
+    }
+  }, []);
 
   // The types (filtered by their identifier) and spaces to filter by
   const availableTypes = useMemo(() => {
