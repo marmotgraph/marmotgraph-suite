@@ -1,27 +1,38 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { Button, Col, Form, Modal, Row, Spinner, Table } from "react-bootstrap";
+import { Button, Col, Collapse, Form, Modal, Row, Spinner, Table } from "react-bootstrap";
 import { useNavigate } from "react-router-dom";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
   faBookmark as faBookmarkSolid,
+  faChevronDown,
+  faChevronUp,
   faCircle,
   faClipboardCheck,
+  faCode,
   faCopy,
+  faEye,
+  faFilter,
   faGlasses,
   faPen,
   faRocket,
   faSort,
   faSortDown,
   faSortUp,
+  faXmark
 } from "@fortawesome/free-solid-svg-icons";
 import { faBookmark as faBookmarkRegular } from "@fortawesome/free-regular-svg-icons";
+import { useAuth } from "../../contexts/AuthContext";
 import { useInstances } from "../../contexts/InstancesContext";
 import { SearchBar } from "../../components/SearchBar";
 import { InstanceFilterPanel } from "../../components/InstanceFilterPanel";
 import { FilterPill } from "../../components/FilterPill";
+import InstanceFieldControl from "../../components/InstanceFieldControl";
+import { MOBILE_VIEWPORT_QUERY, useMediaQuery } from "../../hooks/useMediaQuery";
 import { useTypes } from "../../hooks/useTypes";
 import { useSpaces } from "../../hooks/useSpaces";
 import { typeLabel } from "../../services/types";
+import { fetchInstance, InstanceDetail, InstanceField } from "../../services/instances";
+import { InstanceSummary } from "./editorMockData";
 import { EDITOR_BREADCRUMB_TRAIL_KEY } from "./editorConstants";
 import "../query-builder/SharedQueries.css";
 import "./EditorHome.css";
@@ -76,7 +87,15 @@ export default function EditorHome() {
   const [selectedInstances, setSelectedInstances] = useState<Set<string>>(
     new Set(),
   );
+  const [previewInstanceId, setPreviewInstanceId] = useState<string | null>(
+    null,
+  );
+  const [expandedCardIds, setExpandedCardIds] = useState<Set<string>>(
+    new Set(),
+  );
+  const isMobile = useMediaQuery(MOBILE_VIEWPORT_QUERY);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [showMobileFilters, setShowMobileFilters] = useState(false);
   const [localFilters, setLocalFilters] = useState<
     Pick<InstanceFilters, "permissions" | "releaseStatuses">
   >({
@@ -92,6 +111,20 @@ export default function EditorHome() {
     setLocalFilters(rest);
     setTypeFilter(types);
     setSpaceFilter(spaces);
+  };
+  const activeFilterCount =
+    (showBookmarkedOnly ? 1 : 0) +
+    filters.types.length +
+    filters.spaces.length +
+    filters.releaseStatuses.length;
+  const clearFilters = () => {
+    setShowBookmarkedOnly(false);
+    setFilters({
+      types: [],
+      spaces: [],
+      permissions: [],
+      releaseStatuses: [],
+    });
   };
 
   // Reset items to show when filters or search change
@@ -179,13 +212,7 @@ export default function EditorHome() {
     }
 
     return result;
-  }, [
-    instances,
-    showBookmarkedOnly,
-    filters,
-    sortField,
-    sortDirection,
-  ]);
+  }, [instances, showBookmarkedOnly, filters, sortField, sortDirection]);
 
   // Infinite scrolling: render more instances once the sentinel below the table becomes visible. The observer is
   // recreated after each increment so it fires again if the sentinel is still visible (e.g. the rows don't fill the
@@ -303,8 +330,23 @@ export default function EditorHome() {
   };
 
   const handleRowClick = (instanceId: string) => {
-    navigate(`/editor/instances/${instanceId}`);
+    setPreviewInstanceId(instanceId);
   };
+
+  const previewInstance = instances.find(
+    (instance) => instance.instanceId === previewInstanceId,
+  );
+
+  useEffect(() => {
+    if (
+      previewInstanceId &&
+      !filteredAndSortedInstances.some(
+        (instance) => instance.instanceId === previewInstanceId,
+      )
+    ) {
+      setPreviewInstanceId(null);
+    }
+  }, [filteredAndSortedInstances, previewInstanceId]);
 
   return (
     <div className="editor-home">
@@ -325,26 +367,83 @@ export default function EditorHome() {
         </Col>
       </Row>
 
-      {/* Filters */}
+      {/* Filters. On a phone they collapse into one button so the list stays in view. */}
       <Row className="mb-3">
         <Col>
-          <div className="d-flex gap-3 align-items-center flex-wrap">
+          {isMobile ? (
+            <Button
+              type="button"
+              variant={activeFilterCount > 0 ? "dark" : "outline-secondary"}
+              size="sm"
+              className="d-inline-flex align-items-center gap-2"
+              onClick={() => setShowMobileFilters(true)}
+              aria-haspopup="dialog"
+            >
+              <FontAwesomeIcon icon={faFilter} />
+              Filters{activeFilterCount > 0 ? ` (${activeFilterCount})` : ""}
+            </Button>
+          ) : (
+            <div className="d-flex gap-3 align-items-center flex-wrap">
+              <Form.Check
+                type="checkbox"
+                id="bookmarked-filter-editor"
+                label="Show bookmarked only"
+                checked={showBookmarkedOnly}
+                onChange={(e) => setShowBookmarkedOnly(e.target.checked)}
+              />
+              <InstanceFilterPanel
+                filters={filters}
+                onFiltersChange={setFilters}
+                availableTypes={availableTypes}
+                availableSpaces={availableSpaces}
+              />
+            </div>
+          )}
+        </Col>
+      </Row>
+
+      {isMobile && (
+        <Modal
+          show={showMobileFilters}
+          onHide={() => setShowMobileFilters(false)}
+          centered
+          scrollable
+          fullscreen="md-down"
+        >
+          <Modal.Header closeButton>
+            <Modal.Title>Filters</Modal.Title>
+          </Modal.Header>
+          <Modal.Body>
             <Form.Check
               type="checkbox"
               id="bookmarked-filter-editor"
               label="Show bookmarked only"
               checked={showBookmarkedOnly}
               onChange={(e) => setShowBookmarkedOnly(e.target.checked)}
+              className="mb-3"
             />
             <InstanceFilterPanel
+              variant="stacked"
               filters={filters}
               onFiltersChange={setFilters}
               availableTypes={availableTypes}
               availableSpaces={availableSpaces}
             />
-          </div>
-        </Col>
-      </Row>
+          </Modal.Body>
+          <Modal.Footer className="d-flex justify-content-between">
+            <Button
+              variant="outline-danger"
+              onClick={clearFilters}
+              disabled={activeFilterCount === 0}
+            >
+              Clear all
+            </Button>
+            <Button variant="dark" onClick={() => setShowMobileFilters(false)}>
+              Done
+            </Button>
+          </Modal.Footer>
+        </Modal>
+      )}
 
       {/* Active Filter Pills */}
       {(filters.types.length > 0 ||
@@ -406,177 +505,281 @@ export default function EditorHome() {
         </div>
       )}
 
+      {isMobile && (
+        <div className="instance-card-toolbar">
+          <Form.Check
+            type="checkbox"
+            id="select-all-instances"
+            label="Select all"
+            checked={
+              selectedInstances.size ===
+                filteredAndSortedInstances.slice(0, itemsToShow).length &&
+              selectedInstances.size > 0
+            }
+            onChange={handleSelectAll}
+            disabled={loading || filteredAndSortedInstances.length === 0}
+          />
+          <div
+            className="instance-card-sort"
+            role="group"
+            aria-label="Sort instances"
+          >
+            {(
+              [
+                ["type", "Type"],
+                ["instanceName", "Name"],
+                ["lastVisited", "Last visited"],
+              ] as const
+            ).map(([field, label]) => (
+              <Button
+                key={field}
+                type="button"
+                size="sm"
+                variant={sortField === field ? "dark" : "outline-secondary"}
+                onClick={() => handleSort(field)}
+              >
+                {label}
+                {getSortIcon(field)}
+              </Button>
+            ))}
+          </div>
+        </div>
+      )}
+
       <div className="instances-result-count text-muted small">
         {!loading &&
           `${filteredAndSortedInstances.length} result${filteredAndSortedInstances.length !== 1 ? "s" : ""}`}
       </div>
 
       {/* The table takes the remaining height of the page and only scrolls its body (the header is sticky) */}
-      <div className="table-scroll-container" ref={scrollContainerRef}>
-        <Table className="shared-queries-table instances-table" striped>
-          <thead>
-            <tr>
-              <th style={{ width: "40px" }}>
-                <Form.Check
-                  type="checkbox"
-                  checked={
-                    selectedInstances.size ===
-                      filteredAndSortedInstances.slice(0, itemsToShow)
-                        .length && selectedInstances.size > 0
+      <div className="editor-home-body">
+        <div className="table-scroll-container" ref={scrollContainerRef}>
+          {isMobile ? (
+            <InstanceCardList
+              instances={filteredAndSortedInstances.slice(0, itemsToShow)}
+              loading={loading}
+              selectedInstances={selectedInstances}
+              previewInstanceId={previewInstance?.instanceId}
+              expandedIds={expandedCardIds}
+              copiedId={copiedId}
+              onOpen={handleRowClick}
+              onToggleSelected={handleSelectInstance}
+              onToggleDetails={(instanceId) =>
+                setExpandedCardIds((prev) => {
+                  const next = new Set(prev);
+                  if (next.has(instanceId)) {
+                    next.delete(instanceId);
+                  } else {
+                    next.add(instanceId);
                   }
-                  onChange={handleSelectAll}
-                />
-              </th>
-              <th>Fav</th>
-              <th
-                onClick={() => handleSort("type")}
-                style={{ cursor: "pointer", userSelect: "none" }}
-              >
-                Type {getSortIcon("type")}
-              </th>
-              <th
-                onClick={() => handleSort("instanceName")}
-                style={{ cursor: "pointer", userSelect: "none" }}
-              >
-                Instance Name {getSortIcon("instanceName")}
-              </th>
-              <th>Permissions</th>
-              <th
-                onClick={() => handleSort("lastVisited")}
-                style={{ cursor: "pointer", userSelect: "none" }}
-              >
-                Last visited {getSortIcon("lastVisited")}
-              </th>
-              <th>Release status</th>
-            </tr>
-          </thead>
-          <tbody>
-            {loading && (
-              <tr>
-                <td colSpan={7} className="text-center py-4">
-                  <Spinner
-                    animation="border"
-                    size="sm"
-                    role="status"
-                    className="me-2"
-                  />
-                  Loading instances...
-                </td>
-              </tr>
-            )}
-            {!loading && filteredAndSortedInstances
-              .slice(0, itemsToShow)
-              .map((instance) => (
-                <tr
-                  key={instance.id}
-                  onClick={(e) => {
-                    // Don't navigate if clicking checkbox
-                    if (
-                      (e.target as HTMLElement).closest(
-                        'input[type="checkbox"]',
-                      )
-                    ) {
-                      return;
-                    }
-                    handleRowClick(instance.instanceId);
-                  }}
-                  style={{ cursor: "pointer" }}
-                >
-                  <td onClick={(e) => e.stopPropagation()}>
+                  return next;
+                })
+              }
+              onCopyId={(instanceId) => {
+                navigator.clipboard.writeText(instanceId);
+                setCopiedId(instanceId);
+                setTimeout(() => setCopiedId(null), 2000);
+              }}
+            />
+          ) : (
+            <Table className="shared-queries-table instances-table" striped>
+              <thead>
+                <tr>
+                  <th style={{ width: "40px" }}>
                     <Form.Check
                       type="checkbox"
-                      checked={selectedInstances.has(instance.instanceId)}
-                      onChange={() =>
-                        handleSelectInstance(instance.instanceId)
+                      checked={
+                        selectedInstances.size ===
+                          filteredAndSortedInstances.slice(0, itemsToShow)
+                            .length && selectedInstances.size > 0
                       }
+                      onChange={handleSelectAll}
                     />
-                  </td>
-                  <td>
-                    <FontAwesomeIcon
-                      icon={
-                        instance.bookmarked
-                          ? faBookmarkSolid
-                          : faBookmarkRegular
-                      }
-                    />
-                  </td>
-                  <td title={instance.typeDescription}>
-                    <FontAwesomeIcon
-                      icon={faCircle}
-                      className="type-color-icon me-2"
-                      style={{ color: instance.typeColor || typeColors[instance.type] || "#999" }}
-                    />
-                    {instance.type}
-                  </td>
-                  <td>
-                    <div>{instance.instanceName}</div>
-                    <div className="instance-id-info">
-                      <span className="instance-id-text">
-                        {instance.instanceId}
-                      </span>
-                      <span
-                        className="copy-id-wrapper"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          navigator.clipboard.writeText(
-                            instance.instanceId,
-                          );
-                          setCopiedId(instance.instanceId);
-                          setTimeout(() => setCopiedId(null), 2000);
-                        }}
-                      >
-                        <FontAwesomeIcon
-                          icon={faCopy}
-                          className="ms-2 copy-icon"
-                        />
-                        <span className="copy-id-tooltip">
-                          {copiedId === instance.instanceId
-                            ? "ID copied!"
-                            : "Copy ID"}
-                        </span>
-                      </span>
-                    </div>
-                    <div className="instance-space-info">
-                      Saved in space {instance.space}
-                    </div>
-                  </td>
-                  <td>
-                    {instance.permissions.includes("View") && (
-                      <FontAwesomeIcon
-                        icon={faGlasses}
-                        className="me-2"
-                        title="View"
-                      />
-                    )}
-                    {instance.permissions.includes("Edit") && (
-                      <FontAwesomeIcon
-                        icon={faPen}
-                        className="me-2"
-                        title="Edit"
-                      />
-                    )}
-                    {instance.permissions.includes("Review") && (
-                      <FontAwesomeIcon
-                        icon={faClipboardCheck}
-                        className="me-2"
-                        title="Review"
-                      />
-                    )}
-                    {instance.permissions.includes("Release") && (
-                      <FontAwesomeIcon icon={faRocket} title="Release" />
-                    )}
-                  </td>
-                  <td>{instance.lastVisited || ""}</td>
-                  <td>{instance.releaseStatus}</td>
+                  </th>
+                  <th>Fav</th>
+                  <th
+                    onClick={() => handleSort("type")}
+                    style={{ cursor: "pointer", userSelect: "none" }}
+                  >
+                    Type {getSortIcon("type")}
+                  </th>
+                  <th
+                    onClick={() => handleSort("instanceName")}
+                    style={{ cursor: "pointer", userSelect: "none" }}
+                  >
+                    Instance Name {getSortIcon("instanceName")}
+                  </th>
+                  <th>Permissions</th>
+                  <th
+                    onClick={() => handleSort("lastVisited")}
+                    style={{ cursor: "pointer", userSelect: "none" }}
+                  >
+                    Last visited {getSortIcon("lastVisited")}
+                  </th>
+                  <th>Release status</th>
                 </tr>
-              ))}
-          </tbody>
-        </Table>
-        {hasMore && (
-          <div ref={loadMoreRef} className="text-center text-muted small py-2">
-            <Spinner animation="border" size="sm" className="me-2" />
-            Loading more instances...
-          </div>
+              </thead>
+              <tbody>
+                {loading && (
+                  <tr>
+                    <td colSpan={7} className="text-center py-4">
+                      <Spinner
+                        animation="border"
+                        size="sm"
+                        role="status"
+                        className="me-2"
+                      />
+                      Loading instances...
+                    </td>
+                  </tr>
+                )}
+                {!loading &&
+                  filteredAndSortedInstances
+                    .slice(0, itemsToShow)
+                    .map((instance) => (
+                      <tr
+                        key={instance.id}
+                        className={
+                          previewInstance?.instanceId === instance.instanceId
+                            ? "instance-row-selected"
+                            : undefined
+                        }
+                        onClick={(e) => {
+                          // Don't open the preview when clicking the checkbox
+                          if (
+                            (e.target as HTMLElement).closest(
+                              'input[type="checkbox"]',
+                            )
+                          ) {
+                            return;
+                          }
+                          handleRowClick(instance.instanceId);
+                        }}
+                        style={{ cursor: "pointer" }}
+                      >
+                        <td onClick={(e) => e.stopPropagation()}>
+                          <Form.Check
+                            type="checkbox"
+                            checked={selectedInstances.has(instance.instanceId)}
+                            onChange={() =>
+                              handleSelectInstance(instance.instanceId)
+                            }
+                          />
+                        </td>
+                        <td>
+                          <FontAwesomeIcon
+                            icon={
+                              instance.bookmarked
+                                ? faBookmarkSolid
+                                : faBookmarkRegular
+                            }
+                          />
+                        </td>
+                        <td title={instance.typeDescription}>
+                          <FontAwesomeIcon
+                            icon={faCircle}
+                            className="type-color-icon me-2"
+                            style={{
+                              color:
+                                instance.typeColor ||
+                                typeColors[instance.type] ||
+                                "#999",
+                            }}
+                          />
+                          {instance.type}
+                        </td>
+                        <td>
+                          <div>{instance.instanceName}</div>
+                          <div className="instance-id-info">
+                            <span className="instance-id-text">
+                              {instance.instanceId}
+                            </span>
+                            <span
+                              className="copy-id-wrapper"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                navigator.clipboard.writeText(
+                                  instance.instanceId,
+                                );
+                                setCopiedId(instance.instanceId);
+                                setTimeout(() => setCopiedId(null), 2000);
+                              }}
+                            >
+                              <FontAwesomeIcon
+                                icon={faCopy}
+                                className="ms-2 copy-icon"
+                              />
+                              <span className="copy-id-tooltip">
+                                {copiedId === instance.instanceId
+                                  ? "ID copied!"
+                                  : "Copy ID"}
+                              </span>
+                            </span>
+                          </div>
+                          <div className="instance-space-info">
+                            Saved in space {instance.space}
+                          </div>
+                        </td>
+                        <td>
+                          {instance.permissions.includes("View") && (
+                            <FontAwesomeIcon
+                              icon={faGlasses}
+                              className="me-2"
+                              aria-label="View"
+                            />
+                          )}
+                          {instance.permissions.includes("Edit") && (
+                            <FontAwesomeIcon
+                              icon={faPen}
+                              className="me-2"
+                              aria-label="Edit"
+                            />
+                          )}
+                          {instance.permissions.includes("Review") && (
+                            <FontAwesomeIcon
+                              icon={faClipboardCheck}
+                              className="me-2"
+                              aria-label="Review"
+                            />
+                          )}
+                          {instance.permissions.includes("Release") && (
+                            <FontAwesomeIcon
+                              icon={faRocket}
+                              aria-label="Release"
+                            />
+                          )}
+                        </td>
+                        <td>{instance.lastVisited || ""}</td>
+                        <td>{instance.releaseStatus}</td>
+                      </tr>
+                    ))}
+              </tbody>
+            </Table>
+          )}
+          {hasMore && (
+            <div
+              ref={loadMoreRef}
+              className="text-center text-muted small py-2"
+            >
+              <Spinner animation="border" size="sm" className="me-2" />
+              Loading more instances...
+            </div>
+          )}
+        </div>
+        {previewInstance && (
+          <InstancePreview
+            instance={previewInstance}
+            onClose={() => setPreviewInstanceId(null)}
+            onOpen={() =>
+              navigate(`/editor/instances/${previewInstance.instanceId}`)
+            }
+            onEdit={() =>
+              navigate(`/editor/instances/${previewInstance.instanceId}?edit=1`)
+            }
+            onRaw={() =>
+              navigate(`/editor/instances/${previewInstance.instanceId}?raw=1`)
+            }
+          />
         )}
       </div>
 
@@ -647,6 +850,437 @@ export default function EditorHome() {
           </Button>
         </Modal.Footer>
       </Modal>
+    </div>
+  );
+}
+
+const permissionItems = [
+  { key: "View", icon: faGlasses },
+  { key: "Edit", icon: faPen },
+  { key: "Review", icon: faClipboardCheck },
+  { key: "Release", icon: faRocket },
+] as const;
+
+function InstanceCardList({
+  instances,
+  loading,
+  selectedInstances,
+  previewInstanceId,
+  expandedIds,
+  copiedId,
+  onOpen,
+  onToggleSelected,
+  onToggleDetails,
+  onCopyId,
+}: {
+  instances: InstanceSummary[];
+  loading: boolean;
+  selectedInstances: Set<string>;
+  previewInstanceId?: string;
+  expandedIds: Set<string>;
+  copiedId: string | null;
+  onOpen: (instanceId: string) => void;
+  onToggleSelected: (instanceId: string) => void;
+  onToggleDetails: (instanceId: string) => void;
+  onCopyId: (instanceId: string) => void;
+}) {
+  if (loading) {
+    return (
+      <div className="text-center py-4">
+        <Spinner animation="border" size="sm" role="status" className="me-2" />
+        Loading instances...
+      </div>
+    );
+  }
+
+  return (
+    <div className="instance-cards">
+      {instances.map((instance) => {
+        const typeColor =
+          instance.typeColor || typeColors[instance.type] || "#999";
+        const detailsOpen = expandedIds.has(instance.instanceId);
+        const permissions = permissionItems.filter((item) =>
+          instance.permissions.includes(item.key),
+        );
+        return (
+          <article
+            key={instance.id}
+            className={
+              previewInstanceId === instance.instanceId
+                ? "instance-card instance-card-selected"
+                : "instance-card"
+            }
+            aria-label={instance.instanceName}
+            onClick={(event) => {
+              if (
+                (event.target as HTMLElement).closest('input[type="checkbox"]')
+              ) {
+                return;
+              }
+              onOpen(instance.instanceId);
+            }}
+          >
+            <div className="instance-card-main">
+              <div onClick={(event) => event.stopPropagation()}>
+                <Form.Check
+                  type="checkbox"
+                  aria-label={`Select ${instance.instanceName}`}
+                  checked={selectedInstances.has(instance.instanceId)}
+                  onChange={() => onToggleSelected(instance.instanceId)}
+                />
+              </div>
+              <div className="instance-card-content">
+                <div className="instance-card-kicker">
+                  <span title={instance.typeDescription}>
+                    <FontAwesomeIcon
+                      icon={faCircle}
+                      className="type-color-icon me-2"
+                      style={{ color: typeColor }}
+                    />
+                    {instance.type}
+                  </span>
+                  <FontAwesomeIcon
+                    icon={
+                      instance.bookmarked ? faBookmarkSolid : faBookmarkRegular
+                    }
+                    aria-label={
+                      instance.bookmarked ? "Bookmarked" : "Not bookmarked"
+                    }
+                  />
+                </div>
+                <h3 className="instance-card-name">{instance.instanceName}</h3>
+                <div className="instance-card-id">
+                  <span
+                    className="instance-card-id-text"
+                    title={instance.instanceId}
+                  >
+                    {instance.instanceId}
+                  </span>
+                  <button
+                    type="button"
+                    className="instance-preview-copy"
+                    aria-label={
+                      copiedId === instance.instanceId ? "ID copied" : "Copy ID"
+                    }
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      onCopyId(instance.instanceId);
+                    }}
+                  >
+                    <FontAwesomeIcon icon={faCopy} />
+                  </button>
+                </div>
+              </div>
+            </div>
+            <button
+              type="button"
+              className="instance-card-details-toggle"
+              aria-expanded={detailsOpen}
+              onClick={(event) => {
+                event.stopPropagation();
+                onToggleDetails(instance.instanceId);
+              }}
+            >
+              <FontAwesomeIcon
+                icon={detailsOpen ? faChevronUp : faChevronDown}
+                className="me-2"
+              />
+              {detailsOpen ? "Hide details" : "Details"}
+            </button>
+            {detailsOpen && (
+              <div className="instance-card-details">
+                <div>
+                  <span className="instance-preview-meta-label">Status</span>
+                  <span
+                    className={
+                      instance.releaseStatus === "released"
+                        ? "instance-card-status instance-card-status--released"
+                        : "instance-card-status"
+                    }
+                  >
+                    {instance.releaseStatus}
+                  </span>
+                </div>
+                <div>
+                  <span className="instance-preview-meta-label">Space</span>
+                  {instance.space}
+                </div>
+                {permissions.length > 0 && (
+                  <div className="instance-card-permissions">
+                    {permissions.map((item) => (
+                      <span key={item.key}>
+                        <FontAwesomeIcon icon={item.icon} />
+                        {item.key}
+                      </span>
+                    ))}
+                  </div>
+                )}
+                <div>
+                  <span className="instance-preview-meta-label">
+                    Last visited
+                  </span>
+                  {instance.lastVisited || "Never"}
+                </div>
+              </div>
+            )}
+          </article>
+        );
+      })}
+    </div>
+  );
+}
+
+function InstancePreview({
+  instance,
+  onClose,
+  onOpen,
+  onEdit,
+  onRaw,
+}: {
+  instance: InstanceSummary;
+  onClose: () => void;
+  onOpen: () => void;
+  onEdit: () => void;
+  onRaw: () => void;
+}) {
+  const navigate = useNavigate();
+  const { getAccessToken } = useAuth();
+  const [detail, setDetail] = useState<InstanceDetail | undefined>();
+  const [fieldsLoading, setFieldsLoading] = useState(true);
+  const [fieldsError, setFieldsError] = useState<string>();
+  const [copied, setCopied] = useState(false);
+  const typeColor =
+    instance.typeColor || typeColors[instance.type] || "#6c757d";
+
+  useEffect(() => {
+    let cancelled = false;
+    setFieldsLoading(true);
+    setFieldsError(undefined);
+    setDetail(undefined);
+    getAccessToken()
+      .then((token) => fetchInstance(token, instance.instanceId))
+      .then((loaded) => {
+        if (!cancelled) {
+          setDetail(loaded);
+          setFieldsLoading(false);
+        }
+      })
+      .catch((e: unknown) => {
+        console.error("Failed to load the instance preview", e);
+        if (!cancelled) {
+          setFieldsError(e instanceof Error ? e.message : String(e));
+          setFieldsLoading(false);
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [getAccessToken, instance.instanceId]);
+
+  useEffect(() => {
+    if (!copied) {
+      return;
+    }
+    const timer = window.setTimeout(() => setCopied(false), 2000);
+    return () => window.clearTimeout(timer);
+  }, [copied]);
+
+  const handleCopyId = () => {
+    navigator.clipboard.writeText(instance.instanceId);
+    setCopied(true);
+  };
+
+  const fields = detail?.fields ?? [];
+  const supportedFields = fields.filter(
+    (field) => field.kind !== "UNSUPPORTED",
+  );
+  const unsupportedFields = fields
+    .filter((field) => field.kind === "UNSUPPORTED")
+    .sort((a, b) => a.label.localeCompare(b.label));
+
+  return (
+    <aside
+      className="instance-preview"
+      style={{ "--instance-type-color": typeColor } as React.CSSProperties}
+      aria-label={`Preview of ${instance.instanceName}`}
+    >
+      <div className="instance-preview-header">
+        <div className="instance-preview-toolbar">
+          <button
+            type="button"
+            className="instance-preview-close"
+            onClick={onClose}
+            aria-label="Close preview"
+          >
+            <FontAwesomeIcon icon={faXmark} />
+          </button>
+        </div>
+        <div className="instance-preview-type" title={instance.typeDescription}>
+          <FontAwesomeIcon
+            icon={faCircle}
+            className="type-color-icon me-2"
+            style={{ color: typeColor }}
+          />
+          {instance.type}
+        </div>
+        <h3 className="instance-preview-name">{instance.instanceName}</h3>
+        <div className="instance-preview-id">
+          <span
+            className="instance-preview-id-text"
+            title={instance.instanceId}
+          >
+            {instance.instanceId}
+          </span>
+          <button
+            type="button"
+            className="instance-preview-copy"
+            onClick={handleCopyId}
+            aria-label={copied ? "ID copied" : "Copy ID"}
+            title={copied ? "ID copied!" : "Copy ID"}
+          >
+            <FontAwesomeIcon icon={faCopy} />
+          </button>
+        </div>
+        <div className="instance-preview-space">
+          <span className="instance-preview-meta-label">Space</span>
+          {instance.space}
+        </div>
+        <div
+          className="instance-preview-actions"
+          role="group"
+          aria-label="Open instance"
+        >
+          <Button
+            variant="dark"
+            size="sm"
+            onClick={onOpen}
+            aria-label="Open instance"
+          >
+            <FontAwesomeIcon icon={faEye} />
+            Open
+          </Button>
+          <Button
+            variant="outline-secondary"
+            size="sm"
+            onClick={onEdit}
+            aria-label="Edit instance"
+          >
+            <FontAwesomeIcon icon={faPen} />
+            Edit
+          </Button>
+          <Button
+            variant="outline-secondary"
+            size="sm"
+            onClick={onRaw}
+            aria-label="Open instance in raw mode"
+          >
+            <FontAwesomeIcon icon={faCode} />
+            Raw
+          </Button>
+        </div>
+      </div>
+      <div className="instance-preview-fields">
+        {fieldsLoading && (
+          <div className="instance-preview-fields-status text-muted">
+            <Spinner
+              animation="border"
+              size="sm"
+              role="status"
+              className="me-2"
+            />
+            Loading fields...
+          </div>
+        )}
+        {!fieldsLoading && fieldsError && (
+          <p className="instance-preview-fields-status text-muted mb-0">
+            The fields could not be loaded.
+          </p>
+        )}
+        {!fieldsLoading && !fieldsError && fields.length === 0 && (
+          <p className="instance-preview-fields-status text-muted mb-0">
+            This instance has no fields.
+          </p>
+        )}
+        {!fieldsLoading &&
+          !fieldsError &&
+          supportedFields.map((field) => (
+            <PreviewField
+              key={field.identifier}
+              field={field}
+              onInstanceClick={(linkedId) =>
+                navigate(`/editor/instances/${linkedId}`)
+              }
+            />
+          ))}
+        {!fieldsLoading && !fieldsError && unsupportedFields.length > 0 && (
+          <PreviewUnsupportedFields
+            fields={unsupportedFields}
+            onInstanceClick={(linkedId) =>
+              navigate(`/editor/instances/${linkedId}`)
+            }
+          />
+        )}
+      </div>
+    </aside>
+  );
+}
+
+function PreviewField({
+  field,
+  onInstanceClick,
+}: {
+  field: InstanceField;
+  onInstanceClick: (instanceId: string) => void;
+}) {
+  return (
+    <div className="instance-preview-field">
+      <div className="instance-preview-field-label" title={field.tooltip}>
+        {field.label}
+      </div>
+      <InstanceFieldControl
+        field={field}
+        value={field.value ?? null}
+        onChange={() => undefined}
+        isEditMode={false}
+        onInstanceClick={onInstanceClick}
+      />
+    </div>
+  );
+}
+
+function PreviewUnsupportedFields({
+  fields,
+  onInstanceClick,
+}: {
+  fields: InstanceField[];
+  onInstanceClick: (instanceId: string) => void;
+}) {
+  const [isExpanded, setIsExpanded] = useState(false);
+  return (
+    <div className="instance-preview-unsupported">
+      <button
+        type="button"
+        className="instance-preview-unsupported-toggle"
+        onClick={() => setIsExpanded((previous) => !previous)}
+        aria-expanded={isExpanded}
+      >
+        Unsupported fields ({fields.length})
+        <FontAwesomeIcon
+          icon={isExpanded ? faChevronUp : faChevronDown}
+          className="ms-2"
+        />
+      </button>
+      <Collapse in={isExpanded}>
+        <div>
+          {fields.map((field) => (
+            <PreviewField
+              key={field.identifier}
+              field={field}
+              onInstanceClick={onInstanceClick}
+            />
+          ))}
+        </div>
+      </Collapse>
     </div>
   );
 }
