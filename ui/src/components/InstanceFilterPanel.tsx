@@ -23,6 +23,8 @@ type InstanceFilterPanelProps = {
   onFiltersChange: (filters: InstanceFilters) => void;
   availableTypes: EntityType[];
   availableSpaces: string[];
+  /** Toolbar shows one button per filter. Stacked shows every filter in place, for a single mobile sheet. */
+  variant?: "toolbar" | "stacked";
 };
 
 function ItemListFilter({
@@ -33,6 +35,8 @@ function ItemListFilter({
   emptyMessage = "No items found matching",
   labels,
   descriptions,
+  idPrefix = "item",
+  listMaxHeight = 300,
 }: {
   items: string[];
   selectedItems: string[];
@@ -43,6 +47,8 @@ function ItemListFilter({
   labels?: Record<string, string>;
   /** Optional descriptions of the items (by item) shown as tooltip */
   descriptions?: Record<string, string | undefined>;
+  idPrefix?: string;
+  listMaxHeight?: number;
 }) {
   const [filter, setFilter] = useState("");
 
@@ -60,13 +66,13 @@ function ItemListFilter({
         value={filter}
         onChange={(e) => setFilter(e.target.value)}
       />
-      <div style={{ maxHeight: "300px", overflowY: "auto" }}>
+      <div style={{ maxHeight: listMaxHeight, overflowY: "auto" }}>
         {filteredItems.length > 0 ? (
           filteredItems.map((item) => (
             <Form.Check
               key={item}
               type="checkbox"
-              id={`item-${item}`}
+              id={`${idPrefix}-${item}`}
               label={labelOf(item)}
               title={descriptions?.[item]}
               checked={selectedItems.includes(item)}
@@ -89,6 +95,7 @@ export function InstanceFilterPanel({
   onFiltersChange,
   availableTypes,
   availableSpaces,
+  variant = "toolbar",
 }: InstanceFilterPanelProps) {
   const [showTypeModal, setShowTypeModal] = useState(false);
   const [showSpaceModal, setShowSpaceModal] = useState(false);
@@ -118,6 +125,67 @@ export function InstanceFilterPanel({
     filters.types.length +
     filters.spaces.length +
     filters.releaseStatuses.length;
+
+  const typeList = (
+    <ItemListFilter
+      items={availableTypes.map((t) => t.url)}
+      labels={Object.fromEntries(availableTypes.map((t) => [t.url, t.name]))}
+      descriptions={Object.fromEntries(
+        availableTypes.map((t) => [t.url, t.description]),
+      )}
+      selectedItems={filters.types}
+      onItemToggle={handleTypeToggle}
+      placeholder="Filter types..."
+      emptyMessage="No types found matching"
+      idPrefix="type"
+      listMaxHeight={variant === "stacked" ? 180 : 300}
+    />
+  );
+
+  const spaceList = (
+    <ItemListFilter
+      items={availableSpaces}
+      selectedItems={filters.spaces}
+      onItemToggle={handleSpaceToggle}
+      placeholder="Filter spaces..."
+      emptyMessage="No spaces found matching"
+      idPrefix="space"
+      listMaxHeight={variant === "stacked" ? 180 : 300}
+    />
+  );
+
+  if (variant === "stacked") {
+    return (
+      <div className="instance-filter-sheet">
+        <section>
+          <h3 className="instance-filter-sheet-title">Type</h3>
+          {typeList}
+        </section>
+        <section>
+          <h3 className="instance-filter-sheet-title">Space</h3>
+          {spaceList}
+        </section>
+        <section>
+          <h3 className="instance-filter-sheet-title">Release status</h3>
+          <Form.Check
+            type="checkbox"
+            id="status-released"
+            label="Released"
+            checked={filters.releaseStatuses.includes("released")}
+            onChange={() => handleStatusToggle("released")}
+            className="mb-2"
+          />
+          <Form.Check
+            type="checkbox"
+            id="status-in-progress"
+            label="In Progress"
+            checked={filters.releaseStatuses.includes("in progress")}
+            onChange={() => handleStatusToggle("in progress")}
+          />
+        </section>
+      </div>
+    );
+  }
 
   return (
     <>
@@ -176,21 +244,7 @@ export function InstanceFilterPanel({
         <Modal.Header closeButton>
           <Modal.Title>Select Types</Modal.Title>
         </Modal.Header>
-        <Modal.Body>
-          <ItemListFilter
-            items={availableTypes.map((t) => t.url)}
-            labels={Object.fromEntries(
-              availableTypes.map((t) => [t.url, t.name]),
-            )}
-            descriptions={Object.fromEntries(
-              availableTypes.map((t) => [t.url, t.description]),
-            )}
-            selectedItems={filters.types}
-            onItemToggle={handleTypeToggle}
-            placeholder="Filter types..."
-            emptyMessage="No types found matching"
-          />
-        </Modal.Body>
+        <Modal.Body>{typeList}</Modal.Body>
         <Modal.Footer className="d-flex justify-content-between">
           <Button
             variant="outline-danger"
@@ -213,15 +267,7 @@ export function InstanceFilterPanel({
         <Modal.Header closeButton>
           <Modal.Title>Select Spaces</Modal.Title>
         </Modal.Header>
-        <Modal.Body>
-          <ItemListFilter
-            items={availableSpaces}
-            selectedItems={filters.spaces}
-            onItemToggle={handleSpaceToggle}
-            placeholder="Filter spaces..."
-            emptyMessage="No spaces found matching"
-          />
-        </Modal.Body>
+        <Modal.Body>{spaceList}</Modal.Body>
         <Modal.Footer className="d-flex justify-content-between">
           <Button
             variant="outline-danger"

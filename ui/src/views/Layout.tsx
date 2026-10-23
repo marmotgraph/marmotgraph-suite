@@ -1,8 +1,9 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import SidebarMG from "../components/SidebarMG";
 import AppSubNav from "../components/composites/AppSubNav";
 import Footer from "../components/composites/Footer";
 import { useAppSubNav } from "../hooks/useAppSubNav";
+import { MOBILE_VIEWPORT_QUERY, useMediaQuery } from "../hooks/useMediaQuery";
 import "./Layout.css";
 
 interface LayoutProps {
@@ -31,8 +32,23 @@ interface LayoutProps {
   children: React.ReactNode;
 }
 
+function sidebarStartsCollapsed() {
+  return (
+    typeof window !== "undefined" &&
+    typeof window.matchMedia === "function" &&
+    window.matchMedia(MOBILE_VIEWPORT_QUERY).matches
+  );
+}
+
 export default function Layout({ subNav, children }: LayoutProps) {
-  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
+  const isMobile = useMediaQuery(MOBILE_VIEWPORT_QUERY);
+  // A phone starts with the icon rail. Opening the full sidebar is still one tap away.
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(sidebarStartsCollapsed);
+  useEffect(() => {
+    if (isMobile) {
+      setIsSidebarCollapsed(true);
+    }
+  }, [isMobile]);
   const routeSubNav = useAppSubNav();
   const effectiveSubNav = subNav ?? routeSubNav;
 

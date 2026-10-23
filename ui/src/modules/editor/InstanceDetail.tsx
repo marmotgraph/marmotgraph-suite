@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { Button, Collapse, Form, Spinner } from "react-bootstrap";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
@@ -130,19 +130,21 @@ function InstanceDetailView({ instanceId }: { instanceId: string }) {
   const { getAccessToken } = useAuth();
   const { addInstance, instances } = useInstances();
   const { getDraft, upsertDraft, removeDraft } = useUnsavedInstances();
-  const [searchParams] = useState(
-    () => new URLSearchParams(window.location.search),
-  );
+  const [searchParams] = useSearchParams();
   const [baseline, setBaseline] = useState<InstanceFieldValues>(
     emptyInstanceFieldValues,
   );
   const isNewInstance = instanceId?.startsWith("new-");
   const newInstanceName = searchParams.get("name") || "";
   const newInstanceType = searchParams.get("type") || "";
+  const openInEditMode = searchParams.get("edit") === "1";
+  const openInRawMode = searchParams.get("raw") === "1" && !isNewInstance;
 
-  const [isEditMode, setIsEditMode] = useState(isNewInstance);
+  const [isEditMode, setIsEditMode] = useState(
+    (isNewInstance || openInEditMode) && !openInRawMode,
+  );
   /** Shows the full JSON of the instance instead of its fields (only available when not editing the fields) */
-  const [isRawMode, setIsRawMode] = useState(false);
+  const [isRawMode, setIsRawMode] = useState(openInRawMode);
   const [currentFieldValues, setCurrentFieldValues] =
     useState<InstanceFieldValues>(emptyInstanceFieldValues);
 
@@ -323,16 +325,18 @@ function InstanceDetailView({ instanceId }: { instanceId: string }) {
       setCurrentFieldValues(draft.fieldValues);
       setBaseline(savedFieldValues);
       setIsEditMode(true);
+      setIsRawMode(false);
       return;
     }
 
     setCurrentFieldValues(savedFieldValues);
     setBaseline(savedFieldValues);
-    setIsEditMode(Boolean(isNewInstance));
+    setIsEditMode((isNewInstance || openInEditMode) && !openInRawMode);
+    setIsRawMode(openInRawMode);
     // Only re-initialize when navigating between instances or once the instance is loaded — not when unrelated
     // drafts are added (getDraft identity changes would exit edit mode otherwise).
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [savedFieldValues, instanceId, isNewInstance]);
+  }, [savedFieldValues, instanceId, isNewInstance, openInEditMode, openInRawMode]);
 
   const changedFieldKeys = useMemo(() => {
     if (!isEditMode) {
