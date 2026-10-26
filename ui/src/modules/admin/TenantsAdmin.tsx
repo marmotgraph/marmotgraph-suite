@@ -3,6 +3,7 @@ import { Alert, Button, Card, Col, Form, ListGroup, Modal, Row, Spinner, Tab, Ta
 import { Plus, Upload } from "lucide-react";
 import { useAuth } from "../../contexts/AuthContext";
 import { useConfig } from "../../contexts/ConfigContext";
+import SaveButton from "../../components/SaveButton";
 import {
   Colors,
   defineTenant,
@@ -182,30 +183,6 @@ function TenantDetails({ tenant, modify }: { tenant: Tenant; modify: Modify }) {
         </Tabs>
       </Card.Body>
     </Card>
-  );
-}
-
-/** A save button which reports that the save was successful for a moment. */
-function SaveButton({ disabled, onSave }: { disabled: boolean; onSave: () => Promise<boolean> }) {
-  const [state, setState] = useState<"idle" | "saving" | "saved">("idle");
-
-  useEffect(() => {
-    if (state !== "saved") {
-      return;
-    }
-    const timeout = setTimeout(() => setState("idle"), 2000);
-    return () => clearTimeout(timeout);
-  }, [state]);
-
-  const save = async () => {
-    setState("saving");
-    setState((await onSave()) ? "saved" : "idle");
-  };
-
-  return (
-    <Button variant="dark" size="sm" disabled={disabled || state === "saving"} onClick={save}>
-      {state === "saving" ? <Spinner animation="border" size="sm" /> : state === "saved" ? "Saved" : "Save"}
-    </Button>
   );
 }
 

@@ -1,0 +1,188 @@
+.modeler-home {
+    padding-bottom: 1rem;
+}
+
+.modeler-filter {
+    max-width: 260px;
+}
+
+.modeler-code {
+    font-family: SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    font-size: 0.85rem;
+}
+
+.modeler-color-dot {
+    display: inline-block;
+    width: 0.75rem;
+    height: 0.75rem;
+    flex-shrink: 0;
+    border-radius: 50%;
+    border: 1px solid rgba(0, 0, 0, 0.15);
+    vertical-align: middle;
+}
+
+.modeler-color-picker {
+    width: 2.5rem;
+    flex-shrink: 0;
+    padding: 0.15rem;
+}
+
+.modeler-color-text {
+    max-width: 10rem;
+}
+
+.modeler-type-list {
+    max-height: calc(100vh - 290px);
+    min-height: 200px;
+    overflow-y: auto;
+}
+
+.modeler-type-link {
+    text-decoration: none;
+    white-space: nowrap;
+}
+
+.modeler-properties td {
+    min-width: 6rem;
+}
+
+/* Types and properties without a specification - they are only known from the data */
+.modeler-unspecified {
+    color: var(--bs-warning-text-emphasis);
+}
+
+.list-group-item.active .modeler-unspecified {
+    color: inherit;
+}
+
+.modeler-properties tr.modeler-unspecified-row > td:first-child {
+    box-shadow: inset 3px 0 0 var(--bs-warning);
+}
+
+.modeler-checklist {
+    max-height: 220px;
+    overflow-y: auto;
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    padding: 0.5rem 0.75rem;
+}
+
+.modeler-checklist:empty {
+    display: none;
+}
+
+.modeler-checklist-tall {
+    max-height: 320px;
+}
+
+/* Graph */
+
+.modeler-graph {
+    position: relative;
+    height: calc(100vh - 300px);
+    min-height: 360px;
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    background: var(--bg-secondary);
+    overflow: hidden;
+}
+
+.modeler-graph svg {
+    width: 100%;
+    height: 100%;
+    display: block;
+    cursor: grab;
+    touch-action: none;
+    user-select: none;
+}
+
+.modeler-graph svg:active {
+    cursor: grabbing;
+}
+
+.modeler-graph-empty {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.modeler-node {
+    cursor: pointer;
+    transition: opacity 0.15s ease;
+}
+
+.modeler-node circle {
+    stroke: #fff;
+    stroke-width: 2;
+}
+
+.modeler-node.external circle {
+    stroke: #6c757d;
+    stroke-dasharray: 4 3;
+}
+
+.modeler-node.selected circle {
+    stroke: var(--accent-color);
+    stroke-width: 4;
+}
+
+.modeler-node-label {
+    font-size: 12px;
+    font-weight: 500;
+    fill: var(--text-primary);
+    paint-order: stroke;
+    stroke: var(--bg-secondary);
+    stroke-width: 3px;
+    pointer-events: none;
+}
+
+.modeler-node.dimmed,
+.modeler-edge.dimmed {
+    opacity: 0.2;
+}
+
+.modeler-edge path {
+    fill: none;
+    stroke: #8a929a;
+    stroke-width: 1.5;
+}
+
+.modeler-edge.active path {
+    stroke: var(--accent-color);
+    stroke-width: 2.5;
+}
+
+.modeler-arrow {
+    fill: #8a929a;
+}
+
+.modeler-edge-label {
+    font-size: 10px;
+    fill: var(--text-secondary);
+    paint-order: stroke;
+    stroke: var(--bg-secondary);
+    stroke-width: 3px;
+    pointer-events: none;
+}
+
+.modeler-edge.active .modeler-edge-label {
+    fill: var(--text-primary);
+    font-weight: 600;
+}
+
+@media (max-width: 768px) {
+    .modeler-graph {
+        height: 60vh;
+        min-height: 300px;
+    }
+
+    .modeler-type-list {
+        max-height: none;
+    }
+
+    .modeler-filter {
+        max-width: none;
+    }
+}

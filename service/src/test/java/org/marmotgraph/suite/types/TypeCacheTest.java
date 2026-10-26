@@ -140,6 +140,19 @@ class TypeCacheTest {
         verify(types, Mockito.times(2)).list(any(TypeListOptions.class));
     }
 
+    @Test
+    void invalidatedTypeAndListsAreFetchedAgain() {
+        when(types.list(any(TypeListOptions.class))).thenReturn(new Page<>(List.of(type(DEVICE, "Device", "#ff9800")), 1, 50, null, null, Map.of(), null));
+        cache.list(client, "alice");
+
+        cache.invalidate(DEVICE);
+        cache.get(client, List.of(DEVICE));
+        cache.list(client, "alice");
+
+        verify(types).getByNames(List.of(DEVICE), Stage.IN_PROGRESS, null, false, false);
+        verify(types, Mockito.times(2)).list(any(TypeListOptions.class));
+    }
+
     private static class MutableClock extends Clock {
         private Instant now = Instant.parse("2026-10-20T10:00:00Z");
 

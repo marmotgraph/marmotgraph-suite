@@ -96,4 +96,13 @@ public abstract class DefinitionCache<D> {
         return listing.definitions();
     }
 
+    /**
+     * Drops the definition of the given identifier (e.g. after it has been modified) - as well as all lists since they
+     * might contain it. Both are fetched from the core again with the next request.
+     */
+    public void invalidate(String identifier) {
+        entries.remove(identifier);
+        listings.clear();
+    }
+
 }

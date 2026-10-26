@@ -14,12 +14,14 @@ import { imageUrl } from "../services/tenants";
 import { userLabel } from "../services/users";
 import { useGlobalFunctionalities } from "../hooks/useGlobalFunctionalities";
 import { adminSections } from "../modules/admin/adminSections";
+import { modelerAvailable } from "../services/modeler";
 import {
   Blocks,
   BookmarkCheck,
   ChartScatter,
   CodeXml,
   Edit3Icon,
+  Network,
   PanelLeftClose,
   PanelRightOpenIcon,
   ShieldCheck,
@@ -36,7 +38,9 @@ function SidebarMG({ isCollapsed, onToggle }: SidebarMGProps) {
   const { logout } = useAuth();
   const userName = (user && userLabel(user)) || "User";
   // The admin module is only shown if at least one of its sections is available to the user
-  const showAdmin = adminSections(useGlobalFunctionalities()).length > 0;
+  const functionalities = useGlobalFunctionalities();
+  const showAdmin = adminSections(functionalities).length > 0;
+  const showModeler = modelerAvailable(functionalities);
   const { coreUrl, tenant } = useConfig();
   // The logo of the tenant (light mode) - the MarmotGraph logo is shown if the core can't provide it
   const [tenantLogoFailed, setTenantLogoFailed] = useState(false);
@@ -94,6 +98,17 @@ function SidebarMG({ isCollapsed, onToggle }: SidebarMGProps) {
           <ChartScatter size={18} />
           {!isCollapsed && <span className="ms-2">Visualizer</span>}
         </NavLink>
+        {showModeler && (
+          <NavLink
+            to="/modeler"
+            className={({ isActive }) =>
+              `d-flex align-items-center py-2 px-3 mb-1 text-dark rounded sidebar-nav-link ${isActive ? "active" : ""}`
+            }
+          >
+            <Network size={18} />
+            {!isCollapsed && <span className="ms-2">Modeler</span>}
+          </NavLink>
+        )}
         <NavLink
           to="/core-api"
           className={({ isActive }) =>
