@@ -58,6 +58,7 @@
   border-bottom: 1px solid #f1f3f5;
   background-color: #fff;
   transition: background-color 0.15s ease, box-shadow 0.15s ease;
+  cursor: pointer;
 }
 
 .instance-transfer-list-item:last-child {

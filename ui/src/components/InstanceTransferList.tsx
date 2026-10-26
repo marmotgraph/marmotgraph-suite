@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useMemo, useRef, useState } from "react";
 import { Button, Col, Form, ListGroup, Row } from "react-bootstrap";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
@@ -184,6 +184,54 @@ function TransferListColumn({
     () => groupInstancesByType(filteredInstances),
     [filteredInstances],
   );
+  // The ids in the order they are shown - a shift-click applies to all of them between the last clicked one and the
+  // clicked one
+  const orderedIds = useMemo(
+    () =>
+      (groupByType
+        ? groupedInstances.flatMap(([, typeInstances]) => typeInstances)
+        : filteredInstances
+      ).map((instance) => instance.instanceId),
+    [filteredInstances, groupByType, groupedInstances],
+  );
+  const anchorIdRef = useRef<string | null>(null);
+  const handleToggle = (instanceId: string, shiftKey: boolean) => {
+    const anchorIndex = anchorIdRef.current
+      ? orderedIds.indexOf(anchorIdRef.current)
+      : -1;
+    const index = orderedIds.indexOf(instanceId);
+
+    if (shiftKey && anchorIndex >= 0 && index >= 0) {
+      onToggleGroup(
+        orderedIds.slice(
+          Math.min(anchorIndex, index),
+          Math.max(anchorIndex, index) + 1,
+        ),
+        !highlightedIds.has(instanceId),
+      );
+    } else {
+      onToggleHighlight(instanceId);
+      anchorIdRef.current = instanceId;
+    }
+  };
+  // The rows are toggled by their own click handler - browsers don't reliably toggle a checkbox when its label is
+  // shift-clicked (the click is taken for extending the text selection instead)
+  const rowProps = (instanceId: string) => ({
+    onMouseDown: (event: React.MouseEvent) => {
+      if (event.shiftKey) {
+        // Avoid selecting the text of the rows in between
+        event.preventDefault();
+      }
+    },
+    onClick: (event: React.MouseEvent) => {
+      if (!(event.target instanceof HTMLInputElement)) {
+        // Prevent the label from toggling the checkbox once more (a click on the checkbox itself is left as is - the
+        // browser would revert its state after React rendered it otherwise)
+        event.preventDefault();
+      }
+      handleToggle(instanceId, event.shiftKey);
+    },
+  });
   const headingId = `${columnId}-heading`;
   const summaryId = `${columnId}-summary`;
   const listId = `${columnId}-list`;
@@ -296,12 +344,13 @@ function TransferListColumn({
                             ? " instance-transfer-list-item--draft"
                             : ""
                         }`}
+                        {...rowProps(instance.instanceId)}
                       >
                         <Form.Check
                           type="checkbox"
                           id={checkboxId}
                           checked={isHighlighted}
-                          onChange={() => onToggleHighlight(instance.instanceId)}
+                          readOnly
                           aria-describedby={`${checkboxId}-meta`}
                           label={
                             <TransferListItemLabel
@@ -334,12 +383,13 @@ function TransferListColumn({
                 }${
                   instance.isDraft ? " instance-transfer-list-item--draft" : ""
                 }`}
+                {...rowProps(instance.instanceId)}
               >
                 <Form.Check
                   type="checkbox"
                   id={checkboxId}
                   checked={isHighlighted}
-                  onChange={() => onToggleHighlight(instance.instanceId)}
+                  readOnly
                   aria-describedby={`${checkboxId}-meta`}
                   label={
                     <TransferListItemLabel
