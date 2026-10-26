@@ -122,6 +122,17 @@ describe("EditorHome", () => {
     expect(screen.queryByText("Garage")).not.toBeInTheDocument();
   });
 
+  it("opens the instance page when a row is double clicked", async () => {
+    renderHome();
+
+    fireEvent.doubleClick(screen.getByText("Headquarters"));
+
+    expect(await screen.findByText("instance detail")).toBeInTheDocument();
+    expect(screen.getByTestId("location")).toHaveTextContent(
+      "/editor/instances/inst-1",
+    );
+  });
+
   it("opens a preview instead of the instance page when a row is clicked", async () => {
     renderHome();
 

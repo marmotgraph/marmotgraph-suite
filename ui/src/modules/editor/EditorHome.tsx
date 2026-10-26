@@ -338,6 +338,16 @@ export default function EditorHome() {
     setPreviewInstanceId(instanceId);
   };
 
+  const handleRowDoubleClick = (
+    event: React.MouseEvent,
+    instanceId: string,
+  ) => {
+    if ((event.target as HTMLElement).closest('input[type="checkbox"]')) {
+      return;
+    }
+    navigate(`/editor/instances/${instanceId}`);
+  };
+
   const previewInstance = instances.find(
     (instance) => instance.instanceId === previewInstanceId,
   );
@@ -568,6 +578,7 @@ export default function EditorHome() {
               expandedIds={expandedCardIds}
               copiedId={copiedId}
               onOpen={handleRowClick}
+              onOpenDetail={handleRowDoubleClick}
               onToggleSelected={handleSelectInstance}
               onToggleDetails={(instanceId) =>
                 setExpandedCardIds((prev) => {
@@ -660,6 +671,9 @@ export default function EditorHome() {
                           }
                           handleRowClick(instance.instanceId);
                         }}
+                        onDoubleClick={(e) =>
+                          handleRowDoubleClick(e, instance.instanceId)
+                        }
                         style={{ cursor: "pointer" }}
                       >
                         <td onClick={(e) => e.stopPropagation()}>
@@ -952,6 +966,7 @@ function InstanceCardList({
   expandedIds,
   copiedId,
   onOpen,
+  onOpenDetail,
   onToggleSelected,
   onToggleDetails,
   onCopyId,
@@ -963,6 +978,7 @@ function InstanceCardList({
   expandedIds: Set<string>;
   copiedId: string | null;
   onOpen: (instanceId: string) => void;
+  onOpenDetail: (event: React.MouseEvent, instanceId: string) => void;
   onToggleSelected: (instanceId: string) => void;
   onToggleDetails: (instanceId: string) => void;
   onCopyId: (instanceId: string) => void;
@@ -1002,6 +1018,7 @@ function InstanceCardList({
               }
               onOpen(instance.instanceId);
             }}
+            onDoubleClick={(event) => onOpenDetail(event, instance.instanceId)}
           >
             <div className="instance-card-main">
               <div onClick={(event) => event.stopPropagation()}>
