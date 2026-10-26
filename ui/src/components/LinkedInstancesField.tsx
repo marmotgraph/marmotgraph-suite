@@ -33,7 +33,7 @@ const NO_TYPES: string[] = [];
 
 type LinkedInstancesFieldProps = {
   fieldLabel: string;
-  /** The types (names) of the instances which can be linked - all if empty */
+  /** The types (identifiers) of the instances which can be linked - all if empty */
   allowedTypes?: string[];
   linkedInstances: LinkedInstance[];
   onInstanceClick: (instanceId: string) => void;

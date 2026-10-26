@@ -174,28 +174,6 @@ export function getChangedInstanceFieldKeys(
   );
 }
 
-const SERVER_RACK_SPACE = "private-25ae0198-753b-497d-9163-67488442f64";
-
-function generateLinkedInstances(
-  prefix: string,
-  count: number,
-  type: string,
-  space: string,
-  startIndex = 1,
-): LinkedInstance[] {
-  return Array.from({ length: count }, (_, index) => {
-    const number = startIndex + index;
-    return {
-      instanceId: `inst-mock-${prefix}-${number}`,
-      instanceName: `${type.replace(" ", "-")}-${String(number).padStart(4, "0")}`,
-      type,
-      space,
-      hasDirectLinks: false,
-      hasReverseLinks: false,
-    };
-  });
-}
-
 export function getChangedInstanceFieldLabels(
   current: InstanceFieldValues,
   baseline: InstanceFieldValues,
@@ -272,59 +250,6 @@ export function createDraftLinkedInstances(
     hasDirectLinks: false,
     hasReverseLinks: false,
   }));
-}
-
-function instanceToLinkedInstance(instance: InstanceSummary): LinkedInstance {
-  return {
-    instanceId: instance.instanceId,
-    instanceName: instance.instanceName,
-    type: instance.type,
-    space: instance.space,
-    hasDirectLinks: Boolean(instance.directLinks?.length),
-    hasReverseLinks: Boolean(instance.reverseLinks?.length),
-  };
-}
-
-function dedupeLinkedInstances(instances: LinkedInstance[]): LinkedInstance[] {
-  const seen = new Map<string, LinkedInstance>();
-
-  for (const instance of instances) {
-    seen.set(instance.instanceId, instance);
-  }
-
-  return [...seen.values()];
-}
-
-let selectableInstanceCatalog: LinkedInstance[] | null = null;
-
-export function getSelectableInstanceCatalog(): LinkedInstance[] {
-  if (!selectableInstanceCatalog) {
-    selectableInstanceCatalog = dedupeLinkedInstances([
-      ...mockInstances.map(instanceToLinkedInstance),
-      ...generateLinkedInstances("blade", 480, "Blade", SERVER_RACK_SPACE, 3),
-      ...generateLinkedInstances(
-        "cabinet",
-        50,
-        "Cabinet",
-        "team-infrastructure-ops",
-      ),
-      ...generateLinkedInstances("asset", 20, "Asset Tag", SERVER_RACK_SPACE),
-    ]);
-  }
-
-  return selectableInstanceCatalog;
-}
-
-/** The instances which can be linked by a field - restricted to the allowed types (if there are any). */
-export function getSelectableInstancesForField(
-  allowedTypes: string[],
-  excludeInstanceId?: string,
-): LinkedInstance[] {
-  return getSelectableInstanceCatalog().filter(
-    (instance) =>
-      (allowedTypes.length === 0 || allowedTypes.includes(instance.type)) &&
-      instance.instanceId !== excludeInstanceId,
-  );
 }
 
 export function idsToLinkedInstances(

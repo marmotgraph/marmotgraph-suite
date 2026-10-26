@@ -1,15 +1,20 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Badge, Button, Modal } from "react-bootstrap";
+import { useAuth } from "../contexts/AuthContext";
 import { useUnsavedInstances } from "../contexts/UnsavedInstancesContext";
+import { useSpaces } from "../hooks/useSpaces";
+import { useTypes } from "../hooks/useTypes";
 import {
   emptyInstanceFieldValues,
   enrichLinkedInstancesWithDrafts,
-  getSelectableInstancesForField,
   idsToLinkedInstances,
+  InstanceSummary,
   isUnsavedInstanceId,
   LinkedInstance,
   normalizeLinkedInstancesForField,
 } from "../modules/editor/editorMockData";
+import { fetchInstances } from "../services/instances";
+import { typeLabel } from "../services/types";
 import {
   FilterPillsOverflow,
   formatSpaceFilterValue,
@@ -23,13 +28,23 @@ type LinkedInstancesEditModalProps = {
   show: boolean;
   onHide: () => void;
   fieldLabel: string;
-  /** The types (names) of the instances which can be linked - all if empty */
+  /** The types (identifiers) of the instances which can be linked - all if empty */
   allowedTypes: string[];
   linkedInstances: LinkedInstance[];
   currentInstanceId?: string;
   parentSpace?: string;
   onApply: (linkedInstances: LinkedInstance[]) => void;
 };
+
+function toLinkedInstance(instance: InstanceSummary): LinkedInstance {
+  return {
+    instanceId: instance.instanceId,
+    instanceName: instance.instanceName,
+    type: instance.type,
+    typeColor: instance.typeColor,
+    space: instance.space,
+  };
+}
 
 function getInitialCreatedInstances(instances: LinkedInstance[]): LinkedInstance[] {
   return instances.filter(
@@ -49,15 +64,92 @@ export default function LinkedInstancesEditModal({
   parentSpace = "",
   onApply,
 }: LinkedInstancesEditModalProps) {
+  const { getAccessToken } = useAuth();
   const { getDraft, upsertDraft, removeDraft } = useUnsavedInstances();
+  const types = useTypes();
+  const spaces = useSpaces();
   const sessionCreatedIdsRef = useRef<Set<string>>(new Set());
+  // The identifiers of the types which can be linked by their label (all known types if the field doesn't restrict them)
+  const typeIdentifiersByLabel = useMemo(() => {
+    const known = new Map(types.map((type) => [type.identifier, type]));
+    const identifiers =
+      allowedTypes.length > 0 ? allowedTypes : types.map((type) => type.identifier);
+    return new Map(
+      identifiers.map((identifier) => [
+        typeLabel(known.get(identifier) ?? { identifier }),
+        identifier,
+      ]),
+    );
+  }, [allowedTypes, types]);
+  // The types new instances can be created for (only if the field restricts them)
+  const allowedTypeLabels = useMemo(
+    () => (allowedTypes.length > 0 ? [...typeIdentifiersByLabel.keys()] : []),
+    [allowedTypes, typeIdentifiersByLabel],
+  );
+  const availableTypes = useMemo(
+    () => [...typeIdentifiersByLabel.keys()].sort(),
+    [typeIdentifiersByLabel],
+  );
+  const availableSpaces = useMemo(
+    () => [...new Set(spaces.map((space) => space.identifier))].sort(),
+    [spaces],
+  );
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [selectedTypes, setSelectedTypes] = useState<string[]>([]);
+  const [selectedSpaces, setSelectedSpaces] = useState<string[]>([]);
+  const [loadedInstances, setLoadedInstances] = useState<LinkedInstance[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
+
+  // The available instances are loaded from the backend - restricted to the selected types or (if none is selected) to
+  // those which can be linked by the field
+  useEffect(() => {
+    if (!show) {
+      return;
+    }
+    const queriedTypes =
+      selectedTypes.length > 0
+        ? selectedTypes.flatMap((label) => typeIdentifiersByLabel.get(label) ?? [])
+        : allowedTypes;
+    let cancelled = false;
+    setLoading(true);
+    setLoadError(null);
+    getAccessToken()
+      .then((token) =>
+        fetchInstances(token, { types: queriedTypes, spaces: selectedSpaces }),
+      )
+      .then(
+        (loaded) =>
+          !cancelled &&
+          setLoadedInstances(
+            loaded
+              .filter((instance) => instance.instanceId !== currentInstanceId)
+              .map(toLinkedInstance),
+          ),
+      )
+      .catch((e: unknown) => {
+        if (!cancelled) {
+          setLoadedInstances([]);
+          setLoadError(e instanceof Error ? e.message : String(e));
+        }
+      })
+      .finally(() => !cancelled && setLoading(false));
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    show,
+    getAccessToken,
+    allowedTypes,
+    typeIdentifiersByLabel,
+    selectedTypes,
+    selectedSpaces,
+    currentInstanceId,
+  ]);
+
   const selectableCatalog = useMemo(
-    () =>
-      enrichLinkedInstancesWithDrafts(
-        getSelectableInstancesForField(allowedTypes, currentInstanceId),
-        getDraft,
-      ),
-    [allowedTypes, currentInstanceId, getDraft],
+    () => enrichLinkedInstancesWithDrafts(loadedInstances, getDraft),
+    [loadedInstances, getDraft],
   );
   const enrichedLinkedInstances = useMemo(
     () => enrichLinkedInstancesWithDrafts(linkedInstances, getDraft),
@@ -77,24 +169,6 @@ export default function LinkedInstancesEditModal({
 
     return [...merged.values()];
   }, [createdInstances, enrichedLinkedInstances, selectableCatalog]);
-  const availableTypes = useMemo(
-    () =>
-      [
-        ...new Set([
-          ...allowedTypes,
-          ...selectableCatalog.map((instance) => instance.type),
-        ]),
-      ].sort(),
-    [allowedTypes, selectableCatalog],
-  );
-  const availableSpaces = useMemo(
-    () =>
-      [...new Set(selectableCatalog.map((instance) => instance.space))].sort(),
-    [selectableCatalog],
-  );
-  const [selectedIds, setSelectedIds] = useState<string[]>([]);
-  const [selectedTypes, setSelectedTypes] = useState<string[]>([]);
-  const [selectedSpaces, setSelectedSpaces] = useState<string[]>([]);
   const wasOpenRef = useRef(false);
 
   useEffect(() => {
@@ -169,17 +243,6 @@ export default function LinkedInstancesEditModal({
     [registerCreatedInstances],
   );
 
-  const filteredCatalog = useMemo(() => {
-    return selectableCatalog.filter((instance) => {
-      const matchesType =
-        selectedTypes.length === 0 || selectedTypes.includes(instance.type);
-      const matchesSpace =
-        selectedSpaces.length === 0 || selectedSpaces.includes(instance.space);
-
-      return matchesType && matchesSpace;
-    });
-  }, [selectableCatalog, selectedSpaces, selectedTypes]);
-
   const handleTypeToggle = (type: string) => {
     setSelectedTypes((previous) =>
       previous.includes(type)
@@ -242,7 +305,7 @@ export default function LinkedInstancesEditModal({
         </p>
 
         <LinkedInstancesCreatePanel
-          allowedTypes={allowedTypes}
+          allowedTypes={allowedTypeLabels}
           defaultSpace={parentSpace}
           show={show}
           onCreate={handleCreateInstances}
@@ -250,7 +313,7 @@ export default function LinkedInstancesEditModal({
 
         <InstanceTransferList
           instances={allInstances}
-          availableInstances={filteredCatalog}
+          availableInstances={selectableCatalog}
           selectedIds={selectedIds}
           onSelectedIdsChange={setSelectedIds}
           availableFilters={
@@ -279,6 +342,11 @@ export default function LinkedInstancesEditModal({
                   />
                 </div>
               </div>
+
+              {loading && (
+                <div className="text-muted small">Loading instances...</div>
+              )}
+              {loadError && <div className="text-danger small">{loadError}</div>}
 
               {(selectedTypes.length > 0 || selectedSpaces.length > 0) && (
                 <div className="linked-instances-edit-modal-filter-pills">

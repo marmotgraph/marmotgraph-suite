@@ -6,7 +6,6 @@ import { jsonEditorSetup, jsonExtensions } from "./jsonEditor";
 import "./InstanceFieldControl.css";
 import { LinkedInstance } from "../modules/editor/editorMockData";
 import { FieldKind, InstanceField } from "../services/instances";
-import { typeLabel } from "../services/types";
 
 export type InstanceFieldControlProps = {
   field: InstanceField;
@@ -101,11 +100,10 @@ function linkedInstances(single: boolean) {
     highlightedInstanceId,
     onInstanceHover,
   }: InstanceFieldControlProps) {
-    const allowedTypes = (field.targetTypes ?? []).map((identifier) => typeLabel({ identifier }));
     return (
       <LinkedInstancesField
         fieldLabel={field.label}
-        allowedTypes={allowedTypes}
+        allowedTypes={field.targetTypes}
         linkedInstances={asLinkedInstances(value)}
         onInstanceClick={onInstanceClick}
         isEditMode={isEditMode}
