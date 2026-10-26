@@ -1,34 +1,136 @@
 /* Layout */
 .instance-detail-layout {
-    display: flex;
-    gap: 28px;
+    --instance-side-width: 300px;
+    display: grid;
+    grid-template-columns: var(--instance-side-width) minmax(0, 900px) var(--instance-side-width);
+    column-gap: 40px;
+    justify-content: start;
     width: 100%;
-    align-items: stretch;
     padding: 4px 56px 24px 0;
+    position: relative;
+}
+
+.instance-detail-breadcrumbs {
+    grid-column: 2;
+    grid-row: 1;
+    margin-bottom: 1rem;
 }
 
 .instance-detail-side {
-    flex: 0 0 auto;
-    width: 300px;
+    width: var(--instance-side-width);
     min-width: 0;
+    position: relative;
+    z-index: 1;
+}
+
+.instance-detail-side--reverse {
+    grid-column: 1;
+    grid-row: 2;
+}
+
+.instance-detail-side--direct {
+    grid-column: 3;
+    grid-row: 2;
 }
 
 @media (min-width: 1400px) {
-    .instance-detail-side {
-        width: 340px;
+    .instance-detail-layout {
+        --instance-side-width: 340px;
     }
 }
 
 @media (min-width: 1800px) {
-    .instance-detail-side {
-        width: 380px;
+    .instance-detail-layout {
+        --instance-side-width: 380px;
     }
 }
 
 .instance-detail-main {
-    flex: 1;
+    grid-column: 2;
+    grid-row: 2;
     min-width: 0;
     max-width: 900px;
+    position: relative;
+    z-index: 1;
+}
+
+/* One column: breadcrumbs, incoming links, the instance, then outgoing links. */
+@media (max-width: 1199px) {
+    .instance-detail-layout {
+        grid-template-columns: minmax(0, 1fr);
+        row-gap: 16px;
+        padding: 4px 16px 24px;
+    }
+
+    .instance-detail-breadcrumbs,
+    .instance-detail-main,
+    .instance-detail-side--direct,
+    .instance-detail-side--reverse {
+        grid-column: 1;
+        width: 100%;
+    }
+
+    .instance-detail-breadcrumbs {
+        grid-row: 1;
+    }
+
+    .instance-detail-side--reverse {
+        grid-row: 2;
+    }
+
+    .instance-detail-main {
+        grid-row: 3;
+        max-width: none;
+    }
+
+    .instance-detail-side--direct {
+        grid-row: 4;
+    }
+
+    .instance-detail-side {
+        width: 100%;
+    }
+
+    .instance-link-connectors {
+        display: none;
+    }
+}
+
+/* Connectors between the open instance and the linked-instance cards. */
+.instance-link-connectors {
+    position: absolute;
+    left: 0;
+    top: 0;
+    overflow: visible;
+    pointer-events: none;
+    z-index: 2;
+}
+
+.instance-link-edge {
+    fill: none;
+    stroke: #b7c0cc;
+    stroke-width: 1.5;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+}
+
+.instance-link-edge.is-active {
+    stroke: var(--edge-color, #4f78ad);
+    stroke-width: 2.25;
+}
+
+.instance-link-edge.is-dimmed {
+    opacity: 0.35;
+}
+
+.instance-link-edge.is-dashed {
+    stroke-dasharray: 4 4;
+}
+
+.instance-link-port {
+    fill: #fff;
+    stroke: #7f93ad;
+    stroke-width: 2;
 }
 
 .instance-focus-panel {
@@ -40,6 +142,8 @@
         0 1px 2px rgba(0, 0, 0, 0.04),
         0 8px 24px rgba(0, 0, 0, 0.06);
     padding: 24px 28px 28px;
+    min-width: 0;
+    max-width: 100%;
 }
 
 /* Header Section */
@@ -77,6 +181,7 @@
     margin-bottom: 10px;
     color: #212529;
     letter-spacing: -0.01em;
+    overflow-wrap: anywhere;
 }
 
 .instance-unsaved-summary {
@@ -143,6 +248,7 @@
 }
 
 .instance-form .form-control {
+    background-color: #fff;
     border: 1px solid #dee2e6;
     border-radius: 6px;
     padding: 10px 14px;
@@ -150,6 +256,7 @@
 }
 
 .instance-form .form-control:focus {
+    background-color: #fff;
     border-color: #6c8ebf;
     box-shadow: 0 0 0 0.2rem rgba(108, 142, 191, 0.25);
 }
@@ -238,6 +345,8 @@
     color: #212529;
     padding: 10px 0 14px;
     border-bottom: 1px solid #f1f3f5;
+    max-width: 100%;
+    overflow-wrap: anywhere;
 }
 
 .instance-view > .mb-4:last-child .view-value {

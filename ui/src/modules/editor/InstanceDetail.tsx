@@ -1,6 +1,6 @@
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
-import { Alert, Button, Collapse, Form, Spinner } from "react-bootstrap";
+import { Button, Collapse, Form, Spinner } from "react-bootstrap";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
   faChevronDown,
@@ -10,7 +10,6 @@ import {
   faCopy,
   faEye,
   faPencil,
-  faRocket,
   IconDefinition,
 } from "@fortawesome/free-solid-svg-icons";
 import {
@@ -19,6 +18,7 @@ import {
   getChangedInstanceFieldKeys,
   getChangedInstanceFieldLabels,
   InstanceFieldValues,
+  InstanceSummary,
 } from "./editorMockData";
 import { useAuth } from "../../contexts/AuthContext";
 import { useInstances } from "../../contexts/InstancesContext";
@@ -27,25 +27,22 @@ import { useSessionStorage } from "../../hooks/useSessionStorage";
 import { EDITOR_BREADCRUMB_TRAIL_KEY } from "./editorConstants";
 import {
   appendIncomingLinks,
-  createInstance,
   fetchIncomingLinks,
   fetchInstance,
   IncomingLinks,
   IncomingLinksOfType,
   InstanceDetail as InstanceDetailData,
   InstanceField,
-  updateInstance,
 } from "../../services/instances";
-import { fetchTypeFields, fetchTypes, typeLabel } from "../../services/types";
 import { Breadcrumbs, BreadcrumbItem as BreadcrumbTrailItem } from "../../components/Breadcrumbs";
 import InstanceFieldControl from "../../components/InstanceFieldControl";
 import InstanceLinksPanel, {
   HoveredLink,
 } from "../../components/InstanceLinksPanel";
 import IncomingLinksPanel from "../../components/IncomingLinksPanel";
+import InstanceLinkConnectors from "../../components/InstanceLinkConnectors";
 import UnsavedInstancesPanel from "../../components/UnsavedInstancesPanel";
 import RawInstanceEditor from "../../components/RawInstanceEditor";
-import InstanceRelease from "../../components/InstanceRelease";
 import DirLinkIcon from "../../assets/icons/DirLink.svg";
 import RevLinkIcon from "../../assets/icons/RevLink.svg";
 import RevDirLinkIcon from "../../assets/icons/RevDirLink.svg";
@@ -62,13 +59,12 @@ const typeColors: Record<string, string> = {
 };
 
 /** The ways an instance can be shown - switched by the icons in the header */
-type InstanceMode = "read" | "edit" | "raw" | "release";
+type InstanceMode = "read" | "edit" | "raw";
 
 const INSTANCE_MODES: Array<{ mode: InstanceMode; icon: IconDefinition }> = [
   { mode: "read", icon: faEye },
   { mode: "edit", icon: faPencil },
   { mode: "raw", icon: faCode },
-  { mode: "release", icon: faRocket },
 ];
 
 /** Names the change of an instance edited in the raw mode (e.g. in the unsaved instances) */
@@ -139,29 +135,19 @@ function InstanceDetailView({ instanceId }: { instanceId: string }) {
   const [baseline, setBaseline] = useState<InstanceFieldValues>(
     emptyInstanceFieldValues,
   );
-  // Determined once - the instance stays new until it is saved (also when reopened from its unsaved draft)
-  const [isNewInstance, setIsNewInstance] = useState(
-    () => searchParams.get("new") === "1" || Boolean(getDraft(instanceId)?.isNew),
-  );
-  /** The identifier of the type of the new instance */
+  const isNewInstance = instanceId?.startsWith("new-");
+  const newInstanceName = searchParams.get("name") || "";
   const newInstanceType = searchParams.get("type") || "";
   const openInEditMode = searchParams.get("edit") === "1";
   const openInRawMode = searchParams.get("raw") === "1" && !isNewInstance;
-  const openInReleaseMode =
-    searchParams.get("release") === "1" && !isNewInstance && !openInRawMode;
 
   const [isEditMode, setIsEditMode] = useState(
-    (isNewInstance || openInEditMode) && !openInRawMode && !openInReleaseMode,
+    (isNewInstance || openInEditMode) && !openInRawMode,
   );
   /** Shows the full JSON of the instance instead of its fields (only available when not editing the fields) */
   const [isRawMode, setIsRawMode] = useState(openInRawMode);
-  /** Shows the release tree of the instance instead of its fields (only available when not editing the fields) */
-  const [isReleaseMode, setIsReleaseMode] = useState(openInReleaseMode);
   const [currentFieldValues, setCurrentFieldValues] =
     useState<InstanceFieldValues>(emptyInstanceFieldValues);
-  /** The property of the type of the new instance which names its instances */
-  const [newInstanceLabelProperty, setNewInstanceLabelProperty] =
-    useState<string>();
 
   const [instance, setInstance] = useState<InstanceDetailData | undefined>(
     () =>
@@ -169,7 +155,7 @@ function InstanceDetailView({ instanceId }: { instanceId: string }) {
         ? {
             instanceId,
             type: newInstanceType,
-            instanceName: instanceId,
+            instanceName: newInstanceName,
             space: "",
             permissions: "",
             releaseStatus: "in progress",
@@ -179,8 +165,8 @@ function InstanceDetailView({ instanceId }: { instanceId: string }) {
   );
   /** The linked instance hovered - either in the form or in the outgoing links */
   const [hoveredLink, setHoveredLink] = useState<HoveredLink>();
-  // New instances are only loading while the fields of their type are fetched
-  const [loading, setLoading] = useState(!isNewInstance || Boolean(newInstanceType));
+  const layoutRef = useRef<HTMLDivElement>(null);
+  const [loading, setLoading] = useState(!isNewInstance);
   const [loadError, setLoadError] = useState<string>();
   const [incomingLinks, setIncomingLinks] = useState<IncomingLinks[]>([]);
   const [incomingLinksLoading, setIncomingLinksLoading] =
@@ -190,8 +176,6 @@ function InstanceDetailView({ instanceId }: { instanceId: string }) {
   const [incomingLinksLoadingMore, setIncomingLinksLoadingMore] = useState<
     Set<string>
   >(new Set());
-  const [saving, setSaving] = useState(false);
-  const [saveError, setSaveError] = useState<string>();
 
   useEffect(() => {
     if (isNewInstance) {
@@ -213,48 +197,6 @@ function InstanceDetailView({ instanceId }: { instanceId: string }) {
       cancelled = true;
     };
   }, [getAccessToken, instanceId, isNewInstance]);
-
-  // A new instance is filled in with the (empty) fields of its type - and shown with the name and color of the type
-  useEffect(() => {
-    if (!isNewInstance || !newInstanceType) {
-      return;
-    }
-
-    let cancelled = false;
-    getAccessToken()
-      .then((token) =>
-        Promise.all([
-          fetchTypeFields(token, newInstanceType),
-          fetchTypes(token),
-        ]),
-      )
-      .then(([fields, types]) => {
-        if (cancelled) {
-          return;
-        }
-        const type = types.find((t) => t.identifier === newInstanceType);
-        setNewInstanceLabelProperty(type?.labelProperty);
-        setInstance((current) =>
-          current && {
-            ...current,
-            type: typeLabel(type ?? { identifier: newInstanceType }),
-            typeColor: type?.color,
-            typeDescription: type?.description,
-            fields,
-          },
-        );
-      })
-      .catch((e: unknown) => {
-        console.error("Failed to load the fields of the type", e);
-        if (!cancelled) {
-          setLoadError(e instanceof Error ? e.message : String(e));
-        }
-      })
-      .finally(() => !cancelled && setLoading(false));
-    return () => {
-      cancelled = true;
-    };
-  }, [getAccessToken, isNewInstance, newInstanceType]);
 
   useEffect(() => {
     if (isNewInstance) {
@@ -328,21 +270,9 @@ function InstanceDetailView({ instanceId }: { instanceId: string }) {
   const typeColor =
     instance?.typeColor || (instance && typeColors[instance.type]) || "#6c757d";
 
-  // A new instance is named by the value of the label field of its type as it is filled in - by its id if there is none
-  // (as the instances provided by the backend)
-  const newInstanceLabel = newInstanceLabelProperty
-    ? currentFieldValues[newInstanceLabelProperty]
-    : undefined;
-  const instanceName =
-    isNewInstance && instance
-      ? typeof newInstanceLabel === "string" && newInstanceLabel.trim()
-        ? newInstanceLabel.trim()
-        : instanceId
-      : instance?.instanceName;
-
   const breadcrumbTrail = useBreadcrumbTrail(
     instanceId,
-    instanceName,
+    instance?.instanceName,
     typeColor,
   );
 
@@ -390,7 +320,6 @@ function InstanceDetailView({ instanceId }: { instanceId: string }) {
       setBaseline(savedFieldValues);
       setIsEditMode(false);
       setIsRawMode(true);
-      setIsReleaseMode(false);
       return;
     }
 
@@ -399,21 +328,17 @@ function InstanceDetailView({ instanceId }: { instanceId: string }) {
       setBaseline(savedFieldValues);
       setIsEditMode(true);
       setIsRawMode(false);
-      setIsReleaseMode(false);
       return;
     }
 
     setCurrentFieldValues(savedFieldValues);
     setBaseline(savedFieldValues);
-    setIsEditMode(
-      (isNewInstance || openInEditMode) && !openInRawMode && !openInReleaseMode,
-    );
+    setIsEditMode((isNewInstance || openInEditMode) && !openInRawMode);
     setIsRawMode(openInRawMode);
-    setIsReleaseMode(openInReleaseMode);
     // Only re-initialize when navigating between instances or once the instance is loaded — not when unrelated
     // drafts are added (getDraft identity changes would exit edit mode otherwise).
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [savedFieldValues, instanceId, isNewInstance, openInEditMode, openInRawMode, openInReleaseMode]);
+  }, [savedFieldValues, instanceId, isNewInstance, openInEditMode, openInRawMode]);
 
   const changedFieldKeys = useMemo(() => {
     if (!isEditMode) {
@@ -442,7 +367,7 @@ function InstanceDetailView({ instanceId }: { instanceId: string }) {
     if (!areInstanceFieldValuesEqual(currentFieldValues, baseline)) {
       upsertDraft({
         instanceId,
-        instanceName: instanceName ?? instance.instanceName,
+        instanceName: instance.instanceName,
         type: instance.type,
         fieldValues: currentFieldValues,
         updatedAt: Date.now(),
@@ -459,7 +384,6 @@ function InstanceDetailView({ instanceId }: { instanceId: string }) {
     currentFieldValues,
     instance,
     instanceId,
-    instanceName,
     isEditMode,
     isNewInstance,
     removeDraft,
@@ -501,7 +425,7 @@ function InstanceDetailView({ instanceId }: { instanceId: string }) {
     }
     upsertDraft({
       instanceId,
-      instanceName: instanceName ?? instance.instanceName,
+      instanceName: instance.instanceName,
       type: instance.type,
       fieldValues: savedFieldValues,
       updatedAt: Date.now(),
@@ -515,20 +439,14 @@ function InstanceDetailView({ instanceId }: { instanceId: string }) {
     reloadInstance();
   };
 
-  const mode: InstanceMode = isReleaseMode
-    ? "release"
-    : isRawMode
-      ? "raw"
-      : isEditMode
-        ? "edit"
-        : "read";
+  const mode: InstanceMode = isRawMode ? "raw" : isEditMode ? "edit" : "read";
 
   /** Leaves the current mode - unsaved changes (of the fields or the JSON) are discarded after confirmation. */
   const leaveMode = () => {
     if (
       hasUnsavedChanges &&
       !window.confirm(
-        `Discard the unsaved changes of ${instanceName}?`,
+        `Discard the unsaved changes of ${instance.instanceName}?`,
       )
     ) {
       return false;
@@ -536,7 +454,6 @@ function InstanceDetailView({ instanceId }: { instanceId: string }) {
     removeDraft(instanceId);
     resetToSaved();
     setIsRawMode(false);
-    setIsReleaseMode(false);
     return true;
   };
 
@@ -549,8 +466,6 @@ function InstanceDetailView({ instanceId }: { instanceId: string }) {
       setIsEditMode(true);
     } else if (target === "raw") {
       setIsRawMode(true);
-    } else if (target === "release") {
-      setIsReleaseMode(true);
     }
   };
 
@@ -558,55 +473,39 @@ function InstanceDetailView({ instanceId }: { instanceId: string }) {
     read: "Read",
     edit: "Edit",
     raw: canEdit ? "Show and edit the raw JSON" : "Show the raw JSON",
-    release: "Release",
   };
 
   const handleSave = () => {
-    // Only the changed fields are sent - the other properties of the instance are kept as they are (all the fields
-    // filled in for a new instance)
-    const changes = Object.fromEntries(
-      [...changedFieldKeys].map((key) => [key, currentFieldValues[key] ?? null]),
-    );
-    setSaving(true);
-    setSaveError(undefined);
-    getAccessToken()
-      .then((token) =>
-        isNewInstance
-          ? createInstance(token, instanceId, newInstanceType, changes)
-          : updateInstance(token, instanceId, changes),
-      )
-      .then((stored) => {
-        removeDraft(instanceId);
-        setInstance(stored);
-        setIsEditMode(false);
-        if (isNewInstance) {
-          setIsNewInstance(false);
-          addInstance({
-            id: instances.length + 1,
-            instanceId: stored.instanceId,
-            type: stored.type,
-            typeColor: stored.typeColor,
-            instanceName: stored.instanceName,
-            space: stored.space,
-            permissions: stored.permissions,
-            bookmarked: false,
-            releaseStatus: stored.releaseStatus,
-          });
-          // The instance is known to the core from now on - it is shown as any other instance
-          navigate(`/editor/instances/${stored.instanceId}`, { replace: true });
-        }
-      })
-      .catch((e: unknown) => {
-        console.error("Failed to save the instance", e);
-        setSaveError(e instanceof Error ? e.message : String(e));
-      })
-      .finally(() => setSaving(false));
+    if (isNewInstance) {
+      const newId = `inst-${crypto.randomUUID()}`;
+
+      const newInstance: InstanceSummary = {
+        id: instances.length + 1,
+        instanceId: newId,
+        type: instance.type,
+        instanceName: instance.instanceName,
+        space: instance.space || "default-space",
+        permissions: "View, Edit",
+        bookmarked: false,
+        releaseStatus: "in progress",
+        directLinks: [],
+        reverseLinks: [],
+      };
+
+      removeDraft(instanceId || "");
+      addInstance(newInstance);
+      navigate(`/editor/instances/${newId}`);
+      return;
+    }
+
+    removeDraft(instanceId || "");
+    setBaseline(currentFieldValues);
+    setIsEditMode(false);
   };
 
   /** Reverts the changed fields - stays in the edit mode (like the reset of the raw mode). */
   const handleReset = () => {
     removeDraft(instanceId || "");
-    setSaveError(undefined);
     setCurrentFieldValues(baseline);
   };
 
@@ -648,7 +547,22 @@ function InstanceDetailView({ instanceId }: { instanceId: string }) {
 
   return (
     <>
-      <div className="instance-detail-layout">
+      <div className="instance-detail-layout" ref={layoutRef}>
+        <InstanceLinkConnectors layoutRef={layoutRef} />
+        <Breadcrumbs
+          items={[
+            { id: "__editor__", label: "Editor" },
+            ...breadcrumbTrail,
+          ]}
+          onItemClick={(item, index) => {
+            if (index === 0) {
+              navigate("/editor");
+            } else {
+              navigate(`/editor/instances/${item.id}`);
+            }
+          }}
+          className="instance-detail-breadcrumbs"
+        />
         <aside className="instance-detail-side instance-detail-side--reverse">
           <IncomingLinksPanel
             incomingLinks={incomingLinks}
@@ -661,21 +575,6 @@ function InstanceDetailView({ instanceId }: { instanceId: string }) {
         </aside>
 
         <div className="instance-detail-main">
-          <Breadcrumbs
-            items={[
-              { id: "__editor__", label: "Editor" },
-              ...breadcrumbTrail,
-            ]}
-            onItemClick={(item, index) => {
-              if (index === 0) {
-                navigate("/editor");
-              } else {
-                navigate(`/editor/instances/${item.id}`);
-              }
-            }}
-            className="mb-3"
-          />
-
           <div
             className="instance-focus-panel"
             style={
@@ -693,7 +592,7 @@ function InstanceDetailView({ instanceId }: { instanceId: string }) {
                     />
                     {instance.type}
                   </div>
-                  <h2 className="instance-name">{instanceName}</h2>
+                  <h2 className="instance-name">{instance.instanceName}</h2>
                   {hasUnsavedChanges && (
                     <div className="instance-unsaved-summary" role="status">
                       Unsaved changes
@@ -753,12 +652,7 @@ function InstanceDetailView({ instanceId }: { instanceId: string }) {
               </div>
             </div>
 
-            {isReleaseMode ? (
-              <InstanceRelease
-                instanceId={instanceId}
-                onInstanceClick={handleLinkClick}
-              />
-            ) : isRawMode ? (
+            {isRawMode ? (
               <RawInstanceEditor
                 instanceId={instanceId}
                 canEdit={canEdit}
@@ -770,15 +664,15 @@ function InstanceDetailView({ instanceId }: { instanceId: string }) {
               <>
                 {fields.length === 0 && (
                   <p className="text-muted">
-                    {isNewInstance && loadError
-                      ? `The fields of the type could not be loaded: ${loadError}`
+                    {isNewInstance
+                      ? "The fields of new instances are not available yet."
                       : "This instance has no fields."}
                   </p>
                 )}
                 {!isEditMode ? (
                   <div className="instance-view">
                     {supportedFields.map((field) => (
-                      <div key={field.identifier} className="mb-4">
+                      <div key={field.identifier} {...fieldSectionProps(field)}>
                         <div className="view-label" title={field.tooltip}>
                           {field.label}
                         </div>
@@ -798,7 +692,7 @@ function InstanceDetailView({ instanceId }: { instanceId: string }) {
                 ) : (
                   <div className="instance-form">
                     {supportedFields.map((field) => (
-                      <Form.Group key={field.identifier} className="mb-4">
+                      <Form.Group key={field.identifier} {...fieldSectionProps(field)}>
                         <InstanceFieldLabel
                           isChanged={changedFieldKeys.has(field.identifier)}
                           tooltip={field.tooltip}
@@ -832,26 +726,18 @@ function InstanceDetailView({ instanceId }: { instanceId: string }) {
                       />
                     )}
 
-                    {saveError && (
-                      <Alert variant="danger" className="mt-3 mb-0">
-                        {saveError}
-                      </Alert>
-                    )}
                     <div className="d-flex gap-2 mt-4">
                       <Button
                         variant="dark"
                         onClick={handleSave}
-                        disabled={changedFieldKeys.size === 0 || saving}
+                        disabled={changedFieldKeys.size === 0}
                       >
-                        {saving && (
-                          <Spinner animation="border" size="sm" className="me-2" />
-                        )}
                         Save
                       </Button>
                       <Button
                         variant="outline-secondary"
                         onClick={handleReset}
-                        disabled={changedFieldKeys.size === 0 || saving}
+                        disabled={changedFieldKeys.size === 0}
                       >
                         Reset
                       </Button>
@@ -941,7 +827,7 @@ function UnsupportedFieldsSection({
                 />
               );
               return isEditMode ? (
-                <Form.Group key={field.identifier} className="mb-4">
+                <Form.Group key={field.identifier} {...fieldSectionProps(field)}>
                   <InstanceFieldLabel
                     isChanged={changedFieldKeys.has(field.identifier)}
                     tooltip={field.tooltip}
@@ -952,7 +838,7 @@ function UnsupportedFieldsSection({
                   {control}
                 </Form.Group>
               ) : (
-                <div key={field.identifier} className="mb-4">
+                <div key={field.identifier} {...fieldSectionProps(field)}>
                   <div className="view-label" title={field.tooltip}>
                     {field.label}
                   </div>
@@ -965,6 +851,13 @@ function UnsupportedFieldsSection({
       </Collapse>
     </div>
   );
+}
+
+function fieldSectionProps(field: InstanceField) {
+  return {
+    className: "mb-4 instance-field-section",
+    "data-instance-field": field.label.trim(),
+  };
 }
 
 function InstanceFieldLabel({

@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Badge, Button } from "react-bootstrap";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
@@ -68,8 +68,24 @@ export default function LinkedInstancesField({
     () => enrichLinkedInstancesWithDrafts(linkedInstances, getDraft),
     [getDraft, linkedInstances],
   );
+  const highlightedRef = useRef<HTMLElement>(null);
   const previewInstances = displayInstances.slice(0, PREVIEW_LIMIT);
-  const hiddenCount = Math.max(displayInstances.length - PREVIEW_LIMIT, 0);
+  if (
+    highlightedInstanceId &&
+    !previewInstances.some((instance) => instance.instanceId === highlightedInstanceId)
+  ) {
+    const highlighted = displayInstances.find(
+      (instance) => instance.instanceId === highlightedInstanceId,
+    );
+    if (highlighted) {
+      previewInstances.push(highlighted);
+    }
+  }
+  const hiddenCount = Math.max(displayInstances.length - previewInstances.length, 0);
+
+  useEffect(() => {
+    highlightedRef.current?.scrollIntoView({ block: "nearest", inline: "nearest" });
+  }, [highlightedInstanceId]);
   const badgeClassName =
     variant === "edit" ? "tag-badge me-2 mb-2" : "view-badge me-2 mb-2";
 
@@ -101,11 +117,13 @@ export default function LinkedInstancesField({
                 ? " linked-instance-badge--highlighted"
                 : "";
 
+            const highlighted = highlightedInstanceId === instance.instanceId;
             if (!isResolvedLink(instance)) {
               const restricted = instance.linkStatus === "restricted";
               return (
                 <Badge
                   key={instance.instanceId}
+                  ref={highlighted ? highlightedRef : undefined}
                   bg="light"
                   text="dark"
                   className={`${badgeClassName} linked-instance-badge linked-instance-badge--${instance.linkStatus}${highlightClassName}`}
@@ -128,6 +146,7 @@ export default function LinkedInstancesField({
             return (
               <Badge
                 key={instance.instanceId}
+                ref={highlighted ? highlightedRef : undefined}
                 bg="light"
                 text="dark"
                 className={`${badgeClassName} linked-instance-badge${highlightClassName}`}

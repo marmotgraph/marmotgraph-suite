@@ -6,6 +6,11 @@
 
 .json-field .cm-editor {
   background: transparent;
+  max-width: 100%;
+}
+
+.json-field .cm-line {
+  overflow-wrap: anywhere;
 }
 
 .json-field .cm-editor.cm-focused {
