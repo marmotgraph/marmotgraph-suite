@@ -29,6 +29,10 @@ const instance: InstanceSummary = {
   bookmarked: false,
   lastVisited: "2026-01-01",
   releaseStatus: "released",
+  validation: [
+    { name: "minimal", valid: true, compliance: 100 },
+    { name: "complete", valid: false, compliance: 62.5 },
+  ],
 };
 
 function Location() {
@@ -93,6 +97,15 @@ function renderHome() {
 }
 
 describe("EditorHome", () => {
+  it("shows the release status and a tag with the compliance per validation schema", () => {
+    renderHome();
+
+    expect(screen.getByRole("columnheader", { name: "Status" })).toBeInTheDocument();
+    expect(screen.getByText("released")).toBeInTheDocument();
+    expect(screen.getByTitle('Validation "minimal": valid (100% compliant)')).toHaveTextContent("minimal100%");
+    expect(screen.getByTitle('Validation "complete": invalid (62% compliant)')).toHaveTextContent("complete62%");
+  });
+
   it("opens a preview instead of the instance page when a row is clicked", async () => {
     renderHome();
 

@@ -202,6 +202,78 @@
     color: #1e7a42;
 }
 
+.instance-status {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 6px;
+}
+
+/* name, bar and value of all validations are aligned in columns */
+.instance-validations {
+    display: grid;
+    grid-template-columns: auto minmax(0, auto) 56px auto;
+    align-items: center;
+    column-gap: 6px;
+    row-gap: 3px;
+    font-size: 0.75rem;
+    line-height: 1.2;
+    color: #495057;
+}
+
+.instance-validation {
+    display: contents;
+}
+
+.instance-validation-icon {
+    font-size: 0.8rem;
+}
+
+.instance-validation--valid {
+    --validation-color: #1e7a42;
+}
+
+.instance-validation--invalid {
+    --validation-color: #c27c0e;
+}
+
+.instance-validation-icon,
+.instance-validation-value {
+    color: var(--validation-color);
+}
+
+.instance-validation-name {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    max-width: 140px;
+}
+
+.instance-validation-bar {
+    display: block;
+    height: 6px;
+    border-radius: 999px;
+    background-color: #e9ecef;
+    overflow: hidden;
+}
+
+.instance-validation-bar-fill {
+    display: block;
+    height: 100%;
+    border-radius: 999px;
+    background-color: var(--validation-color);
+}
+
+.instance-validation-value {
+    font-variant-numeric: tabular-nums;
+    font-weight: 600;
+    text-align: right;
+}
+
+.instance-validation-unknown {
+    grid-column: span 2;
+}
+
 .instance-card-details-toggle {
     margin-top: 8px;
     border: none;

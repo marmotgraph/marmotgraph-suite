@@ -7,17 +7,20 @@ import {
   faChevronDown,
   faChevronUp,
   faCircle,
+  faCircleCheck,
   faClipboardCheck,
   faCode,
   faCopy,
   faEye,
   faFilter,
   faGlasses,
+  faHourglassHalf,
   faPen,
   faRocket,
   faSort,
   faSortDown,
   faSortUp,
+  faTriangleExclamation,
   faXmark
 } from "@fortawesome/free-solid-svg-icons";
 import { faBookmark as faBookmarkRegular } from "@fortawesome/free-regular-svg-icons";
@@ -32,7 +35,7 @@ import { useTypes } from "../../hooks/useTypes";
 import { useSpaces } from "../../hooks/useSpaces";
 import { typeLabel } from "../../services/types";
 import { fetchInstance, InstanceDetail, InstanceField } from "../../services/instances";
-import { InstanceSummary } from "./editorMockData";
+import { InstanceSummary, InstanceValidation } from "./editorMockData";
 import { EDITOR_BREADCRUMB_TRAIL_KEY } from "./editorConstants";
 import "../query-builder/SharedQueries.css";
 import "./EditorHome.css";
@@ -616,7 +619,7 @@ export default function EditorHome() {
                   >
                     Last visited {getSortIcon("lastVisited")}
                   </th>
-                  <th>Release status</th>
+                  <th>Status</th>
                 </tr>
               </thead>
               <tbody>
@@ -750,7 +753,9 @@ export default function EditorHome() {
                           )}
                         </td>
                         <td>{instance.lastVisited || ""}</td>
-                        <td>{instance.releaseStatus}</td>
+                        <td>
+                          <InstanceStatusTags instance={instance} />
+                        </td>
                       </tr>
                     ))}
               </tbody>
@@ -850,6 +855,76 @@ export default function EditorHome() {
           </Button>
         </Modal.Footer>
       </Modal>
+    </div>
+  );
+}
+
+function formatCompliance(compliance: number) {
+  return `${Math.floor(compliance)}%`;
+}
+
+/** One validation schema: an icon telling whether the instance is valid, the name and a bar with its compliance. */
+function ValidationStatus({ validation }: { validation: InstanceValidation }) {
+  const state = validation.valid ? "valid" : "invalid";
+  const compliance =
+    validation.compliance != null
+      ? Math.min(100, Math.max(0, validation.compliance))
+      : null;
+  return (
+    <div
+      className={`instance-validation instance-validation--${state}`}
+      title={`Validation "${validation.name}": ${state}${compliance != null ? ` (${formatCompliance(compliance)} compliant)` : ""}`}
+    >
+      <FontAwesomeIcon
+        icon={validation.valid ? faCircleCheck : faTriangleExclamation}
+        className="instance-validation-icon"
+        aria-label={state}
+      />
+      <span className="instance-validation-name">{validation.name}</span>
+      {compliance != null ? (
+        <>
+          <span className="instance-validation-bar" aria-hidden="true">
+            <span
+              className="instance-validation-bar-fill"
+              style={{ width: `${compliance}%` }}
+            />
+          </span>
+          <span className="instance-validation-value">
+            {formatCompliance(compliance)}
+          </span>
+        </>
+      ) : (
+        <span className="instance-validation-unknown" />
+      )}
+    </div>
+  );
+}
+
+/** The release status of the instance followed by the compliance of the instance per validation schema. */
+function InstanceStatusTags({ instance }: { instance: InstanceSummary }) {
+  const released = instance.releaseStatus === "released";
+  return (
+    <div className="instance-status">
+      <span
+        className={
+          released
+            ? "instance-card-status instance-card-status--released"
+            : "instance-card-status"
+        }
+      >
+        <FontAwesomeIcon
+          icon={released ? faRocket : faHourglassHalf}
+          className="me-1"
+        />
+        {instance.releaseStatus}
+      </span>
+      {instance.validation && instance.validation.length > 0 && (
+        <div className="instance-validations">
+          {instance.validation.map((validation) => (
+            <ValidationStatus key={validation.name} validation={validation} />
+          ))}
+        </div>
+      )}
     </div>
   );
 }
@@ -991,15 +1066,7 @@ function InstanceCardList({
               <div className="instance-card-details">
                 <div>
                   <span className="instance-preview-meta-label">Status</span>
-                  <span
-                    className={
-                      instance.releaseStatus === "released"
-                        ? "instance-card-status instance-card-status--released"
-                        : "instance-card-status"
-                    }
-                  >
-                    {instance.releaseStatus}
-                  </span>
+                  <InstanceStatusTags instance={instance} />
                 </div>
                 <div>
                   <span className="instance-preview-meta-label">Space</span>

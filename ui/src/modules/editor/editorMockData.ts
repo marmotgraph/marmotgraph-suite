@@ -56,6 +56,14 @@ export function linkedInstanceStatusDescription(
   }
 }
 
+/** The outcome of the last validation of an instance against one of the validation schemas of its type. */
+export type InstanceValidation = {
+  name: string;
+  valid: boolean;
+  /** The share of the properties declared by the schema which the instance fulfills (0-100) - unknown for old results */
+  compliance?: number;
+};
+
 export type InstanceSummary = {
   id: number;
   instanceId: string;
@@ -68,6 +76,8 @@ export type InstanceSummary = {
   bookmarked: boolean;
   lastVisited?: string;
   releaseStatus: "released" | "in progress";
+  /** The results of the last validation per validation schema of the type */
+  validation?: InstanceValidation[];
   directLinks?: LinkedInstance[];
   reverseLinks?: LinkedInstance[];
 };

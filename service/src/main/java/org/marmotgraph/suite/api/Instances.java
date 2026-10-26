@@ -7,6 +7,7 @@ import org.marmotgraph.sdk.MarmotGraphClient;
 import org.marmotgraph.sdk.model.LinkingInstance;
 import org.marmotgraph.sdk.model.ReleaseStatus;
 import org.marmotgraph.sdk.model.ReleaseTreeScope;
+import org.marmotgraph.sdk.model.SchemaValidationResult;
 import org.marmotgraph.sdk.model.Stage;
 import org.marmotgraph.sdk.pagination.Page;
 import org.marmotgraph.sdk.resources.InstanceListOptions;
@@ -79,11 +80,25 @@ public class Instances {
     }
 
     /**
-     * The condensed representation of an instance as listed in the overview of the editor.
+     * The outcome of the last validation of an instance against one of the validation schemas of its type - the
+     * compliance is the share of the properties declared by the schema which the instance fulfills (in percent, unknown
+     * for results stored before the score was introduced).
+     */
+    @JsonInclude(JsonInclude.Include.NON_NULL)
+    public record Validation(String name, boolean valid, Double compliance) {
+
+        static Validation of(SchemaValidationResult result) {
+            return new Validation(result.name(), result.valid(), result.compliance());
+        }
+    }
+
+    /**
+     * The condensed representation of an instance as listed in the overview of the editor - including the results of
+     * its last validation per validation schema (empty if its type has none).
      */
     @JsonInclude(JsonInclude.Include.NON_NULL)
     public record InstanceSummary(int id, String instanceId, String type, String typeDescription, String typeColor, String instanceName, String space,
-                           String permissions, boolean bookmarked, String lastVisited, String releaseStatus) {
+                           String permissions, boolean bookmarked, String lastVisited, String releaseStatus, List<Validation> validation) {
     }
 
     /**
@@ -175,7 +190,7 @@ public class Instances {
                 .types(nonBlank(typeFilter))
                 .spaces(nonBlank(spaceFilter))
                 .searchByLabel(search != null && !search.isBlank() ? search.trim() : null)
-                .responseOptions(ResponseOptions.builder().returnPermissions(true).build())
+                .responseOptions(ResponseOptions.builder().returnPermissions(true).returnValidationResults(true).build())
                 .build()).items();
         if (instances.isEmpty()) {
             return List.of();
@@ -193,7 +208,8 @@ public class Instances {
             result.add(new InstanceSummary(result.size() + 1, instanceId, typeLabel(typeName, type), type != null ? type.description() : null, type != null ? type.color() : null,
                     instanceName(instance, type, instanceId), instance.getSpace(),
                     permissions(instance.getPermissions()), false, null,
-                    releaseStatuses.get(instanceId) == ReleaseStatus.RELEASED ? RELEASED : IN_PROGRESS));
+                    releaseStatuses.get(instanceId) == ReleaseStatus.RELEASED ? RELEASED : IN_PROGRESS,
+                    instance.getValidation().stream().map(Validation::of).toList()));
         }
         return result;
     }

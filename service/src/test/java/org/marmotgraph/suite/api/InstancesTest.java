@@ -116,7 +116,9 @@ class InstancesTest {
     @Test
     void listMapsTheInstancesOfTheCore() throws Exception {
         when(instancesResource.list(any(InstanceListOptions.class))).thenReturn(page(List.of(
-                instance(RELEASED_ID, DEVICE, Map.of(NAME, "Server-Rack-A1", "_permissions", List.of("RELEASE", "READ", "WRITE", "DELETE"))),
+                instance(RELEASED_ID, DEVICE, Map.of(NAME, "Server-Rack-A1", "_permissions", List.of("RELEASE", "READ", "WRITE", "DELETE"),
+                        "_validation", List.of(Map.of("name", "minimal", "valid", true, "compliance", 100.0, "errors", List.of()),
+                                Map.of("name", "complete", "valid", false, "compliance", 62.5, "errors", List.of())))),
                 instance(UNRELEASED_ID, "https://example.org/types/Unknown", Map.of("_permissions", List.of("READ")))
         )));
         when(typesResource.getByNames(List.of(DEVICE, "https://example.org/types/Unknown"), Stage.IN_PROGRESS, null, false, false))
@@ -138,17 +140,26 @@ class InstancesTest {
                 .andExpect(jsonPath("$[0].bookmarked").value(false))
                 .andExpect(jsonPath("$[0].lastVisited").doesNotExist())
                 .andExpect(jsonPath("$[0].releaseStatus").value("released"))
+                .andExpect(jsonPath("$[0].validation.length()").value(2))
+                .andExpect(jsonPath("$[0].validation[0].name").value("minimal"))
+                .andExpect(jsonPath("$[0].validation[0].valid").value(true))
+                .andExpect(jsonPath("$[0].validation[0].compliance").value(100.0))
+                .andExpect(jsonPath("$[0].validation[1].name").value("complete"))
+                .andExpect(jsonPath("$[0].validation[1].valid").value(false))
+                .andExpect(jsonPath("$[0].validation[1].compliance").value(62.5))
                 .andExpect(jsonPath("$[1].type").value("Unknown"))
                 .andExpect(jsonPath("$[1].typeDescription").doesNotExist())
                 .andExpect(jsonPath("$[1].typeColor").doesNotExist())
                 .andExpect(jsonPath("$[1].instanceName").value(UNRELEASED_ID.toString()))
                 .andExpect(jsonPath("$[1].permissions").value("View"))
-                .andExpect(jsonPath("$[1].releaseStatus").value("in progress"));
+                .andExpect(jsonPath("$[1].releaseStatus").value("in progress"))
+                .andExpect(jsonPath("$[1].validation.length()").value(0));
 
         ArgumentCaptor<InstanceListOptions> options = ArgumentCaptor.forClass(InstanceListOptions.class);
         verify(instancesResource).list(options.capture());
         assertEquals(Stage.IN_PROGRESS, options.getValue().stage());
         assertTrue(options.getValue().responseOptions().returnPermissions());
+        assertTrue(options.getValue().responseOptions().returnValidationResults());
         assertNull(options.getValue().searchByLabel());
         assertEquals(List.of(), options.getValue().types());
         assertEquals(List.of(), options.getValue().spaces());
