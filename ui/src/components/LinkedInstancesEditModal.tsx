@@ -274,6 +274,7 @@ export default function LinkedInstancesEditModal({
         idsToLinkedInstances(selectedIds, allInstances),
       ),
     );
+    onHide();
   };
 
   const handleClose = () => {
@@ -393,7 +394,7 @@ export default function LinkedInstancesEditModal({
           {selectedIds.length} in {fieldLabel}
         </Badge>
         <Button type="button" variant="outline-secondary" onClick={handleClose}>
-          Done
+          Cancel
         </Button>
         <Button type="button" variant="dark" onClick={handleApply}>
           Apply
