@@ -133,6 +133,26 @@ export function updateInstance(
   );
 }
 
+/**
+ * Creates an instance of the type with the given (client generated) id - the values of its fields by their identifier,
+ * in the shape required by the kind of the field. It is created in the private space of the user if no space is given.
+ */
+export function createInstance(
+  accessToken: string,
+  instanceId: string,
+  type: string,
+  fields: Record<string, unknown>,
+  space?: string,
+): Promise<InstanceDetail> {
+  return send(
+    "POST",
+    `/api/instances/${encodeURIComponent(instanceId)}`,
+    "create the instance",
+    accessToken,
+    { type, space, fields },
+  );
+}
+
 /** An instance as provided by the core - the full JSON-LD document. */
 export type RawInstance = Record<string, unknown>;
 

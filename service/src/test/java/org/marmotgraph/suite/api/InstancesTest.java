@@ -52,6 +52,7 @@ import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -512,6 +513,60 @@ class InstancesTest {
                 .andExpect(status().isBadRequest());
 
         verify(instancesResource, never()).update(any(), any());
+    }
+
+    @Test
+    void createSendsTheFilledInFieldsAsJsonLdToTheCoreWithTheGivenId() throws Exception {
+        String rack = "https://example.org/types/Rack";
+        String linkedId = "11111111-2222-4333-8444-555555555555";
+        when(typesResource.getByNames(List.of(rack), Stage.IN_PROGRESS, null, false, false))
+                .thenReturn(Map.of(rack, new TypeInformation(rack, null, "Rack", "#4caf50", NAME, null, null, List.of(), List.of(), List.of())));
+        when(typesResource.getByNames(List.of(rack), Stage.IN_PROGRESS, null, true, false))
+                .thenReturn(Map.of(rack, new TypeInformation(rack, null, "Rack", "#4caf50", NAME, null, null, List.of(), List.of(
+                        new Property(NAME, "name", null, "InputText", null, null, null, 1, null, List.of()),
+                        new Property("https://example.org/height", "height", null, "InputNumber", null, null, null, 2, null, List.of()),
+                        new Property("https://example.org/blades", "blades", null, "DynamicDropdown", null, null, null, 3, null, List.of())
+                ), List.of())));
+        when(instancesResource.get(any(UUID.class), any(), any())).thenReturn(instance(NEVER_RELEASED_ID, rack, Map.of(NAME, "Rack-2")));
+        when(instancesResource.releaseStatus(NEVER_RELEASED_ID, ReleaseTreeScope.TOP_INSTANCE_ONLY)).thenReturn(ReleaseStatus.UNRELEASED);
+
+        mockMvc.perform(post("/instances/" + NEVER_RELEASED_ID).header(HttpHeaders.AUTHORIZATION, "Bearer theToken")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"type": "%s", "fields": {"%s": "Rack-2", "https://example.org/height": "",
+                                 "https://example.org/blades": [{"instanceId": "%s", "instanceName": "Blade-7"}]}}
+                                """.formatted(rack, NAME, linkedId)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.instanceId").value(NEVER_RELEASED_ID.toString()))
+                .andExpect(jsonPath("$.instanceName").value("Rack-2"));
+
+        // Empty fields are left out - the instance is created in the private space of the user if no space is given
+        verify(instancesResource).createWithId(NEVER_RELEASED_ID, "myspace", Map.of(
+                "@type", List.of(rack),
+                NAME, "Rack-2",
+                "https://example.org/blades", List.of(Map.of("@id", linkedId))));
+    }
+
+    @Test
+    void createRejectsUnknownFields() throws Exception {
+        when(typesResource.getByNames(List.of(DEVICE), Stage.IN_PROGRESS, null, true, false))
+                .thenReturn(Map.of(DEVICE, new TypeInformation(DEVICE, null, "Device", null, NAME, null, null, List.of(), List.of(), List.of())));
+
+        mockMvc.perform(post("/instances/" + NEVER_RELEASED_ID).header(HttpHeaders.AUTHORIZATION, "Bearer theToken")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"type\": \"" + DEVICE + "\", \"fields\": {\"https://example.org/unknown\": 1}}"))
+                .andExpect(status().isBadRequest());
+
+        verify(instancesResource, never()).createWithId(any(), any(), any());
+    }
+
+    @Test
+    void createRequiresAType() throws Exception {
+        mockMvc.perform(post("/instances/" + NEVER_RELEASED_ID).header(HttpHeaders.AUTHORIZATION, "Bearer theToken")
+                        .contentType(MediaType.APPLICATION_JSON).content("{\"fields\": {}}"))
+                .andExpect(status().isBadRequest());
+
+        verify(instancesResource, never()).createWithId(any(), any(), any());
     }
 
     /** The scope as deserialized by the SDK from the response of the core */

@@ -3,6 +3,7 @@ import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import InstanceDetail from "./InstanceDetail";
 import {
+  createInstance,
   fetchIncomingLinks,
   fetchInstance,
   fetchRawInstance,
@@ -10,6 +11,7 @@ import {
   InstanceField,
   updateInstance,
 } from "../../services/instances";
+import { fetchTypeFields, fetchTypes } from "../../services/types";
 import { UnsavedInstancesProvider } from "../../contexts/UnsavedInstancesContext";
 
 vi.mock("../../contexts/AuthContext", () => {
@@ -22,6 +24,7 @@ vi.mock("../../contexts/InstancesContext", () => ({
 }));
 
 vi.mock("../../services/instances", () => ({
+  createInstance: vi.fn(),
   fetchInstance: vi.fn(),
   fetchIncomingLinks: vi.fn(),
   fetchRawInstance: vi.fn(),
@@ -32,7 +35,13 @@ vi.mock("../../services/instances", () => ({
   updateInstance: vi.fn(),
 }));
 
-function renderDetail(search = "", fields: InstanceField[] = []) {
+vi.mock("../../services/types", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("../../services/types")>()),
+  fetchTypes: vi.fn(),
+  fetchTypeFields: vi.fn(),
+}));
+
+function renderDetail(search = "", fields: InstanceField[] = [], instanceId = "inst-1") {
   vi.mocked(fetchInstance).mockResolvedValue({
     instanceId: "inst-1",
     type: "Building",
@@ -56,7 +65,7 @@ function renderDetail(search = "", fields: InstanceField[] = []) {
   });
 
   render(
-    <MemoryRouter initialEntries={[`/editor/instances/inst-1${search}`]}>
+    <MemoryRouter initialEntries={[`/editor/instances/${instanceId}${search}`]}>
       <UnsavedInstancesProvider>
         <Routes>
           <Route
@@ -70,6 +79,80 @@ function renderDetail(search = "", fields: InstanceField[] = []) {
 }
 
 describe("InstanceDetail", () => {
+  it("fills in a new instance with the empty fields of its type", async () => {
+    const device = "https://example.org/types/Device";
+    vi.mocked(fetchTypes).mockResolvedValue([
+      {
+        identifier: device,
+        name: "Device",
+        color: "#ff9800",
+        labelProperty: "https://example.org/serialNumber",
+      },
+    ]);
+    vi.mocked(fetchTypeFields).mockResolvedValue([
+      {
+        identifier: "https://example.org/serialNumber",
+        label: "Serial number",
+        kind: "TEXT",
+        required: true,
+        readOnly: false,
+      },
+    ]);
+
+    const instanceId = "7d3c5b52-4d4b-4d0e-9a3e-2f6f2b1c8e01";
+    renderDetail(`?new=1&type=${encodeURIComponent(device)}`, [], instanceId);
+
+    expect(await screen.findByText(/Serial number/)).toBeInTheDocument();
+    expect(screen.getByText("Device")).toBeInTheDocument();
+    expect(screen.getByRole("textbox")).toHaveValue("");
+    expect(fetchTypeFields).toHaveBeenCalledWith("token", device);
+    expect(fetchInstance).not.toHaveBeenCalled();
+    // Named by its id until the label field is filled in
+    expect(screen.getByRole("heading", { level: 2 })).toHaveTextContent(instanceId);
+
+    fireEvent.change(screen.getByRole("textbox"), { target: { value: "SN-42" } });
+
+    expect(screen.getByRole("heading", { level: 2 })).toHaveTextContent("SN-42");
+  });
+
+  it("creates a new instance with its id and the filled in fields when saving", async () => {
+    const device = "https://example.org/types/Device";
+    const serialNumber = "https://example.org/serialNumber";
+    const instanceId = "7d3c5b52-4d4b-4d0e-9a3e-2f6f2b1c8e01";
+    vi.mocked(fetchTypes).mockResolvedValue([
+      { identifier: device, name: "Device", labelProperty: serialNumber },
+    ]);
+    vi.mocked(fetchTypeFields).mockResolvedValue([
+      { identifier: serialNumber, label: "Serial number", kind: "TEXT", required: true, readOnly: false },
+    ]);
+    vi.mocked(createInstance).mockResolvedValue({
+      instanceId,
+      type: "Device",
+      instanceName: "SN-42",
+      space: "private-1234",
+      permissions: "View, Edit",
+      releaseStatus: "in progress",
+      fields: [
+        { identifier: serialNumber, label: "Serial number", kind: "TEXT", value: "SN-42", required: true, readOnly: false },
+      ],
+      directLinks: [],
+    });
+    renderDetail(`?new=1&type=${encodeURIComponent(device)}`, [], instanceId);
+
+    fireEvent.change(await screen.findByRole("textbox"), { target: { value: "SN-42" } });
+    fireEvent.click(screen.getByRole("button", { name: "Save" }));
+
+    await waitFor(() =>
+      expect(createInstance).toHaveBeenCalledWith("token", instanceId, device, {
+        [serialNumber]: "SN-42",
+      }),
+    );
+    // Shown as stored by the core - no longer in the edit mode
+    expect(await screen.findByText("private-1234")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Save" })).not.toBeInTheDocument();
+    expect(updateInstance).not.toHaveBeenCalled();
+  });
+
   it("opens in view mode", async () => {
     renderDetail();
 

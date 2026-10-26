@@ -6,6 +6,9 @@ import org.marmotgraph.sdk.MarmotGraphApiException;
 import org.marmotgraph.sdk.MarmotGraphClient;
 import org.marmotgraph.suite.auth.AuthenticatedClientResolver;
 import org.marmotgraph.suite.configuration.ArgumentResolvers;
+import org.marmotgraph.suite.types.FieldCache;
+import org.marmotgraph.suite.types.FieldCache.FieldDefinition;
+import org.marmotgraph.suite.types.FieldKind;
 import org.marmotgraph.suite.types.TypeCache;
 import org.marmotgraph.suite.types.TypeCache.TypeDefinition;
 import org.mockito.Mockito;
@@ -43,6 +46,11 @@ class TypesTest {
         TypeCache typeCache() {
             return Mockito.mock(TypeCache.class);
         }
+
+        @Bean
+        FieldCache fieldCache() {
+            return Mockito.mock(FieldCache.class);
+        }
     }
 
     @Autowired
@@ -51,12 +59,15 @@ class TypesTest {
     @Autowired
     private TypeCache cache;
 
+    @Autowired
+    private FieldCache fieldCache;
+
     private MarmotGraphClient userClient;
     private MockMvc mockMvc;
 
     @BeforeEach
     void setUp(@Autowired WebApplicationContext context) {
-        Mockito.reset(client, cache);
+        Mockito.reset(client, cache, fieldCache);
         userClient = Mockito.mock(MarmotGraphClient.class);
         when(client.withToken("theToken")).thenReturn(userClient);
         mockMvc = MockMvcBuilders.webAppContextSetup(context).build();
@@ -87,6 +98,29 @@ class TypesTest {
         mockMvc.perform(get("/types").header(HttpHeaders.AUTHORIZATION, "Bearer theToken"))
                 .andExpect(status().isForbidden())
                 .andExpect(jsonPath("$.detail").value("Forbidden"));
+    }
+
+    @Test
+    void fieldsOfTheTypeAreProvidedEmpty() throws Exception {
+        String device = "https://example.org/types/Device";
+        when(fieldCache.get(userClient, device)).thenReturn(List.of(
+                new FieldDefinition("http://schema.org/name", "Name", FieldKind.TEXT, 1, true, false, "The name", List.of(), null),
+                new FieldDefinition("https://example.org/rack", "Rack", FieldKind.LINK, 2, false, false, null, List.of("https://example.org/types/Rack"), null),
+                new FieldDefinition("https://example.org/blades", "Blades", FieldKind.LINKS, 3, false, true, null, List.of(), null)));
+
+        mockMvc.perform(get("/types/fields").param("type", device).header(HttpHeaders.AUTHORIZATION, "Bearer theToken"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(3))
+                .andExpect(jsonPath("$[0].identifier").value("http://schema.org/name"))
+                .andExpect(jsonPath("$[0].label").value("Name"))
+                .andExpect(jsonPath("$[0].kind").value("TEXT"))
+                .andExpect(jsonPath("$[0].required").value(true))
+                .andExpect(jsonPath("$[0].tooltip").value("The name"))
+                .andExpect(jsonPath("$[0].value").doesNotExist())
+                .andExpect(jsonPath("$[1].value").doesNotExist())
+                .andExpect(jsonPath("$[1].targetTypes[0]").value("https://example.org/types/Rack"))
+                .andExpect(jsonPath("$[2].value.length()").value(0))
+                .andExpect(jsonPath("$[2].readOnly").value(true));
     }
 
 }

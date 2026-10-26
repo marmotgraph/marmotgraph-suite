@@ -9,7 +9,6 @@ import {
   enrichLinkedInstancesWithDrafts,
   idsToLinkedInstances,
   InstanceSummary,
-  isUnsavedInstanceId,
   LinkedInstance,
   normalizeLinkedInstancesForField,
 } from "../modules/editor/editorMockData";
@@ -47,11 +46,7 @@ function toLinkedInstance(instance: InstanceSummary): LinkedInstance {
 }
 
 function getInitialCreatedInstances(instances: LinkedInstance[]): LinkedInstance[] {
-  return instances.filter(
-    (instance) =>
-      isUnsavedInstanceId(instance.instanceId) ||
-      (instance.isDraft && instance.isNew),
-  );
+  return instances.filter((instance) => instance.isDraft && instance.isNew);
 }
 
 export default function LinkedInstancesEditModal({

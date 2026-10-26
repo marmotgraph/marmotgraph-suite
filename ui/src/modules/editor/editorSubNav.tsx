@@ -1,19 +1,12 @@
 // src/modules/editor/editorSubNav.tsx
-import React, { useState } from "react";
+import React, { useMemo, useState } from "react";
+import { useTypes } from "../../hooks/useTypes";
+import { typeLabel } from "../../services/types";
 
 type EntityType = {
   name: string;
-  url: string;
+  identifier: string;
 };
-
-const mockTypes: EntityType[] = [
-  { name: "Appliance", url: "https://kg.svc.cscs.ch/types/Appliance" },
-  { name: "Asset Tag", url: "https://kg.svc.cscs.ch/types/AssetTag" },
-  { name: "Blade", url: "https://kg.svc.cscs.ch/types/Blade" },
-  { name: "Building", url: "https://kg.svc.cscs.ch/types/Building" },
-  { name: "Cabinet", url: "https://kg.svc.cscs.ch/types/Cabinet" },
-  { name: "Canton", url: "https://kg.svc.cscs.ch/types/Canton" },
-];
 
 export const editorSubNav = {
   title: "Editor",
@@ -26,35 +19,18 @@ export const editorSubNav = {
       modal: {
         show: false,
         title: "Create New Instance",
-        body: (
-          onTypeSelect: (typeName: string) => void,
-          onInstanceNameChange?: (name: string) => void,
-          instanceName?: string
-        ) => (
+        body: (onTypeSelect: (typeIdentifier: string) => void) => (
           <div>
             <div className="alert alert-info py-2 px-3 mb-3" style={{ fontSize: '0.85rem' }}>
               <strong>Note:</strong> The instance will be saved to your private space (<strong style={{ color: '#0056b3' }}>private-xxxxx</strong>) by default.
               You can change the space later when saving the instance.
             </div>
             <div className="mb-3">
-              <label htmlFor="instance-name" className="form-label fw-bold">
-                Instance name <span className="text-danger fw-bold">*</span>
-              </label>
-              <input
-                type="text"
-                id="instance-name"
-                className="form-control form-control-sm"
-                placeholder="Enter instance name..."
-                value={instanceName || ""}
-                onChange={(e) => onInstanceNameChange?.(e.target.value)}
-              />
-            </div>
-            <div className="mb-3">
               <label htmlFor="type-filter" className="form-label fw-bold">
                 Select type <span className="text-danger fw-bold">*</span>
               </label>
             </div>
-            <TypeListFilter types={mockTypes} onTypeSelect={onTypeSelect} />
+            <TypeListFilter onTypeSelect={onTypeSelect} />
           </div>
         ),
       },
@@ -62,13 +38,21 @@ export const editorSubNav = {
   ],
 };
 
+/** Lists the types known to the core (loaded when the dialog is opened) to pick the one of the new instance from. */
 function TypeListFilter({
-  types,
   onTypeSelect,
 }: {
-  types: EntityType[];
-  onTypeSelect: (typeName: string) => void;
+  /** Called with the identifier of the selected type */
+  onTypeSelect: (typeIdentifier: string) => void;
 }) {
+  const knownTypes = useTypes();
+  const types = useMemo<EntityType[]>(
+    () =>
+      knownTypes
+        .map((type) => ({ name: typeLabel(type), identifier: type.identifier }))
+        .sort((a, b) => a.name.localeCompare(b.name)),
+    [knownTypes],
+  );
   const [filter, setFilter] = useState("");
   const [selectedType, setSelectedType] = useState<EntityType | null>(null);
 
@@ -78,7 +62,7 @@ function TypeListFilter({
 
   const handleSelectType = (type: EntityType) => {
     setSelectedType(type);
-    onTypeSelect(type.name);
+    onTypeSelect(type.identifier);
   };
 
   return (
@@ -90,16 +74,20 @@ function TypeListFilter({
         value={filter}
         onChange={(e) => setFilter(e.target.value)}
       />
-      <ul className="list-group list-group-flush">
+      {/* Scrolls on its own so a long list of types doesn't push the dialog beyond the screen */}
+      <ul
+        className="list-group list-group-flush border rounded"
+        style={{ maxHeight: "40vh", overflowY: "auto" }}
+      >
         {filteredTypes.length > 0 ? (
           filteredTypes.map((type) => (
             <li
-              key={type.name}
+              key={type.identifier}
               className="list-group-item"
               style={{
                 cursor: "pointer",
-                backgroundColor: selectedType?.name === type.name ? "#e9ecef" : "transparent",
-                color: selectedType?.name === type.name ? "#212529" : "inherit",
+                backgroundColor: selectedType?.identifier === type.identifier ? "#e9ecef" : "transparent",
+                color: selectedType?.identifier === type.identifier ? "#212529" : "inherit",
               }}
               onClick={() => handleSelectType(type)}
             >
@@ -108,7 +96,9 @@ function TypeListFilter({
           ))
         ) : (
           <li className="list-group-item text-muted">
-            No types found matching "{filter}"
+            {types.length === 0
+              ? "No types available"
+              : `No types found matching "${filter}"`}
           </li>
         )}
       </ul>

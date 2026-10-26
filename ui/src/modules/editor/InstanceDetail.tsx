@@ -19,7 +19,6 @@ import {
   getChangedInstanceFieldKeys,
   getChangedInstanceFieldLabels,
   InstanceFieldValues,
-  InstanceSummary,
 } from "./editorMockData";
 import { useAuth } from "../../contexts/AuthContext";
 import { useInstances } from "../../contexts/InstancesContext";
@@ -28,6 +27,7 @@ import { useSessionStorage } from "../../hooks/useSessionStorage";
 import { EDITOR_BREADCRUMB_TRAIL_KEY } from "./editorConstants";
 import {
   appendIncomingLinks,
+  createInstance,
   fetchIncomingLinks,
   fetchInstance,
   IncomingLinks,
@@ -36,6 +36,7 @@ import {
   InstanceField,
   updateInstance,
 } from "../../services/instances";
+import { fetchTypeFields, fetchTypes, typeLabel } from "../../services/types";
 import { Breadcrumbs, BreadcrumbItem as BreadcrumbTrailItem } from "../../components/Breadcrumbs";
 import InstanceFieldControl from "../../components/InstanceFieldControl";
 import InstanceLinksPanel, {
@@ -138,8 +139,11 @@ function InstanceDetailView({ instanceId }: { instanceId: string }) {
   const [baseline, setBaseline] = useState<InstanceFieldValues>(
     emptyInstanceFieldValues,
   );
-  const isNewInstance = instanceId?.startsWith("new-");
-  const newInstanceName = searchParams.get("name") || "";
+  // Determined once - the instance stays new until it is saved (also when reopened from its unsaved draft)
+  const [isNewInstance, setIsNewInstance] = useState(
+    () => searchParams.get("new") === "1" || Boolean(getDraft(instanceId)?.isNew),
+  );
+  /** The identifier of the type of the new instance */
   const newInstanceType = searchParams.get("type") || "";
   const openInEditMode = searchParams.get("edit") === "1";
   const openInRawMode = searchParams.get("raw") === "1" && !isNewInstance;
@@ -155,6 +159,9 @@ function InstanceDetailView({ instanceId }: { instanceId: string }) {
   const [isReleaseMode, setIsReleaseMode] = useState(openInReleaseMode);
   const [currentFieldValues, setCurrentFieldValues] =
     useState<InstanceFieldValues>(emptyInstanceFieldValues);
+  /** The property of the type of the new instance which names its instances */
+  const [newInstanceLabelProperty, setNewInstanceLabelProperty] =
+    useState<string>();
 
   const [instance, setInstance] = useState<InstanceDetailData | undefined>(
     () =>
@@ -162,7 +169,7 @@ function InstanceDetailView({ instanceId }: { instanceId: string }) {
         ? {
             instanceId,
             type: newInstanceType,
-            instanceName: newInstanceName,
+            instanceName: instanceId,
             space: "",
             permissions: "",
             releaseStatus: "in progress",
@@ -172,7 +179,8 @@ function InstanceDetailView({ instanceId }: { instanceId: string }) {
   );
   /** The linked instance hovered - either in the form or in the outgoing links */
   const [hoveredLink, setHoveredLink] = useState<HoveredLink>();
-  const [loading, setLoading] = useState(!isNewInstance);
+  // New instances are only loading while the fields of their type are fetched
+  const [loading, setLoading] = useState(!isNewInstance || Boolean(newInstanceType));
   const [loadError, setLoadError] = useState<string>();
   const [incomingLinks, setIncomingLinks] = useState<IncomingLinks[]>([]);
   const [incomingLinksLoading, setIncomingLinksLoading] =
@@ -205,6 +213,48 @@ function InstanceDetailView({ instanceId }: { instanceId: string }) {
       cancelled = true;
     };
   }, [getAccessToken, instanceId, isNewInstance]);
+
+  // A new instance is filled in with the (empty) fields of its type - and shown with the name and color of the type
+  useEffect(() => {
+    if (!isNewInstance || !newInstanceType) {
+      return;
+    }
+
+    let cancelled = false;
+    getAccessToken()
+      .then((token) =>
+        Promise.all([
+          fetchTypeFields(token, newInstanceType),
+          fetchTypes(token),
+        ]),
+      )
+      .then(([fields, types]) => {
+        if (cancelled) {
+          return;
+        }
+        const type = types.find((t) => t.identifier === newInstanceType);
+        setNewInstanceLabelProperty(type?.labelProperty);
+        setInstance((current) =>
+          current && {
+            ...current,
+            type: typeLabel(type ?? { identifier: newInstanceType }),
+            typeColor: type?.color,
+            typeDescription: type?.description,
+            fields,
+          },
+        );
+      })
+      .catch((e: unknown) => {
+        console.error("Failed to load the fields of the type", e);
+        if (!cancelled) {
+          setLoadError(e instanceof Error ? e.message : String(e));
+        }
+      })
+      .finally(() => !cancelled && setLoading(false));
+    return () => {
+      cancelled = true;
+    };
+  }, [getAccessToken, isNewInstance, newInstanceType]);
 
   useEffect(() => {
     if (isNewInstance) {
@@ -278,9 +328,21 @@ function InstanceDetailView({ instanceId }: { instanceId: string }) {
   const typeColor =
     instance?.typeColor || (instance && typeColors[instance.type]) || "#6c757d";
 
+  // A new instance is named by the value of the label field of its type as it is filled in - by its id if there is none
+  // (as the instances provided by the backend)
+  const newInstanceLabel = newInstanceLabelProperty
+    ? currentFieldValues[newInstanceLabelProperty]
+    : undefined;
+  const instanceName =
+    isNewInstance && instance
+      ? typeof newInstanceLabel === "string" && newInstanceLabel.trim()
+        ? newInstanceLabel.trim()
+        : instanceId
+      : instance?.instanceName;
+
   const breadcrumbTrail = useBreadcrumbTrail(
     instanceId,
-    instance?.instanceName,
+    instanceName,
     typeColor,
   );
 
@@ -380,7 +442,7 @@ function InstanceDetailView({ instanceId }: { instanceId: string }) {
     if (!areInstanceFieldValuesEqual(currentFieldValues, baseline)) {
       upsertDraft({
         instanceId,
-        instanceName: instance.instanceName,
+        instanceName: instanceName ?? instance.instanceName,
         type: instance.type,
         fieldValues: currentFieldValues,
         updatedAt: Date.now(),
@@ -397,6 +459,7 @@ function InstanceDetailView({ instanceId }: { instanceId: string }) {
     currentFieldValues,
     instance,
     instanceId,
+    instanceName,
     isEditMode,
     isNewInstance,
     removeDraft,
@@ -438,7 +501,7 @@ function InstanceDetailView({ instanceId }: { instanceId: string }) {
     }
     upsertDraft({
       instanceId,
-      instanceName: instance.instanceName,
+      instanceName: instanceName ?? instance.instanceName,
       type: instance.type,
       fieldValues: savedFieldValues,
       updatedAt: Date.now(),
@@ -465,7 +528,7 @@ function InstanceDetailView({ instanceId }: { instanceId: string }) {
     if (
       hasUnsavedChanges &&
       !window.confirm(
-        `Discard the unsaved changes of ${instance.instanceName}?`,
+        `Discard the unsaved changes of ${instanceName}?`,
       )
     ) {
       return false;
@@ -499,40 +562,39 @@ function InstanceDetailView({ instanceId }: { instanceId: string }) {
   };
 
   const handleSave = () => {
-    if (isNewInstance) {
-      const newId = `inst-${crypto.randomUUID()}`;
-
-      const newInstance: InstanceSummary = {
-        id: instances.length + 1,
-        instanceId: newId,
-        type: instance.type,
-        instanceName: instance.instanceName,
-        space: instance.space || "default-space",
-        permissions: "View, Edit",
-        bookmarked: false,
-        releaseStatus: "in progress",
-        directLinks: [],
-        reverseLinks: [],
-      };
-
-      removeDraft(instanceId || "");
-      addInstance(newInstance);
-      navigate(`/editor/instances/${newId}`);
-      return;
-    }
-
-    // Only the changed fields are sent - the other properties of the instance are kept as they are
+    // Only the changed fields are sent - the other properties of the instance are kept as they are (all the fields
+    // filled in for a new instance)
     const changes = Object.fromEntries(
       [...changedFieldKeys].map((key) => [key, currentFieldValues[key] ?? null]),
     );
     setSaving(true);
     setSaveError(undefined);
     getAccessToken()
-      .then((token) => updateInstance(token, instanceId, changes))
+      .then((token) =>
+        isNewInstance
+          ? createInstance(token, instanceId, newInstanceType, changes)
+          : updateInstance(token, instanceId, changes),
+      )
       .then((stored) => {
         removeDraft(instanceId);
         setInstance(stored);
         setIsEditMode(false);
+        if (isNewInstance) {
+          setIsNewInstance(false);
+          addInstance({
+            id: instances.length + 1,
+            instanceId: stored.instanceId,
+            type: stored.type,
+            typeColor: stored.typeColor,
+            instanceName: stored.instanceName,
+            space: stored.space,
+            permissions: stored.permissions,
+            bookmarked: false,
+            releaseStatus: stored.releaseStatus,
+          });
+          // The instance is known to the core from now on - it is shown as any other instance
+          navigate(`/editor/instances/${stored.instanceId}`, { replace: true });
+        }
       })
       .catch((e: unknown) => {
         console.error("Failed to save the instance", e);
@@ -631,7 +693,7 @@ function InstanceDetailView({ instanceId }: { instanceId: string }) {
                     />
                     {instance.type}
                   </div>
-                  <h2 className="instance-name">{instance.instanceName}</h2>
+                  <h2 className="instance-name">{instanceName}</h2>
                   {hasUnsavedChanges && (
                     <div className="instance-unsaved-summary" role="status">
                       Unsaved changes
@@ -708,8 +770,8 @@ function InstanceDetailView({ instanceId }: { instanceId: string }) {
               <>
                 {fields.length === 0 && (
                   <p className="text-muted">
-                    {isNewInstance
-                      ? "The fields of new instances are not available yet."
+                    {isNewInstance && loadError
+                      ? `The fields of the type could not be loaded: ${loadError}`
                       : "This instance has no fields."}
                   </p>
                 )}

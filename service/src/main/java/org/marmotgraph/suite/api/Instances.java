@@ -25,6 +25,7 @@ import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -180,6 +181,8 @@ public class Instances {
     private static final String RELEASED = "released";
     private static final String HAS_CHANGED = "has changed";
     private static final String IN_PROGRESS = "in progress";
+    /** The alias of the core for the private space of the user */
+    private static final String PRIVATE_SPACE = "myspace";
 
     /**
      * The functionalities of the core translated to the permissions shown in the editor (in the order of display).
@@ -262,20 +265,62 @@ public class Instances {
     public InstanceDetail update(@AuthenticatedClient MarmotGraphClient client, @PathVariable UUID id,
                                  @RequestBody Map<String, Object> changes) {
         String typeName = client.instances().get(id, Stage.IN_PROGRESS, ResponseOptions.DEFAULT).getType();
+        Map<String, Object> payload = jsonLdPayload(client, typeName, changes);
+        if (!payload.isEmpty()) {
+            client.instances().update(id, payload);
+        }
+        return get(client, id);
+    }
+
+    /**
+     * A new instance as created in the editor - the values of its fields (by their identifier) are expected in the
+     * shape of the kind of their field. The space falls back to the private space of the user if none is given.
+     */
+    public record NewInstance(String type, String space, Map<String, Object> fields) {
+    }
+
+    /**
+     * Creates the instance with the given (client generated) id - with the values of its fields translated back to
+     * JSON-LD (empty fields are left out). The core rejects the request if the id is already in use or the user is not
+     * allowed to create instances in the space.
+     *
+     * @param id the uuid the instance is created with
+     * @return the instance as stored by the core
+     */
+    @PostMapping("/{id}")
+    public InstanceDetail create(@AuthenticatedClient MarmotGraphClient client, @PathVariable UUID id,
+                                 @RequestBody NewInstance instance) {
+        if (instance.type() == null || instance.type().isBlank()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "The type of the instance is missing");
+        }
+        Map<String, Object> payload = new LinkedHashMap<>();
+        payload.put("@type", List.of(instance.type()));
+        jsonLdPayload(client, instance.type(), Objects.requireNonNullElse(instance.fields(), Map.of())).forEach((identifier, value) -> {
+            if (value != null) {
+                payload.put(identifier, value);
+            }
+        });
+        String space = instance.space() != null && !instance.space().isBlank() ? instance.space() : PRIVATE_SPACE;
+        client.instances().createWithId(id, space, payload);
+        return get(client, id);
+    }
+
+    /**
+     * Translates the values of the fields of the type (by their identifier, in the shape of the kind of their field)
+     * into the JSON-LD values of their properties - rejects fields which are unknown or can't be edited.
+     */
+    private Map<String, Object> jsonLdPayload(MarmotGraphClient client, String typeName, Map<String, Object> values) {
         Map<String, FieldDefinition> definitions = (typeName != null ? fieldCache.get(client, typeName) : List.<FieldDefinition>of())
                 .stream().collect(Collectors.toMap(FieldDefinition::identifier, d -> d, (a, b) -> a));
         Map<String, Object> payload = new LinkedHashMap<>();
-        changes.forEach((identifier, value) -> {
+        values.forEach((identifier, value) -> {
             FieldDefinition definition = definitions.get(identifier);
             if (definition == null || definition.readOnly()) {
                 throw new ResponseStatusException(HttpStatus.BAD_REQUEST, String.format("The field \"%s\" can't be edited", identifier));
             }
             payload.put(identifier, jsonLdValue(definition.kind(), value));
         });
-        if (!payload.isEmpty()) {
-            client.instances().update(id, payload);
-        }
-        return get(client, id);
+        return payload;
     }
 
     /**
@@ -480,8 +525,16 @@ public class Instances {
                 .flatMap(d -> values(instance.get(d.identifier())).stream())
                 .map(l -> l instanceof Map<?, ?> link ? firstString(link.get("@type")) : null).filter(Objects::nonNull).distinct().toList();
         Map<String, TypeDefinition> linkedTypes = linkedTypeNames.isEmpty() ? Map.of() : typeCache.get(client, linkedTypeNames);
-        return definitions.stream().map(d -> new Field(d.identifier(), d.label(), d.kind(), fieldValue(d.kind(), instance.get(d.identifier()), linkedTypes),
-                d.required(), d.readOnly(), d.tooltip(), d.targetTypes().isEmpty() ? null : d.targetTypes())).toList();
+        return definitions.stream().map(d -> field(d, instance.get(d.identifier()), linkedTypes)).toList();
+    }
+
+    /**
+     * The field of the given definition with the JSON-LD value of its property (null for an empty field) translated
+     * into the shape required by its kind.
+     */
+    static Field field(FieldDefinition definition, Object value, Map<String, TypeDefinition> linkedTypes) {
+        return new Field(definition.identifier(), definition.label(), definition.kind(), fieldValue(definition.kind(), value, linkedTypes),
+                definition.required(), definition.readOnly(), definition.tooltip(), definition.targetTypes().isEmpty() ? null : definition.targetTypes());
     }
 
     /**
