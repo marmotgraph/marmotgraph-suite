@@ -76,8 +76,8 @@ export interface IncomingLinks {
   types: IncomingLinksOfType[];
 }
 
-/** The number of incoming links loaded at once (per property and type) */
-export const INCOMING_LINKS_PAGE_SIZE = 2;
+/** The number of incoming links loaded at once (per property and type). Same step as the outgoing list. */
+export const INCOMING_LINKS_PAGE_SIZE = 5;
 
 export interface InstanceQuery {
   /** Restricts the instances to those whose label matches the term */

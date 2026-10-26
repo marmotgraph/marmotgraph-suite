@@ -1,5 +1,5 @@
-import React, { useState } from "react";
-import { Button } from "react-bootstrap";
+import React, { useEffect, useState } from "react";
+import { Button, Spinner } from "react-bootstrap";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
   faChevronDown,
@@ -8,7 +8,6 @@ import {
   faCopy,
   faLinkSlash,
   faLock,
-  faPencil,
 } from "@fortawesome/free-solid-svg-icons";
 import {
   isResolvedLink,
@@ -33,6 +32,9 @@ const typeColors: Record<string, string> = {
 
 /** A link to an instance - identified by the field it is linked by and the linked instance */
 export type HoveredLink = { fieldLabel: string; instanceId: string };
+
+/** How many outgoing links of one type are shown before asking for more. */
+const LINKS_PAGE = 5;
 
 interface InstanceLinksPanelProps {
   links: LinkedInstance[];
@@ -74,44 +76,23 @@ export default function InstanceLinksPanel({
         <FieldGroup
           key={fieldLabel}
           label={fieldLabel}
+          section={fieldLabel}
           count={fieldLinks.length}
         >
-          {groupByType(fieldLinks).map((typeLinks) => {
-            const first = typeLinks[0];
-            const unresolved = first.linkStatus === "unresolved";
-            return (
-              <TypeGroup
-                key={unresolved ? UNRESOLVED_TYPE : first.type}
-                type={unresolved ? "Unknown type" : first.type}
-                typeColor={
-                  first.typeColor || typeColors[first.type] || undefined
-                }
-                unresolved={unresolved}
-                count={typeLinks.length}
-              >
-                {typeLinks.map((link) => (
-                  <LinkItem
-                    key={link.instanceId}
-                    link={link}
-                    onLinkClick={onLinkClick}
-                    highlighted={
-                      highlightedLink?.fieldLabel === fieldLabel &&
-                      highlightedLink.instanceId === link.instanceId
-                    }
-                    onHover={
-                      onLinkHover &&
-                      ((hovered) =>
-                        onLinkHover(
-                          hovered
-                            ? { fieldLabel, instanceId: link.instanceId }
-                            : undefined,
-                        ))
-                    }
-                  />
-                ))}
-              </TypeGroup>
-            );
-          })}
+          {groupByType(fieldLinks).map((typeLinks) => (
+            <OutgoingTypeLinks
+              key={
+                typeLinks[0].linkStatus === "unresolved"
+                  ? UNRESOLVED_TYPE
+                  : typeLinks[0].type
+              }
+              fieldLabel={fieldLabel}
+              typeLinks={typeLinks}
+              highlightedLink={highlightedLink}
+              onLinkClick={onLinkClick}
+              onLinkHover={onLinkHover}
+            />
+          ))}
         </FieldGroup>
       ))}
     </LinksPanelFrame>
@@ -120,6 +101,133 @@ export default function InstanceLinksPanel({
 
 /** The key the unresolved links are grouped by - their type is not known. */
 const UNRESOLVED_TYPE = "\u0000unresolved";
+
+/** One type of outgoing link. Only the first page is shown until the rest are requested. */
+function OutgoingTypeLinks({
+  fieldLabel,
+  typeLinks,
+  highlightedLink,
+  onLinkClick,
+  onLinkHover,
+}: {
+  fieldLabel: string;
+  typeLinks: LinkedInstance[];
+  highlightedLink?: HoveredLink;
+  onLinkClick: (instanceId: string) => void;
+  onLinkHover?: (link: HoveredLink | undefined) => void;
+}) {
+  const [limit, setLimit] = useState(LINKS_PAGE);
+  const first = typeLinks[0];
+  const unresolved = first.linkStatus === "unresolved";
+  const typeColor = first.typeColor || typeColors[first.type] || undefined;
+  const shown = typeLinks.slice(0, limit);
+  const remaining = typeLinks.length - shown.length;
+
+  return (
+    <TypeGroup
+      type={unresolved ? "Unknown type" : first.type}
+      typeColor={typeColor}
+      unresolved={unresolved}
+      count={typeLinks.length}
+      edge="outgoing"
+      fieldLabel={fieldLabel}
+    >
+      {shown.map((link) => (
+        <LinkItem
+          key={link.instanceId}
+          link={link}
+          fieldLabel={fieldLabel}
+          typeColor={typeColor}
+          onLinkClick={onLinkClick}
+          highlighted={
+            highlightedLink?.fieldLabel === fieldLabel &&
+            highlightedLink.instanceId === link.instanceId
+          }
+          onHover={
+            onLinkHover &&
+            ((hovered) =>
+              onLinkHover(
+                hovered
+                  ? { fieldLabel, instanceId: link.instanceId }
+                  : undefined,
+              ))
+          }
+        />
+      ))}
+      <LinksPageActions
+        hasMore={remaining > 0}
+        moreCount={remaining > 0 ? Math.min(LINKS_PAGE, remaining) : undefined}
+        expanded={shown.length > LINKS_PAGE}
+        onMore={() => setLimit((current) => current + LINKS_PAGE)}
+        onLess={() => setLimit(LINKS_PAGE)}
+      />
+    </TypeGroup>
+  );
+}
+
+/**
+ * Reveals the next page of a type, or returns to the first page. The count is omitted when it is not known.
+ */
+export function LinksPageActions({
+  hasMore,
+  moreCount,
+  expanded,
+  loading = false,
+  onMore,
+  onLess,
+}: {
+  hasMore: boolean;
+  /** How many the next step reveals, when that number is known */
+  moreCount?: number;
+  /** Whether more than the first page is visible */
+  expanded: boolean;
+  loading?: boolean;
+  onMore: () => void;
+  onLess: () => void;
+}) {
+  if (!hasMore && !expanded) {
+    return null;
+  }
+  return (
+    <div className="links-page-actions">
+      {hasMore && (
+        <Button
+          variant="link"
+          size="sm"
+          className="links-load-more-btn"
+          disabled={loading}
+          onClick={onMore}
+        >
+          {loading ? (
+            <>
+              <Spinner
+                animation="border"
+                size="sm"
+                role="status"
+                className="me-2"
+              />
+              Loading...
+            </>
+          ) : moreCount !== undefined && moreCount > 0 ? (
+            `Show ${moreCount} more`
+          ) : (
+            "Show more"
+          )}
+        </Button>
+      )}
+      {expanded && (
+        <Button
+          variant="link"
+          size="sm"
+          className="links-load-more-btn"
+          onClick={onLess}
+        >
+          Show less
+        </Button>
+      )}
+    </div>
+  );
+}
 
 /** The links grouped by the type of the linked instance (in the order the types first occur). */
 function groupByType(links: LinkedInstance[]) {
@@ -131,12 +239,14 @@ function groupByType(links: LinkedInstance[]) {
   return Array.from(byType.values());
 }
 
-/** The (collapsible) links to the instances of a type - labeled with the type (and the number of links). */
+/** Links of one type. The type names the cards under a property; it does not collapse them. */
 export function TypeGroup({
   type,
   typeColor,
   unresolved = false,
   count,
+  edge,
+  fieldLabel,
   children,
 }: {
   type: string;
@@ -144,34 +254,61 @@ export function TypeGroup({
   /** Whether the type is not known since the links could not be resolved */
   unresolved?: boolean;
   count: React.ReactNode;
+  /** Outgoing groups get one connector for the whole type. */
+  edge?: "outgoing";
+  fieldLabel?: string;
   children: React.ReactNode;
 }) {
-  const [isCollapsed, setIsCollapsed] = useState(false);
+  const connector = edge === "outgoing";
   return (
-    <div className="type-group">
-      <div
-        className="type-group-label"
-        onClick={() => setIsCollapsed(!isCollapsed)}
-        style={{ cursor: "pointer" }}
-      >
-        <FontAwesomeIcon
-          icon={isCollapsed ? faChevronRight : faChevronDown}
-          className="type-group-toggle-icon"
-        />
+    <div
+      className={`type-group${unresolved ? " type-group--unresolved" : ""}`}
+      data-link-edge={connector ? "outgoing" : undefined}
+      data-link-field={connector ? fieldLabel : undefined}
+      data-link-type={connector ? type : undefined}
+      data-link-color={connector ? typeColor : undefined}
+      data-link-dashed={connector && unresolved ? "true" : undefined}
+      style={
+        typeColor
+          ? ({ "--link-accent": typeColor } as React.CSSProperties)
+          : undefined
+      }
+    >
+      <div className="type-group-label">
         <FontAwesomeIcon
           icon={unresolved ? faLinkSlash : faCircle}
           className={unresolved ? "link-type-status-icon" : "link-type-icon"}
+          data-link-handle={connector ? "" : undefined}
+          aria-hidden={connector ? true : undefined}
           style={unresolved ? undefined : { color: typeColor || "#6c757d" }}
         />
-        {type}
-        <span className="field-count">({count})</span>
+        <span className="type-group-name">{type}</span>
+        <span className="type-group-count">{count}</span>
       </div>
-      {!isCollapsed && children}
+      {children}
     </div>
   );
 }
 
-/** The collapsible panel the links are listed in - showing an empty state if there are none. */
+/** Matches the stacked instance-detail layout. */
+const NARROW_LAYOUT = "(max-width: 1199px)";
+
+function useNarrowLayout() {
+  const [narrow, setNarrow] = useState(false);
+  useEffect(() => {
+    if (typeof window.matchMedia !== "function") {
+      return;
+    }
+    const query = window.matchMedia(NARROW_LAYOUT);
+    const update = () => setNarrow(query.matches);
+    update();
+    query.addEventListener("change", update);
+    return () => query.removeEventListener("change", update);
+  }, []);
+  return narrow;
+}
+
+/** The panel the links are listed in - showing an empty state if there are none. */
 export function LinksPanelFrame({
   title,
   count,
@@ -187,9 +324,11 @@ export function LinksPanelFrame({
   emptyMessage?: React.ReactNode;
   children: React.ReactNode;
 }) {
-  const [isCollapsed, setIsCollapsed] = useState(false);
+  const narrow = useNarrowLayout();
+  const [open, setOpen] = useState(false);
+  const showBody = !narrow || open;
   return (
-    <div className={`instance-links-panel ${isCollapsed ? "collapsed" : ""}`}>
+    <div className={`instance-links-panel${showBody ? "" : " is-closed"}`}>
       <div className="links-panel-header">
         <h3 className="links-panel-title">
           {title}
@@ -197,31 +336,29 @@ export function LinksPanelFrame({
             <span className="links-panel-count ms-1">({count})</span>
           )}
         </h3>
-        <Button
-          variant="link"
-          size="sm"
-          className="collapse-toggle-btn"
-          onClick={() => setIsCollapsed(!isCollapsed)}
-          title={isCollapsed ? "Expand" : "Collapse"}
-        >
-          <FontAwesomeIcon
-            icon={isCollapsed ? faChevronRight : faChevronDown}
-          />
-        </Button>
+        {narrow && (
+          <Button
+            variant="link"
+            size="sm"
+            className="links-panel-toggle"
+            onClick={() => setOpen((current) => !current)}
+            aria-expanded={open}
+            title={open ? "Hide links" : "Show links"}
+          >
+            <FontAwesomeIcon icon={open ? faChevronDown : faChevronRight} />
+          </Button>
+        )}
       </div>
-      {!isCollapsed && (
-        <>
-          {isEmpty ? (
-            <div className="links-empty-state">
-              <p className="text-muted text-center mb-0">
-                {emptyMessage ?? `No ${title.toLowerCase()}`}
-              </p>
-            </div>
-          ) : (
-            <div className="links-list">{children}</div>
-          )}
-        </>
-      )}
+      {showBody &&
+        (isEmpty ? (
+          <div className="links-empty-state">
+            <p className="text-muted text-center mb-0">
+              {emptyMessage ?? `No ${title.toLowerCase()}`}
+            </p>
+          </div>
+        ) : (
+          <div className="links-list">{children}</div>
+        ))}
     </div>
   );
 }
@@ -229,29 +366,33 @@ export function LinksPanelFrame({
 /** A (collapsible) group of links - labeled with the field they are linked by. */
 export function FieldGroup({
   label,
+  section,
   count,
   children,
 }: {
   label: React.ReactNode;
+  /** Field label this group should line up with in the open instance. */
+  section?: string;
   count: React.ReactNode;
   children: React.ReactNode;
 }) {
   const [isCollapsed, setIsCollapsed] = useState(false);
   return (
-    <div className="field-group">
-      <div
+    <div className="field-group" data-link-field-group={section}>
+      <button
+        type="button"
         className="field-group-label"
         onClick={() => setIsCollapsed(!isCollapsed)}
-        style={{ cursor: "pointer" }}
+        aria-expanded={!isCollapsed}
+        title={isCollapsed ? "Show links" : "Hide links"}
       >
         <FontAwesomeIcon
           icon={isCollapsed ? faChevronRight : faChevronDown}
-          className="me-2"
-          style={{ fontSize: "0.7rem" }}
+          className="field-group-toggle-icon"
         />
-        {label}
-        <span className="field-count ms-2">({count})</span>
-      </div>
+        <span className="field-group-name">{label}</span>
+        <span className="field-count">{count}</span>
+      </button>
       {!isCollapsed && children}
     </div>
   );
@@ -280,6 +421,9 @@ export function LinkItem({
   onLinkClick,
   highlighted = false,
   onHover,
+  edge,
+  fieldLabel,
+  typeColor,
 }: {
   link: Pick<
     LinkedInstance,
@@ -294,20 +438,50 @@ export function LinkItem({
   highlighted?: boolean;
   /** Called with true when the link is hovered and with false when it is left */
   onHover?: (hovered: boolean) => void;
+  /** Which side of the open instance this card sits on, so a connector can be drawn */
+  edge?: "incoming" | "outgoing";
+  fieldLabel?: string;
+  typeColor?: string;
 }) {
   const resolved = isResolvedLink(link);
   const unresolved = link.linkStatus === "unresolved";
+  const [hot, setHot] = useState(false);
   return (
     <div
       className={`link-item${
         resolved ? "" : ` link-item--${link.linkStatus}`
       }${highlighted ? " link-item--highlighted" : ""}`}
-      onMouseEnter={onHover && (() => onHover(true))}
-      onMouseLeave={onHover && (() => onHover(false))}
+      data-link-edge={edge}
+      data-link-id={link.instanceId}
+      data-link-field={fieldLabel}
+      data-link-color={typeColor}
+      data-link-dashed={unresolved ? "true" : undefined}
+      data-link-highlighted={highlighted ? "true" : undefined}
+      data-link-hot={hot ? "true" : undefined}
+      onMouseEnter={() => {
+        setHot(true);
+        onHover?.(true);
+      }}
+      onMouseLeave={() => {
+        setHot(false);
+        onHover?.(false);
+      }}
       onClick={resolved ? () => onLinkClick(link.instanceId) : undefined}
       title={linkedInstanceStatusDescription(link)}
-      style={resolved ? { cursor: "pointer" } : undefined}
+      style={
+        {
+          ...(resolved ? { cursor: "pointer" } : {}),
+          ...(typeColor ? { "--link-accent": typeColor } : {}),
+        } as React.CSSProperties
+      }
     >
+      {edge && (
+        <span
+          className={`link-item-handle link-item-handle--${edge}`}
+          data-link-handle=""
+          aria-hidden="true"
+        />
+      )}
       <div className="link-content">
         <div className="link-name">
           {!resolved && (
@@ -343,18 +517,6 @@ export function LinkItem({
             alt="Link status"
             className="link-item-status-icon"
           />
-          <Button
-            variant="link"
-            size="sm"
-            className="link-edit-btn"
-            onClick={(e) => {
-              e.stopPropagation();
-              onLinkClick(link.instanceId);
-            }}
-            title="Edit instance"
-          >
-            <FontAwesomeIcon icon={faPencil} />
-          </Button>
         </div>
       )}
     </div>

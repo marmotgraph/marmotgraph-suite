@@ -1,9 +1,14 @@
-import React from "react";
-import { Button, Spinner } from "react-bootstrap";
-import { IncomingLinks, IncomingLinksOfType } from "../services/instances";
+import React, { useState } from "react";
+import { Spinner } from "react-bootstrap";
+import {
+  INCOMING_LINKS_PAGE_SIZE,
+  IncomingLinks,
+  IncomingLinksOfType,
+} from "../services/instances";
 import {
   FieldGroup,
   LinkItem,
+  LinksPageActions,
   LinksPanelFrame,
   TypeGroup,
 } from "./InstanceLinksPanel";
@@ -42,6 +47,71 @@ function hasMore(type: IncomingLinksOfType) {
   return (
     Boolean(type.nextMarker) &&
     (type.total === undefined || type.links.length < type.total)
+  );
+}
+
+/** One type of incoming link. Further pages stay loaded, and can be hidden again. */
+function IncomingTypeLinks({
+  groupLabel,
+  property,
+  type,
+  loadingMore,
+  onLinkClick,
+  onLoadMore,
+}: {
+  groupLabel: string;
+  property: string;
+  type: IncomingLinksOfType;
+  loadingMore: boolean;
+  onLinkClick: (instanceId: string) => void;
+  onLoadMore: (property: string, type: IncomingLinksOfType) => void;
+}) {
+  const [firstPage] = useState(() => type.links.length);
+  const [limit, setLimit] = useState(firstPage);
+  const shown = type.links.slice(0, limit);
+  const hidden = type.links.length - shown.length;
+  const pending =
+    type.total !== undefined
+      ? Math.max(0, type.total - type.links.length)
+      : undefined;
+  const canShowMore = hidden > 0 || hasMore(type);
+  const moreCount =
+    hidden > 0
+      ? Math.min(INCOMING_LINKS_PAGE_SIZE, hidden)
+      : pending !== undefined && pending > 0
+        ? Math.min(INCOMING_LINKS_PAGE_SIZE, pending)
+        : undefined;
+
+  return (
+    <TypeGroup
+      type={type.type}
+      typeColor={type.typeColor}
+      count={count(type.links.length, type.total)}
+    >
+      {shown.map((link) => (
+        <LinkItem
+          key={link.instanceId}
+          link={link}
+          edge="incoming"
+          fieldLabel={groupLabel}
+          typeColor={type.typeColor}
+          onLinkClick={onLinkClick}
+        />
+      ))}
+      <LinksPageActions
+        hasMore={canShowMore}
+        moreCount={moreCount}
+        expanded={shown.length > firstPage}
+        loading={loadingMore}
+        onMore={() => {
+          setLimit((current) => current + INCOMING_LINKS_PAGE_SIZE);
+          if (hidden === 0) {
+            onLoadMore(property, type);
+          }
+        }}
+        onLess={() => setLimit(firstPage)}
+      />
+    </TypeGroup>
   );
 }
 
@@ -84,51 +154,17 @@ export default function IncomingLinksPanel({
           label={<span title={group.property}>{group.label}</span>}
           count={groupTotal(group)}
         >
-          {group.types.map((type) => {
-            const loadingMore = isLoadingMore(
-              group.property,
-              type.typeIdentifier,
-            );
-            return (
-              <TypeGroup
-                key={type.typeIdentifier}
-                type={type.type}
-                typeColor={type.typeColor}
-                count={count(type.links.length, type.total)}
-              >
-                {type.links.map((link) => (
-                  <LinkItem
-                    key={link.instanceId}
-                    link={link}
-                    onLinkClick={onLinkClick}
-                  />
-                ))}
-                {hasMore(type) && (
-                  <Button
-                    variant="link"
-                    size="sm"
-                    className="links-load-more-btn"
-                    disabled={loadingMore}
-                    onClick={() => onLoadMore(group.property, type)}
-                  >
-                    {loadingMore ? (
-                      <>
-                        <Spinner
-                          animation="border"
-                          size="sm"
-                          role="status"
-                          className="me-2"
-                        />
-                        Loading...
-                      </>
-                    ) : (
-                      "Load more"
-                    )}
-                  </Button>
-                )}
-              </TypeGroup>
-            );
-          })}
+          {group.types.map((type) => (
+            <IncomingTypeLinks
+              key={type.typeIdentifier}
+              groupLabel={group.label}
+              property={group.property}
+              type={type}
+              loadingMore={isLoadingMore(group.property, type.typeIdentifier)}
+              onLinkClick={onLinkClick}
+              onLoadMore={onLoadMore}
+            />
+          ))}
         </FieldGroup>
       ))}
     </LinksPanelFrame>

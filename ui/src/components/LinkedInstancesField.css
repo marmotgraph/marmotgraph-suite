@@ -11,6 +11,7 @@
 .linked-instance-badge {
   cursor: pointer;
   max-width: 100%;
+  min-width: 0;
 }
 
 .linked-instance-badge--restricted,
@@ -24,9 +25,11 @@
   border: 1px dashed #adb5bd;
 }
 
-.linked-instance-badge--highlighted {
-  background-color: #eef3fa !important;
+.view-badge.linked-instance-badge--highlighted,
+.tag-badge.linked-instance-badge--highlighted {
+  background-color: #f3f7fc !important;
   border-color: #6c8ebf !important;
+  box-shadow: 0 0 0 2px rgba(108, 142, 191, 0.22);
 }
 
 .linked-instance-badge-status-icon {
@@ -41,6 +44,8 @@
 
 .linked-instance-badge-name {
   vertical-align: middle;
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 
 .linked-instance-badge .linked-instance-draft-badge {
