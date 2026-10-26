@@ -115,6 +115,24 @@ export function fetchInstance(
   );
 }
 
+/**
+ * Updates the given fields of an instance (by their identifier, in the shape of their kind) - the other fields are kept
+ * as they are. The instance as stored by the core is returned.
+ */
+export function updateInstance(
+  accessToken: string,
+  instanceId: string,
+  changes: Record<string, unknown>,
+): Promise<InstanceDetail> {
+  return send(
+    "PATCH",
+    `/api/instances/${encodeURIComponent(instanceId)}`,
+    "save the instance",
+    accessToken,
+    changes,
+  );
+}
+
 /** An instance as provided by the core - the full JSON-LD document. */
 export type RawInstance = Record<string, unknown>;
 

@@ -1,5 +1,5 @@
 import React from "react";
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import InstanceDetail from "./InstanceDetail";
 import {
@@ -7,6 +7,8 @@ import {
   fetchInstance,
   fetchRawInstance,
   fetchReleaseTree,
+  InstanceField,
+  updateInstance,
 } from "../../services/instances";
 import { UnsavedInstancesProvider } from "../../contexts/UnsavedInstancesContext";
 
@@ -27,9 +29,10 @@ vi.mock("../../services/instances", () => ({
   releaseInstance: vi.fn(),
   unreleaseInstance: vi.fn(),
   appendIncomingLinks: vi.fn(),
+  updateInstance: vi.fn(),
 }));
 
-function renderDetail(search = "") {
+function renderDetail(search = "", fields: InstanceField[] = []) {
   vi.mocked(fetchInstance).mockResolvedValue({
     instanceId: "inst-1",
     type: "Building",
@@ -37,7 +40,7 @@ function renderDetail(search = "") {
     space: "default",
     permissions: "View, Edit",
     releaseStatus: "released",
-    fields: [],
+    fields,
     directLinks: [],
   });
   vi.mocked(fetchIncomingLinks).mockResolvedValue([]);
@@ -124,5 +127,39 @@ describe("InstanceDetail", () => {
       await screen.findByRole("list", { name: "Release tree" }),
     ).toBeInTheDocument();
     expect(fetchReleaseTree).toHaveBeenCalledWith("token", "inst-1");
+  });
+
+  it("saves only the changed fields", async () => {
+    const field = (identifier: string, value: string): InstanceField => ({
+      identifier,
+      label: identifier,
+      kind: "TEXT",
+      value,
+      required: false,
+      readOnly: false,
+    });
+    vi.mocked(updateInstance).mockResolvedValue({
+      instanceId: "inst-1",
+      type: "Building",
+      instanceName: "Renamed",
+      space: "default",
+      permissions: "View, Edit",
+      releaseStatus: "has changed",
+      fields: [field("name", "Renamed"), field("city", "Bern")],
+      directLinks: [],
+    });
+    renderDetail("?edit=1", [field("name", "Headquarters"), field("city", "Bern")]);
+
+    fireEvent.change(await screen.findByDisplayValue("Headquarters"), {
+      target: { value: "Renamed" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Save" }));
+
+    await waitFor(() =>
+      expect(updateInstance).toHaveBeenCalledWith("token", "inst-1", {
+        name: "Renamed",
+      }),
+    );
+    expect(await screen.findByRole("heading", { name: "Renamed" })).toBeInTheDocument();
   });
 });

@@ -51,6 +51,7 @@ import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -467,6 +468,50 @@ class InstancesTest {
         mockMvc.perform(put("/instances/" + RELEASED_ID + "/raw").header(HttpHeaders.AUTHORIZATION, "Bearer theToken")
                         .contentType(MediaType.APPLICATION_JSON).content("{}"))
                 .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void updateSendsTheChangedFieldsAsJsonLdToTheCore() throws Exception {
+        String rack = "https://example.org/types/Rack";
+        String linkedId = "11111111-2222-4333-8444-555555555555";
+        when(instancesResource.get(any(UUID.class), any(), any())).thenReturn(instance(RELEASED_ID, rack, Map.of(NAME, "Rack-1")));
+        when(typesResource.getByNames(List.of(rack), Stage.IN_PROGRESS, null, false, false))
+                .thenReturn(Map.of(rack, new TypeInformation(rack, null, "Rack", "#4caf50", NAME, null, null, List.of(), List.of(), List.of())));
+        when(typesResource.getByNames(List.of(rack), Stage.IN_PROGRESS, null, true, false))
+                .thenReturn(Map.of(rack, new TypeInformation(rack, null, "Rack", "#4caf50", NAME, null, null, List.of(), List.of(
+                        new Property(NAME, "name", null, "InputText", null, null, null, 1, null, List.of()),
+                        new Property("https://example.org/height", "height", null, "InputNumber", null, null, null, 2, null, List.of()),
+                        new Property("https://example.org/blades", "blades", null, "DynamicDropdown", null, null, null, 3, null, List.of())
+                ), List.of())));
+        when(instancesResource.releaseStatus(RELEASED_ID, ReleaseTreeScope.TOP_INSTANCE_ONLY)).thenReturn(ReleaseStatus.RELEASED);
+
+        mockMvc.perform(patch("/instances/" + RELEASED_ID).header(HttpHeaders.AUTHORIZATION, "Bearer theToken")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"%s": "Renamed", "https://example.org/height": "",
+                                 "https://example.org/blades": [{"instanceId": "%s", "instanceName": "Blade-7"}]}
+                                """.formatted(NAME, linkedId)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.instanceId").value(RELEASED_ID.toString()));
+
+        Map<String, Object> expected = new HashMap<>();
+        expected.put(NAME, "Renamed");
+        expected.put("https://example.org/height", null);
+        expected.put("https://example.org/blades", List.of(Map.of("@id", linkedId)));
+        verify(instancesResource).update(RELEASED_ID, expected);
+    }
+
+    @Test
+    void updateRejectsUnknownFields() throws Exception {
+        when(instancesResource.get(any(UUID.class), any(), any())).thenReturn(instance(RELEASED_ID, DEVICE, Map.of()));
+        when(typesResource.getByNames(List.of(DEVICE), Stage.IN_PROGRESS, null, true, false))
+                .thenReturn(Map.of(DEVICE, new TypeInformation(DEVICE, null, "Device", null, NAME, null, null, List.of(), List.of(), List.of())));
+
+        mockMvc.perform(patch("/instances/" + RELEASED_ID).header(HttpHeaders.AUTHORIZATION, "Bearer theToken")
+                        .contentType(MediaType.APPLICATION_JSON).content("{\"https://example.org/unknown\": 1}"))
+                .andExpect(status().isBadRequest());
+
+        verify(instancesResource, never()).update(any(), any());
     }
 
     /** The scope as deserialized by the SDK from the response of the core */

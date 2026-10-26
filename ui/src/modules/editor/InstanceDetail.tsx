@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
-import { Button, Collapse, Form, Spinner } from "react-bootstrap";
+import { Alert, Button, Collapse, Form, Spinner } from "react-bootstrap";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
   faChevronDown,
@@ -34,6 +34,7 @@ import {
   IncomingLinksOfType,
   InstanceDetail as InstanceDetailData,
   InstanceField,
+  updateInstance,
 } from "../../services/instances";
 import { Breadcrumbs, BreadcrumbItem as BreadcrumbTrailItem } from "../../components/Breadcrumbs";
 import InstanceFieldControl from "../../components/InstanceFieldControl";
@@ -181,6 +182,8 @@ function InstanceDetailView({ instanceId }: { instanceId: string }) {
   const [incomingLinksLoadingMore, setIncomingLinksLoadingMore] = useState<
     Set<string>
   >(new Set());
+  const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string>();
 
   useEffect(() => {
     if (isNewInstance) {
@@ -518,14 +521,30 @@ function InstanceDetailView({ instanceId }: { instanceId: string }) {
       return;
     }
 
-    removeDraft(instanceId || "");
-    setBaseline(currentFieldValues);
-    setIsEditMode(false);
+    // Only the changed fields are sent - the other properties of the instance are kept as they are
+    const changes = Object.fromEntries(
+      [...changedFieldKeys].map((key) => [key, currentFieldValues[key] ?? null]),
+    );
+    setSaving(true);
+    setSaveError(undefined);
+    getAccessToken()
+      .then((token) => updateInstance(token, instanceId, changes))
+      .then((stored) => {
+        removeDraft(instanceId);
+        setInstance(stored);
+        setIsEditMode(false);
+      })
+      .catch((e: unknown) => {
+        console.error("Failed to save the instance", e);
+        setSaveError(e instanceof Error ? e.message : String(e));
+      })
+      .finally(() => setSaving(false));
   };
 
   /** Reverts the changed fields - stays in the edit mode (like the reset of the raw mode). */
   const handleReset = () => {
     removeDraft(instanceId || "");
+    setSaveError(undefined);
     setCurrentFieldValues(baseline);
   };
 
@@ -751,18 +770,26 @@ function InstanceDetailView({ instanceId }: { instanceId: string }) {
                       />
                     )}
 
+                    {saveError && (
+                      <Alert variant="danger" className="mt-3 mb-0">
+                        {saveError}
+                      </Alert>
+                    )}
                     <div className="d-flex gap-2 mt-4">
                       <Button
                         variant="dark"
                         onClick={handleSave}
-                        disabled={changedFieldKeys.size === 0}
+                        disabled={changedFieldKeys.size === 0 || saving}
                       >
+                        {saving && (
+                          <Spinner animation="border" size="sm" className="me-2" />
+                        )}
                         Save
                       </Button>
                       <Button
                         variant="outline-secondary"
                         onClick={handleReset}
-                        disabled={changedFieldKeys.size === 0}
+                        disabled={changedFieldKeys.size === 0 || saving}
                       >
                         Reset
                       </Button>

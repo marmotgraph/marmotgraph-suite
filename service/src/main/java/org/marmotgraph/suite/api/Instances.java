@@ -20,14 +20,17 @@ import org.marmotgraph.suite.types.FieldCache.FieldDefinition;
 import org.marmotgraph.suite.types.FieldKind;
 import org.marmotgraph.suite.types.TypeCache;
 import org.marmotgraph.suite.types.TypeCache.TypeDefinition;
+import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -244,6 +247,62 @@ public class Instances {
         return new InstanceDetail(instanceId, typeLabel(typeName, type), type != null ? type.description() : null, type != null ? type.color() : null,
                 instanceName(instance, type, instanceId), instance.getSpace(), permissions(instance.getPermissions()),
                 releaseStatus(releaseStatus), fields, directLinks(fields));
+    }
+
+    /**
+     * Updates the given fields of the instance (as edited in the editor) - the other properties are kept as they are.
+     * The values are expected in the shape of the kind of their field (see {@link #fieldValue(FieldKind, Object, Map)})
+     * and are translated back to JSON-LD. The core rejects the request if the user is not allowed to edit the instance.
+     *
+     * @param id      the uuid of the instance as known by the core
+     * @param changes the changed fields - by their identifier
+     * @return the instance as stored by the core
+     */
+    @PatchMapping("/{id}")
+    public InstanceDetail update(@AuthenticatedClient MarmotGraphClient client, @PathVariable UUID id,
+                                 @RequestBody Map<String, Object> changes) {
+        String typeName = client.instances().get(id, Stage.IN_PROGRESS, ResponseOptions.DEFAULT).getType();
+        Map<String, FieldDefinition> definitions = (typeName != null ? fieldCache.get(client, typeName) : List.<FieldDefinition>of())
+                .stream().collect(Collectors.toMap(FieldDefinition::identifier, d -> d, (a, b) -> a));
+        Map<String, Object> payload = new LinkedHashMap<>();
+        changes.forEach((identifier, value) -> {
+            FieldDefinition definition = definitions.get(identifier);
+            if (definition == null || definition.readOnly()) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, String.format("The field \"%s\" can't be edited", identifier));
+            }
+            payload.put(identifier, jsonLdValue(definition.kind(), value));
+        });
+        if (!payload.isEmpty()) {
+            client.instances().update(id, payload);
+        }
+        return get(client, id);
+    }
+
+    /**
+     * Translates the value of a field (in the shape required by its kind) back into JSON-LD - the linked instances are
+     * referenced by their id. Empty values are sent as null so they are removed.
+     */
+    static Object jsonLdValue(FieldKind kind, Object value) {
+        if (value == null || value instanceof String s && s.isBlank()) {
+            return null;
+        }
+        return switch (kind) {
+            case LINK -> reference(value);
+            case LINKS -> {
+                List<Map<String, Object>> references = values(value).stream().map(Instances::reference).filter(Objects::nonNull).toList();
+                yield references.isEmpty() ? null : references;
+            }
+            default -> value;
+        };
+    }
+
+    /**
+     * A reference to a linked instance (as provided by {@link #linkedInstance(Object, Map)}) - null if the value is no
+     * linked instance.
+     */
+    private static Map<String, Object> reference(Object linkedInstance) {
+        String id = linkedInstance instanceof Map<?, ?> link ? firstString(link.get("instanceId")) : null;
+        return id != null && !id.isBlank() ? Map.of("@id", id) : null;
     }
 
     /**
