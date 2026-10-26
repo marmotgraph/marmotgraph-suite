@@ -1,3 +1,6 @@
-.claude
+# Local Claude config stays untracked. Shared skills in .claude/skills are part of the repo.
+.claude/*
+!.claude/skills/
+!.claude/skills/**
 .idea
 **/*.iml
