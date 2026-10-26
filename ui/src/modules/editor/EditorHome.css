@@ -202,6 +202,11 @@
     color: #1e7a42;
 }
 
+.instance-card-status--changed {
+    background-color: #fff4e5;
+    color: #9a5b00;
+}
+
 .instance-status {
     display: flex;
     flex-direction: column;

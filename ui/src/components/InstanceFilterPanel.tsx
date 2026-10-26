@@ -177,6 +177,14 @@ export function InstanceFilterPanel({
           />
           <Form.Check
             type="checkbox"
+            id="status-has-changed"
+            label="Has Changed"
+            checked={filters.releaseStatuses.includes("has changed")}
+            onChange={() => handleStatusToggle("has changed")}
+            className="mb-2"
+          />
+          <Form.Check
+            type="checkbox"
             id="status-in-progress"
             label="In Progress"
             checked={filters.releaseStatuses.includes("in progress")}
@@ -212,6 +220,13 @@ export function InstanceFilterPanel({
           label="Released"
           checked={filters.releaseStatuses.includes("released")}
           onChange={() => handleStatusToggle("released")}
+        />
+        <Form.Check
+          type="checkbox"
+          id="status-has-changed"
+          label="Has Changed"
+          checked={filters.releaseStatuses.includes("has changed")}
+          onChange={() => handleStatusToggle("has changed")}
         />
         <Form.Check
           type="checkbox"

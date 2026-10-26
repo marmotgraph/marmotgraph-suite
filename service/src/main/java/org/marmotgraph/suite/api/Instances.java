@@ -159,6 +159,7 @@ public class Instances {
     static final String LINK_HAS_OUTGOING_LINKS = "_hasOutgoingLinks";
 
     private static final String RELEASED = "released";
+    private static final String HAS_CHANGED = "has changed";
     private static final String IN_PROGRESS = "in progress";
 
     /**
@@ -190,15 +191,13 @@ public class Instances {
                 .types(nonBlank(typeFilter))
                 .spaces(nonBlank(spaceFilter))
                 .searchByLabel(search != null && !search.isBlank() ? search.trim() : null)
-                .responseOptions(ResponseOptions.builder().returnPermissions(true).returnValidationResults(true).build())
+                .responseOptions(ResponseOptions.builder().returnPermissions(true).returnValidationResults(true).returnReleaseStatus(true).build())
                 .build()).items();
         if (instances.isEmpty()) {
             return List.of();
         }
         List<String> typeNames = instances.stream().map(org.marmotgraph.sdk.model.Instance::getType).filter(Objects::nonNull).distinct().toList();
         Map<String, TypeDefinition> types = typeNames.isEmpty() ? Map.of() : typeCache.get(client, typeNames);
-        List<UUID> ids = instances.stream().map(i -> i.getUuid().orElse(null)).filter(Objects::nonNull).toList();
-        Map<String, ReleaseStatus> releaseStatuses = ids.isEmpty() ? Map.of() : client.instances().releaseStatusByIds(ids, ReleaseTreeScope.TOP_INSTANCE_ONLY);
 
         List<InstanceSummary> result = new ArrayList<>(instances.size());
         for (org.marmotgraph.sdk.model.Instance instance : instances) {
@@ -208,7 +207,7 @@ public class Instances {
             result.add(new InstanceSummary(result.size() + 1, instanceId, typeLabel(typeName, type), type != null ? type.description() : null, type != null ? type.color() : null,
                     instanceName(instance, type, instanceId), instance.getSpace(),
                     permissions(instance.getPermissions()), false, null,
-                    releaseStatuses.get(instanceId) == ReleaseStatus.RELEASED ? RELEASED : IN_PROGRESS,
+                    releaseStatus(instance.getReleaseStatus()),
                     instance.getValidation().stream().map(Validation::of).toList()));
         }
         return result;
@@ -228,7 +227,17 @@ public class Instances {
         List<Field> fields = fields(client, instance, typeName);
         return new InstanceDetail(instanceId, typeLabel(typeName, type), type != null ? type.description() : null, type != null ? type.color() : null,
                 instanceName(instance, type, instanceId), instance.getSpace(), permissions(instance.getPermissions()),
-                releaseStatus == ReleaseStatus.RELEASED ? RELEASED : IN_PROGRESS, fields, directLinks(fields));
+                releaseStatus(releaseStatus), fields, directLinks(fields));
+    }
+
+    /**
+     * The release status of an instance as shown in the editor - an unknown status is treated as not released.
+     */
+    private static String releaseStatus(ReleaseStatus releaseStatus) {
+        if (releaseStatus == ReleaseStatus.RELEASED) {
+            return RELEASED;
+        }
+        return releaseStatus == ReleaseStatus.HAS_CHANGED ? HAS_CHANGED : IN_PROGRESS;
     }
 
     /**

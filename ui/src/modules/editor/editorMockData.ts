@@ -64,6 +64,9 @@ export type InstanceValidation = {
   compliance?: number;
 };
 
+/** "has changed": released, but modified since the release. */
+export type ReleaseStatus = "released" | "has changed" | "in progress";
+
 export type InstanceSummary = {
   id: number;
   instanceId: string;
@@ -75,7 +78,7 @@ export type InstanceSummary = {
   permissions: string;
   bookmarked: boolean;
   lastVisited?: string;
-  releaseStatus: "released" | "in progress";
+  releaseStatus: ReleaseStatus;
   /** The results of the last validation per validation schema of the type */
   validation?: InstanceValidation[];
   directLinks?: LinkedInstance[];

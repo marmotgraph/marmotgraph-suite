@@ -16,12 +16,14 @@ import {
   faGlasses,
   faHourglassHalf,
   faPen,
+  faPenToSquare,
   faRocket,
   faSort,
   faSortDown,
   faSortUp,
   faTriangleExclamation,
-  faXmark
+  faXmark,
+  IconDefinition
 } from "@fortawesome/free-solid-svg-icons";
 import { faBookmark as faBookmarkRegular } from "@fortawesome/free-regular-svg-icons";
 import { useAuth } from "../../contexts/AuthContext";
@@ -35,7 +37,7 @@ import { useTypes } from "../../hooks/useTypes";
 import { useSpaces } from "../../hooks/useSpaces";
 import { typeLabel } from "../../services/types";
 import { fetchInstance, InstanceDetail, InstanceField } from "../../services/instances";
-import { InstanceSummary, InstanceValidation } from "./editorMockData";
+import { InstanceSummary, InstanceValidation, ReleaseStatus } from "./editorMockData";
 import { EDITOR_BREADCRUMB_TRAIL_KEY } from "./editorConstants";
 import "../query-builder/SharedQueries.css";
 import "./EditorHome.css";
@@ -900,22 +902,28 @@ function ValidationStatus({ validation }: { validation: InstanceValidation }) {
   );
 }
 
+const RELEASE_STATUS_TAGS: Record<
+  ReleaseStatus,
+  { modifier?: string; icon: IconDefinition }
+> = {
+  released: { modifier: "released", icon: faRocket },
+  "has changed": { modifier: "changed", icon: faPenToSquare },
+  "in progress": { icon: faHourglassHalf },
+};
+
 /** The release status of the instance followed by the compliance of the instance per validation schema. */
 function InstanceStatusTags({ instance }: { instance: InstanceSummary }) {
-  const released = instance.releaseStatus === "released";
+  const { modifier, icon } = RELEASE_STATUS_TAGS[instance.releaseStatus];
   return (
     <div className="instance-status">
       <span
         className={
-          released
-            ? "instance-card-status instance-card-status--released"
+          modifier
+            ? `instance-card-status instance-card-status--${modifier}`
             : "instance-card-status"
         }
       >
-        <FontAwesomeIcon
-          icon={released ? faRocket : faHourglassHalf}
-          className="me-1"
-        />
+        <FontAwesomeIcon icon={icon} className="me-1" />
         {instance.releaseStatus}
       </span>
       {instance.validation && instance.validation.length > 0 && (

@@ -45,7 +45,7 @@ function Location() {
   );
 }
 
-function renderHome() {
+function renderHome(instances: InstanceSummary[] = [instance]) {
   vi.mocked(useTypes).mockReturnValue([]);
   vi.mocked(useSpaces).mockReturnValue([]);
   vi.mocked(fetchInstance).mockResolvedValue({
@@ -67,7 +67,7 @@ function renderHome() {
     ],
   });
   vi.mocked(useInstances).mockReturnValue({
-    instances: [instance],
+    instances,
     loading: false,
     searchTerm: "",
     setSearchTerm: vi.fn(),
@@ -104,6 +104,22 @@ describe("EditorHome", () => {
     expect(screen.getByText("released")).toBeInTheDocument();
     expect(screen.getByTitle('Validation "minimal": valid (100% compliant)')).toHaveTextContent("minimal100%");
     expect(screen.getByTitle('Validation "complete": invalid (62% compliant)')).toHaveTextContent("complete62%");
+  });
+
+  it("filters by the release status - including instances which have changed since their release", () => {
+    renderHome([
+      instance,
+      { ...instance, id: 2, instanceId: "inst-2", instanceName: "Warehouse", releaseStatus: "has changed" },
+      { ...instance, id: 3, instanceId: "inst-3", instanceName: "Garage", releaseStatus: "in progress" },
+    ]);
+
+    expect(screen.getByText("has changed")).toHaveClass("instance-card-status--changed");
+
+    fireEvent.click(screen.getByLabelText("Has Changed"));
+
+    expect(screen.getByText("Warehouse")).toBeInTheDocument();
+    expect(screen.queryByText("Headquarters")).not.toBeInTheDocument();
+    expect(screen.queryByText("Garage")).not.toBeInTheDocument();
   });
 
   it("opens a preview instead of the instance page when a row is clicked", async () => {

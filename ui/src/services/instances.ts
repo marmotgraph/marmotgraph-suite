@@ -1,4 +1,4 @@
-import { InstanceSummary, LinkedInstance } from "../modules/editor/editorMockData";
+import { InstanceSummary, LinkedInstance, ReleaseStatus } from "../modules/editor/editorMockData";
 import { getJson, send } from "./http";
 
 /** The kinds of fields as provided by the backend (translated from the widgets defined for the properties of the type). */
@@ -37,7 +37,7 @@ export interface InstanceDetail {
   instanceName: string;
   space: string;
   permissions: string;
-  releaseStatus: "released" | "in progress";
+  releaseStatus: ReleaseStatus;
   /** The fields in the order they are to be shown - not available for new instances (yet) */
   fields?: InstanceField[];
   /** The instances linked by the fields (labeled with the field they are linked by) */

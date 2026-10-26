@@ -82,6 +82,7 @@ class InstancesTest {
     private static final String NAME = "http://schema.org/name";
     private static final UUID RELEASED_ID = UUID.fromString("47b94e45-5435-49a8-aba3-3d482fabced3");
     private static final UUID UNRELEASED_ID = UUID.fromString("a1b2c3d4-e5f6-4a5b-9c8d-7e6f5a4b3c2d");
+    private static final UUID NEVER_RELEASED_ID = UUID.fromString("0f1e2d3c-4b5a-4968-8776-655443322110");
 
     @Autowired
     private MarmotGraphClient client;
@@ -117,18 +118,17 @@ class InstancesTest {
     void listMapsTheInstancesOfTheCore() throws Exception {
         when(instancesResource.list(any(InstanceListOptions.class))).thenReturn(page(List.of(
                 instance(RELEASED_ID, DEVICE, Map.of(NAME, "Server-Rack-A1", "_permissions", List.of("RELEASE", "READ", "WRITE", "DELETE"),
-                        "_validation", List.of(Map.of("name", "minimal", "valid", true, "compliance", 100.0, "errors", List.of()),
+                        "_releaseStatus", "RELEASED", "_validation", List.of(Map.of("name", "minimal", "valid", true, "compliance", 100.0, "errors", List.of()),
                                 Map.of("name", "complete", "valid", false, "compliance", 62.5, "errors", List.of())))),
-                instance(UNRELEASED_ID, "https://example.org/types/Unknown", Map.of("_permissions", List.of("READ")))
+                instance(UNRELEASED_ID, "https://example.org/types/Unknown", Map.of("_permissions", List.of("READ"), "_releaseStatus", "HAS_CHANGED")),
+                instance(NEVER_RELEASED_ID, DEVICE, Map.of(NAME, "Server-Rack-B2", "_releaseStatus", "UNRELEASED"))
         )));
         when(typesResource.getByNames(List.of(DEVICE, "https://example.org/types/Unknown"), Stage.IN_PROGRESS, null, false, false))
                 .thenReturn(Map.of(DEVICE, new TypeInformation(DEVICE, "A device in the data center", "Device", "#ff9800", NAME, null, null, List.of(), List.of(), List.of())));
-        when(instancesResource.releaseStatusByIds(List.of(RELEASED_ID, UNRELEASED_ID), ReleaseTreeScope.TOP_INSTANCE_ONLY))
-                .thenReturn(Map.of(RELEASED_ID.toString(), ReleaseStatus.RELEASED, UNRELEASED_ID.toString(), ReleaseStatus.HAS_CHANGED));
 
         mockMvc.perform(get("/instances").header(HttpHeaders.AUTHORIZATION, "Bearer theToken"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.length()").value(2))
+                .andExpect(jsonPath("$.length()").value(3))
                 .andExpect(jsonPath("$[0].id").value(1))
                 .andExpect(jsonPath("$[0].instanceId").value(RELEASED_ID.toString()))
                 .andExpect(jsonPath("$[0].type").value("Device"))
@@ -152,14 +152,16 @@ class InstancesTest {
                 .andExpect(jsonPath("$[1].typeColor").doesNotExist())
                 .andExpect(jsonPath("$[1].instanceName").value(UNRELEASED_ID.toString()))
                 .andExpect(jsonPath("$[1].permissions").value("View"))
-                .andExpect(jsonPath("$[1].releaseStatus").value("in progress"))
-                .andExpect(jsonPath("$[1].validation.length()").value(0));
+                .andExpect(jsonPath("$[1].releaseStatus").value("has changed"))
+                .andExpect(jsonPath("$[1].validation.length()").value(0))
+                .andExpect(jsonPath("$[2].releaseStatus").value("in progress"));
 
         ArgumentCaptor<InstanceListOptions> options = ArgumentCaptor.forClass(InstanceListOptions.class);
         verify(instancesResource).list(options.capture());
         assertEquals(Stage.IN_PROGRESS, options.getValue().stage());
         assertTrue(options.getValue().responseOptions().returnPermissions());
         assertTrue(options.getValue().responseOptions().returnValidationResults());
+        assertTrue(options.getValue().responseOptions().returnReleaseStatus());
         assertNull(options.getValue().searchByLabel());
         assertEquals(List.of(), options.getValue().types());
         assertEquals(List.of(), options.getValue().spaces());
@@ -204,14 +206,13 @@ class InstancesTest {
     }
 
     @Test
-    void listWithoutInstancesDoesNotResolveTypesOrReleaseStatus() throws Exception {
+    void listWithoutInstancesDoesNotResolveTypes() throws Exception {
         when(instancesResource.list(any(InstanceListOptions.class))).thenReturn(page(List.of()));
 
         mockMvc.perform(get("/instances").header(HttpHeaders.AUTHORIZATION, "Bearer theToken"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.length()").value(0));
         verifyNoInteractions(typesResource);
-        verify(instancesResource, never()).releaseStatusByIds(any(), any());
     }
 
     @Test
@@ -350,7 +351,7 @@ class InstancesTest {
                 .andExpect(jsonPath("$.typeColor").doesNotExist())
                 .andExpect(jsonPath("$.instanceName").value(UNRELEASED_ID.toString()))
                 .andExpect(jsonPath("$.permissions").value(""))
-                .andExpect(jsonPath("$.releaseStatus").value("in progress"))
+                .andExpect(jsonPath("$.releaseStatus").value("has changed"))
                 .andExpect(jsonPath("$.fields.length()").value(0))
                 .andExpect(jsonPath("$.directLinks.length()").value(0));
     }
