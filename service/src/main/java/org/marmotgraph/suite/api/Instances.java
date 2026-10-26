@@ -6,8 +6,10 @@ import lombok.AllArgsConstructor;
 import org.marmotgraph.sdk.MarmotGraphClient;
 import org.marmotgraph.sdk.model.LinkingInstance;
 import org.marmotgraph.sdk.model.ReleaseStatus;
+import org.marmotgraph.sdk.model.Functionality;
 import org.marmotgraph.sdk.model.ReleaseTreeScope;
 import org.marmotgraph.sdk.model.SchemaValidationResult;
+import org.marmotgraph.sdk.model.Scope;
 import org.marmotgraph.sdk.model.Stage;
 import org.marmotgraph.sdk.pagination.Page;
 import org.marmotgraph.sdk.resources.InstanceListOptions;
@@ -18,6 +20,7 @@ import org.marmotgraph.suite.types.FieldCache.FieldDefinition;
 import org.marmotgraph.suite.types.FieldKind;
 import org.marmotgraph.suite.types.TypeCache;
 import org.marmotgraph.suite.types.TypeCache.TypeDefinition;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PutMapping;
@@ -30,9 +33,11 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -150,6 +155,17 @@ public class Instances {
     }
 
     /**
+     * An instance of the release tree of another one (the scope of its type evaluated for it) - with the instances
+     * reached from it. The release status is the one of the instance itself (not of its children). canRelease /
+     * canUnrelease tell whether the user is allowed to release / unrelease the instance. The name falls back to the
+     * instanceId if the instance has no label.
+     */
+    @JsonInclude(JsonInclude.Include.NON_NULL)
+    public record ReleaseNode(String instanceId, String instanceName, String type, String typeColor, String space,
+                              String releaseStatus, boolean canRelease, boolean canUnrelease, List<ReleaseNode> children) {
+    }
+
+    /**
      * The properties added to each link by the core if a summary of the outgoing links is requested.
      */
     static final String LINK_STATUS = "_linkStatus";
@@ -238,6 +254,59 @@ public class Instances {
             return RELEASED;
         }
         return releaseStatus == ReleaseStatus.HAS_CHANGED ? HAS_CHANGED : IN_PROGRESS;
+    }
+
+    /**
+     * The release tree of the instance: the instance and the instances reached from it by the scopes of its type (the
+     * combination of all of them) - with their release status and the permissions of the user to release them.
+     * Instances the user can't read are left out by the core (together with the instances reached through them).
+     *
+     * @param id the uuid of the instance as known by the core
+     */
+    @GetMapping("/{id}/scope")
+    public ReleaseNode scope(@AuthenticatedClient MarmotGraphClient client, @PathVariable UUID id) {
+        Scope scope = client.instances().scope(id, null, Stage.IN_PROGRESS, true, true);
+        Set<String> typeNames = new LinkedHashSet<>();
+        collectTypes(scope, typeNames);
+        Map<String, TypeDefinition> types = typeNames.isEmpty() ? Map.of() : typeCache.get(client, List.copyOf(typeNames));
+        return releaseNode(scope, types);
+    }
+
+    private static void collectTypes(Scope scope, Set<String> typeNames) {
+        if (scope.type() != null) {
+            typeNames.add(scope.type());
+        }
+        scope.children().forEach(child -> collectTypes(child, typeNames));
+    }
+
+    private static ReleaseNode releaseNode(Scope scope, Map<String, TypeDefinition> types) {
+        String instanceId = Objects.toString(scope.id(), "");
+        TypeDefinition type = scope.type() != null ? types.get(scope.type()) : null;
+        String label = scope.label() != null && !scope.label().isBlank() ? scope.label() : instanceId;
+        return new ReleaseNode(instanceId, label, typeLabel(scope.type(), type), type != null ? type.color() : null,
+                scope.space(), releaseStatus(scope.releaseStatus()),
+                scope.permissions().contains(Functionality.RELEASE.name()), scope.permissions().contains(Functionality.UNRELEASE.name()),
+                scope.children().stream().map(child -> releaseNode(child, types)).toList());
+    }
+
+    /**
+     * Releases the current state of the instance - the core rejects the request if the user is not allowed to.
+     *
+     * @param id the uuid of the instance as known by the core
+     */
+    @PutMapping("/{id}/release")
+    public void release(@AuthenticatedClient MarmotGraphClient client, @PathVariable UUID id) {
+        client.instances().release(id);
+    }
+
+    /**
+     * Removes the released version of the instance - the core rejects the request if the user is not allowed to.
+     *
+     * @param id the uuid of the instance as known by the core
+     */
+    @DeleteMapping("/{id}/release")
+    public void unrelease(@AuthenticatedClient MarmotGraphClient client, @PathVariable UUID id) {
+        client.instances().unrelease(id);
     }
 
     /**

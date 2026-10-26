@@ -203,3 +203,59 @@ export function appendIncomingLinks(
         },
   );
 }
+
+/**
+ * An instance of the release tree of another one (the scope of its type evaluated for it) - with the instances reached
+ * from it. The release status is the one of the instance itself (not of its children).
+ */
+export interface ReleaseNode {
+  instanceId: string;
+  instanceName: string;
+  type: string;
+  typeColor?: string;
+  space?: string;
+  releaseStatus: ReleaseStatus;
+  /** Whether the user is allowed to release the instance */
+  canRelease: boolean;
+  /** Whether the user is allowed to unrelease the instance */
+  canUnrelease: boolean;
+  children: ReleaseNode[];
+}
+
+/** Fetches the release tree of an instance - with the release status and the permissions of the user per instance. */
+export function fetchReleaseTree(
+  accessToken: string,
+  instanceId: string,
+): Promise<ReleaseNode> {
+  return getJson(
+    `/api/instances/${encodeURIComponent(instanceId)}/scope`,
+    "the release tree",
+    accessToken,
+  );
+}
+
+/** Releases the current state of an instance. */
+export function releaseInstance(
+  accessToken: string,
+  instanceId: string,
+): Promise<void> {
+  return send(
+    "PUT",
+    `/api/instances/${encodeURIComponent(instanceId)}/release`,
+    "release the instance",
+    accessToken,
+  );
+}
+
+/** Removes the released version of an instance. */
+export function unreleaseInstance(
+  accessToken: string,
+  instanceId: string,
+): Promise<void> {
+  return send(
+    "DELETE",
+    `/api/instances/${encodeURIComponent(instanceId)}/release`,
+    "unrelease the instance",
+    accessToken,
+  );
+}

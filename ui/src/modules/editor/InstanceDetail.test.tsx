@@ -1,11 +1,12 @@
 import React from "react";
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import InstanceDetail from "./InstanceDetail";
 import {
   fetchIncomingLinks,
   fetchInstance,
   fetchRawInstance,
+  fetchReleaseTree,
 } from "../../services/instances";
 import { UnsavedInstancesProvider } from "../../contexts/UnsavedInstancesContext";
 
@@ -22,6 +23,9 @@ vi.mock("../../services/instances", () => ({
   fetchInstance: vi.fn(),
   fetchIncomingLinks: vi.fn(),
   fetchRawInstance: vi.fn(),
+  fetchReleaseTree: vi.fn(),
+  releaseInstance: vi.fn(),
+  unreleaseInstance: vi.fn(),
   appendIncomingLinks: vi.fn(),
 }));
 
@@ -38,6 +42,15 @@ function renderDetail(search = "") {
   });
   vi.mocked(fetchIncomingLinks).mockResolvedValue([]);
   vi.mocked(fetchRawInstance).mockResolvedValue({});
+  vi.mocked(fetchReleaseTree).mockResolvedValue({
+    instanceId: "inst-1",
+    instanceName: "Headquarters",
+    type: "Building",
+    releaseStatus: "released",
+    canRelease: true,
+    canUnrelease: true,
+    children: [],
+  });
 
   render(
     <MemoryRouter initialEntries={[`/editor/instances/inst-1${search}`]}>
@@ -89,5 +102,27 @@ describe("InstanceDetail", () => {
       "aria-pressed",
       "false",
     );
+  });
+
+  it("opens in release mode when requested", async () => {
+    renderDetail("?release=1");
+
+    expect(
+      await screen.findByRole("button", { name: "Release" }),
+    ).toHaveAttribute("aria-pressed", "true");
+    expect(
+      await screen.findByRole("list", { name: "Release tree" }),
+    ).toBeInTheDocument();
+  });
+
+  it("switches to the release tree", async () => {
+    renderDetail();
+
+    fireEvent.click(await screen.findByRole("button", { name: "Release" }));
+
+    expect(
+      await screen.findByRole("list", { name: "Release tree" }),
+    ).toBeInTheDocument();
+    expect(fetchReleaseTree).toHaveBeenCalledWith("token", "inst-1");
   });
 });

@@ -1,5 +1,6 @@
 package org.marmotgraph.suite.api;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.marmotgraph.sdk.MarmotGraphApiException;
@@ -9,6 +10,7 @@ import org.marmotgraph.sdk.model.LinkingInstance;
 import org.marmotgraph.sdk.model.Property;
 import org.marmotgraph.sdk.model.ReleaseStatus;
 import org.marmotgraph.sdk.model.ReleaseTreeScope;
+import org.marmotgraph.sdk.model.Scope;
 import org.marmotgraph.sdk.model.Stage;
 import org.marmotgraph.sdk.model.TypeInformation;
 import org.marmotgraph.sdk.pagination.Page;
@@ -47,6 +49,7 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -464,6 +467,75 @@ class InstancesTest {
         mockMvc.perform(put("/instances/" + RELEASED_ID + "/raw").header(HttpHeaders.AUTHORIZATION, "Bearer theToken")
                         .contentType(MediaType.APPLICATION_JSON).content("{}"))
                 .andExpect(status().isForbidden());
+    }
+
+    /** The scope as deserialized by the SDK from the response of the core */
+    private static Scope scope(String json) throws Exception {
+        return new ObjectMapper().readValue(json, Scope.class);
+    }
+
+    @Test
+    void scopeProvidesTheReleaseTreeWithStatusAndPermissions() throws Exception {
+        String json = """
+                {"@id": "%s", "@type": "%s", "_space": "myspace", "_label": "Server-Rack-A1",
+                 "_permissions": ["READ", "RELEASE", "UNRELEASE"], "_releaseStatus": "HAS_CHANGED",
+                 "_children": [
+                   {"@id": "%s", "@type": "https://example.org/types/Unknown", "_space": "other",
+                    "_permissions": ["READ"], "_releaseStatus": "RELEASED"},
+                   {"@id": "%s", "@type": "%s", "_space": "myspace", "_label": "Server-Rack-B2",
+                    "_permissions": ["READ", "RELEASE"], "_releaseStatus": "UNRELEASED"}
+                 ]}
+                """.formatted(RELEASED_ID, DEVICE, UNRELEASED_ID, NEVER_RELEASED_ID, DEVICE);
+        when(instancesResource.scope(RELEASED_ID, null, Stage.IN_PROGRESS, true, true)).thenReturn(scope(json));
+        when(typesResource.getByNames(List.of(DEVICE, "https://example.org/types/Unknown"), Stage.IN_PROGRESS, null, false, false))
+                .thenReturn(Map.of(DEVICE, new TypeInformation(DEVICE, "A device in the data center", "Device", "#ff9800", NAME, null, null, List.of(), List.of(), List.of())));
+
+        mockMvc.perform(get("/instances/" + RELEASED_ID + "/scope").header(HttpHeaders.AUTHORIZATION, "Bearer theToken"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.instanceId").value(RELEASED_ID.toString()))
+                .andExpect(jsonPath("$.instanceName").value("Server-Rack-A1"))
+                .andExpect(jsonPath("$.type").value("Device"))
+                .andExpect(jsonPath("$.typeColor").value("#ff9800"))
+                .andExpect(jsonPath("$.space").value("myspace"))
+                .andExpect(jsonPath("$.releaseStatus").value("has changed"))
+                .andExpect(jsonPath("$.canRelease").value(true))
+                .andExpect(jsonPath("$.canUnrelease").value(true))
+                .andExpect(jsonPath("$.children.length()").value(2))
+                .andExpect(jsonPath("$.children[0].instanceId").value(UNRELEASED_ID.toString()))
+                .andExpect(jsonPath("$.children[0].instanceName").value(UNRELEASED_ID.toString()))
+                .andExpect(jsonPath("$.children[0].type").value("Unknown"))
+                .andExpect(jsonPath("$.children[0].typeColor").doesNotExist())
+                .andExpect(jsonPath("$.children[0].releaseStatus").value("released"))
+                .andExpect(jsonPath("$.children[0].canRelease").value(false))
+                .andExpect(jsonPath("$.children[0].canUnrelease").value(false))
+                .andExpect(jsonPath("$.children[0].children.length()").value(0))
+                .andExpect(jsonPath("$.children[1].instanceName").value("Server-Rack-B2"))
+                .andExpect(jsonPath("$.children[1].releaseStatus").value("in progress"))
+                .andExpect(jsonPath("$.children[1].canRelease").value(true))
+                .andExpect(jsonPath("$.children[1].canUnrelease").value(false));
+    }
+
+    @Test
+    void releaseIsForwardedToTheCore() throws Exception {
+        mockMvc.perform(put("/instances/" + RELEASED_ID + "/release").header(HttpHeaders.AUTHORIZATION, "Bearer theToken"))
+                .andExpect(status().isOk());
+        verify(instancesResource).release(RELEASED_ID);
+    }
+
+    @Test
+    void unreleaseIsForwardedToTheCore() throws Exception {
+        mockMvc.perform(delete("/instances/" + RELEASED_ID + "/release").header(HttpHeaders.AUTHORIZATION, "Bearer theToken"))
+                .andExpect(status().isOk());
+        verify(instancesResource).unrelease(RELEASED_ID);
+    }
+
+    @Test
+    void releaseForwardsAForbiddenOfTheCore() throws Exception {
+        Mockito.doThrow(new MarmotGraphApiException(403, "Forbidden", null, null)).when(instancesResource).release(RELEASED_ID);
+
+        mockMvc.perform(put("/instances/" + RELEASED_ID + "/release").header(HttpHeaders.AUTHORIZATION, "Bearer theToken"))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.detail").value("Forbidden"));
     }
 
     @Test

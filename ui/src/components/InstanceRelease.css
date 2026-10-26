@@ -1,0 +1,267 @@
+.instance-release {
+    padding: 4px 0 8px;
+}
+
+/* Release status (same look as the status in the list of instances) */
+.release-status {
+    display: inline-block;
+    font-size: 0.75rem;
+    line-height: 1.2;
+    border-radius: 999px;
+    padding: 2px 8px;
+    white-space: nowrap;
+    background-color: #f1f3f5;
+    color: #495057;
+}
+
+.release-status--released {
+    background-color: #e8f6ee;
+    color: #1e7a42;
+}
+
+.release-status--changed {
+    background-color: #fff4e5;
+    color: #9a5b00;
+}
+
+/* Stats */
+.release-stats {
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    align-items: center;
+    column-gap: 12px;
+    row-gap: 6px;
+    font-size: 0.8rem;
+    color: #495057;
+    margin-bottom: 20px;
+}
+
+.release-stats-row {
+    display: contents;
+}
+
+.release-stats-label {
+    font-weight: 600;
+}
+
+.release-stats-bar {
+    display: flex;
+    height: 10px;
+    border-radius: 999px;
+    overflow: hidden;
+    background-color: #f1f3f5;
+    gap: 2px;
+}
+
+.release-stats-segment {
+    transition: flex-grow 0.25s ease;
+}
+
+.release-stats-segment--released,
+.release-stats-dot--released {
+    background-color: #2f9e5c;
+    color: #2f9e5c;
+}
+
+.release-stats-segment--changed,
+.release-stats-dot--changed {
+    background-color: #f0a33a;
+    color: #f0a33a;
+}
+
+.release-stats-segment--progress,
+.release-stats-dot--progress {
+    background-color: #adb5bd;
+    color: #adb5bd;
+}
+
+.release-stats-dot {
+    background-color: transparent;
+    font-size: 0.55rem;
+    vertical-align: middle;
+    margin-right: 3px;
+}
+
+.release-stats-counts {
+    display: flex;
+    gap: 10px;
+    font-variant-numeric: tabular-nums;
+}
+
+/* Toolbar */
+.instance-release-toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 8px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid #dee2e6;
+    font-size: 0.875rem;
+}
+
+/* Tree */
+.release-tree {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+
+.release-tree-empty {
+    padding: 16px 0;
+    font-size: 0.875rem;
+}
+
+.release-node {
+    --release-indent: 20px;
+    display: grid;
+    grid-template-columns: minmax(0, auto) minmax(0, 1fr) auto;
+    align-items: center;
+    column-gap: 12px;
+    padding: 6px 8px 6px calc(8px + var(--release-level, 0) * var(--release-indent));
+    border-bottom: 1px solid #f1f3f5;
+    border-left: 3px solid transparent;
+    background-image: repeating-linear-gradient(
+        to right,
+        #e9ecef 0 1px,
+        transparent 1px var(--release-indent)
+    );
+    background-size: calc(var(--release-level, 0) * var(--release-indent)) 100%;
+    background-position: 14px 0;
+    background-repeat: no-repeat;
+    transition: background-color 0.2s ease;
+}
+
+.release-node:hover {
+    background-color: #f8f9fa;
+}
+
+.release-node--release {
+    border-left-color: #2f9e5c;
+    background-color: #f3faf6;
+}
+
+.release-node--unrelease {
+    border-left-color: #c0392b;
+    background-color: #fdf3f2;
+}
+
+.release-node-status {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.release-node-arrow {
+    font-size: 0.7rem;
+    color: #6c757d;
+}
+
+.release-node-label {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+    min-width: 0;
+}
+
+.release-node-type {
+    font-size: 0.7rem;
+    color: #6c757d;
+    text-transform: uppercase;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+    white-space: nowrap;
+}
+
+.release-node-type svg {
+    font-size: 0.55rem;
+    vertical-align: middle;
+}
+
+.release-node-name {
+    font-size: 0.9rem;
+    color: #212529;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    min-width: 0;
+}
+
+.release-node-name--link {
+    text-decoration: none;
+    text-align: left;
+    border: 0;
+    vertical-align: baseline;
+}
+
+.release-node-name--link:hover {
+    text-decoration: underline;
+    color: #212529;
+}
+
+.release-node-actions {
+    background-color: #f1f3f5;
+    border-radius: 999px;
+}
+
+.release-node-action {
+    color: #6c757d !important;
+    border-radius: 999px !important;
+    padding: 2px 9px !important;
+    text-decoration: none !important;
+}
+
+.release-node-action:disabled {
+    color: #ced4da !important;
+    opacity: 1;
+}
+
+.release-node-action--active.release-node-action--release {
+    color: #fff !important;
+    background-color: #2f9e5c !important;
+}
+
+.release-node-action--active.release-node-action--none {
+    color: #fff !important;
+    background-color: #868e96 !important;
+}
+
+.release-node-action--active.release-node-action--unrelease {
+    color: #fff !important;
+    background-color: #c0392b !important;
+}
+
+.release-node-forbidden {
+    color: #adb5bd;
+    padding: 0 10px;
+}
+
+/* Progress */
+.release-progress {
+    margin-top: 16px;
+}
+
+.release-errors {
+    padding-left: 18px;
+    font-size: 0.85rem;
+}
+
+@media (max-width: 767.98px) {
+    .release-node {
+        --release-indent: 12px;
+        grid-template-columns: minmax(0, 1fr) auto;
+        row-gap: 4px;
+    }
+
+    .release-node-status {
+        grid-column: 1 / -1;
+    }
+
+    .release-stats {
+        grid-template-columns: auto 1fr;
+    }
+
+    .release-stats-counts {
+        grid-column: 2;
+    }
+}
