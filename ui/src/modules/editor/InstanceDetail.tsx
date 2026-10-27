@@ -10,6 +10,7 @@ import {
   faCopy,
   faEye,
   faPencil,
+  faRocket,
   IconDefinition,
 } from "@fortawesome/free-solid-svg-icons";
 import {
@@ -43,6 +44,7 @@ import IncomingLinksPanel from "../../components/IncomingLinksPanel";
 import InstanceLinkConnectors from "../../components/InstanceLinkConnectors";
 import UnsavedInstancesPanel from "../../components/UnsavedInstancesPanel";
 import RawInstanceEditor from "../../components/RawInstanceEditor";
+import InstanceRelease from "../../components/InstanceRelease";
 import DirLinkIcon from "../../assets/icons/DirLink.svg";
 import RevLinkIcon from "../../assets/icons/RevLink.svg";
 import RevDirLinkIcon from "../../assets/icons/RevDirLink.svg";
@@ -59,12 +61,13 @@ const typeColors: Record<string, string> = {
 };
 
 /** The ways an instance can be shown - switched by the icons in the header */
-type InstanceMode = "read" | "edit" | "raw";
+type InstanceMode = "read" | "edit" | "raw" | "release";
 
 const INSTANCE_MODES: Array<{ mode: InstanceMode; icon: IconDefinition }> = [
   { mode: "read", icon: faEye },
   { mode: "edit", icon: faPencil },
   { mode: "raw", icon: faCode },
+  { mode: "release", icon: faRocket },
 ];
 
 /** Names the change of an instance edited in the raw mode (e.g. in the unsaved instances) */
@@ -140,12 +143,15 @@ function InstanceDetailView({ instanceId }: { instanceId: string }) {
   const newInstanceType = searchParams.get("type") || "";
   const openInEditMode = searchParams.get("edit") === "1";
   const openInRawMode = searchParams.get("raw") === "1" && !isNewInstance;
+  const openInReleaseMode = searchParams.get("release") === "1" && !isNewInstance && !openInRawMode;
 
   const [isEditMode, setIsEditMode] = useState(
-    (isNewInstance || openInEditMode) && !openInRawMode,
+    (isNewInstance || openInEditMode) && !openInRawMode && !openInReleaseMode,
   );
   /** Shows the full JSON of the instance instead of its fields (only available when not editing the fields) */
   const [isRawMode, setIsRawMode] = useState(openInRawMode);
+  /** Shows the release tree of the instance instead of its fields (only available when not editing the fields) */
+  const [isReleaseMode, setIsReleaseMode] = useState(openInReleaseMode);
   const [currentFieldValues, setCurrentFieldValues] =
     useState<InstanceFieldValues>(emptyInstanceFieldValues);
 
@@ -320,6 +326,7 @@ function InstanceDetailView({ instanceId }: { instanceId: string }) {
       setBaseline(savedFieldValues);
       setIsEditMode(false);
       setIsRawMode(true);
+      setIsReleaseMode(false);
       return;
     }
 
@@ -328,17 +335,21 @@ function InstanceDetailView({ instanceId }: { instanceId: string }) {
       setBaseline(savedFieldValues);
       setIsEditMode(true);
       setIsRawMode(false);
+      setIsReleaseMode(false);
       return;
     }
 
     setCurrentFieldValues(savedFieldValues);
     setBaseline(savedFieldValues);
-    setIsEditMode((isNewInstance || openInEditMode) && !openInRawMode);
+    setIsEditMode(
+      (isNewInstance || openInEditMode) && !openInRawMode && !openInReleaseMode,
+    );
     setIsRawMode(openInRawMode);
+    setIsReleaseMode(openInReleaseMode);
     // Only re-initialize when navigating between instances or once the instance is loaded — not when unrelated
     // drafts are added (getDraft identity changes would exit edit mode otherwise).
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [savedFieldValues, instanceId, isNewInstance, openInEditMode, openInRawMode]);
+  }, [savedFieldValues, instanceId, isNewInstance, openInEditMode, openInRawMode, openInReleaseMode]);
 
   const changedFieldKeys = useMemo(() => {
     if (!isEditMode) {
@@ -439,7 +450,7 @@ function InstanceDetailView({ instanceId }: { instanceId: string }) {
     reloadInstance();
   };
 
-  const mode: InstanceMode = isRawMode ? "raw" : isEditMode ? "edit" : "read";
+  const mode: InstanceMode = isReleaseMode ? "release" : isRawMode ? "raw" : isEditMode ? "edit" : "read";
 
   /** Leaves the current mode - unsaved changes (of the fields or the JSON) are discarded after confirmation. */
   const leaveMode = () => {
@@ -454,6 +465,7 @@ function InstanceDetailView({ instanceId }: { instanceId: string }) {
     removeDraft(instanceId);
     resetToSaved();
     setIsRawMode(false);
+    setIsReleaseMode(false);
     return true;
   };
 
@@ -466,6 +478,8 @@ function InstanceDetailView({ instanceId }: { instanceId: string }) {
       setIsEditMode(true);
     } else if (target === "raw") {
       setIsRawMode(true);
+    } else if (target === "release") {
+      setIsReleaseMode(true);
     }
   };
 
@@ -473,6 +487,7 @@ function InstanceDetailView({ instanceId }: { instanceId: string }) {
     read: "Read",
     edit: "Edit",
     raw: canEdit ? "Show and edit the raw JSON" : "Show the raw JSON",
+    release: "Release",
   };
 
   const handleSave = () => {
@@ -652,7 +667,12 @@ function InstanceDetailView({ instanceId }: { instanceId: string }) {
               </div>
             </div>
 
-            {isRawMode ? (
+            {isReleaseMode ? (
+              <InstanceRelease
+                instanceId={instanceId}
+                onInstanceClick={handleLinkClick}
+              />
+            ) : isRawMode ? (
               <RawInstanceEditor
                 instanceId={instanceId}
                 canEdit={canEdit}
