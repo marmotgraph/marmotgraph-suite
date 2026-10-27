@@ -4,6 +4,7 @@ import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.AllArgsConstructor;
 import org.marmotgraph.sdk.MarmotGraphClient;
+import org.marmotgraph.sdk.model.InstanceTimestamps;
 import org.marmotgraph.sdk.model.LinkingInstance;
 import org.marmotgraph.sdk.model.ReleaseStatus;
 import org.marmotgraph.sdk.model.Functionality;
@@ -34,6 +35,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -201,6 +203,21 @@ public class Instances {
     @JsonInclude(JsonInclude.Include.NON_NULL)
     public record ReleaseNode(String instanceId, String instanceName, String type, String typeColor, String space,
                               String releaseStatus, boolean canRelease, boolean canUnrelease, List<ReleaseNode> children) {
+    }
+
+    /**
+     * The administrative information of an instance - when it was created, last modified and (first / last) released
+     * (ISO-8601, null if unknown or never released) and the users who have contributed to it.
+     */
+    @JsonInclude(JsonInclude.Include.NON_NULL)
+    public record InstanceInformation(String createdAt, String lastModified, String firstReleased, String lastReleased,
+                                      List<Contributor> contributors) {
+    }
+
+    /**
+     * A user who has contributed to an instance - the name falls back to the username if it is not known.
+     */
+    public record Contributor(String username, String name) {
     }
 
     /**
@@ -458,6 +475,28 @@ public class Instances {
     @PutMapping("/{id}/release")
     public void release(@AuthenticatedClient MarmotGraphClient client, @PathVariable UUID id) {
         client.instances().release(id);
+    }
+
+    /**
+     * The administrative information of the instance (timestamps and contributors) - as shown in its info view.
+     *
+     * @param id the uuid of the instance as known by the core
+     */
+    @GetMapping("/{id}/info")
+    public InstanceInformation info(@AuthenticatedClient MarmotGraphClient client, @PathVariable UUID id) {
+        org.marmotgraph.sdk.model.Instance instance = client.instances().get(id, Stage.IN_PROGRESS,
+                ResponseOptions.builder().returnTimestamps(true).returnContributors(true).build());
+        InstanceTimestamps timestamps = instance.getTimestamps();
+        List<Contributor> contributors = instance.getContributors().stream()
+                .map(c -> new Contributor(c.username(), c.name() != null && !c.name().isBlank() ? c.name() : c.username()))
+                .toList();
+        return timestamps == null ? new InstanceInformation(null, null, null, null, contributors)
+                : new InstanceInformation(isoString(timestamps.createdAt()), isoString(timestamps.lastUpdateAt()),
+                isoString(timestamps.firstReleaseAt()), isoString(timestamps.lastReleaseAt()), contributors);
+    }
+
+    private static String isoString(Instant instant) {
+        return instant != null ? instant.toString() : null;
     }
 
     /**

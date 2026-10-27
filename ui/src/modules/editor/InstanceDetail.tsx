@@ -6,6 +6,7 @@ import {
   faChevronDown,
   faChevronUp,
   faCircle,
+  faCircleInfo,
   faCode,
   faCopy,
   faEye,
@@ -47,6 +48,7 @@ import InstanceLinkConnectors from "../../components/InstanceLinkConnectors";
 import UnsavedInstancesPanel from "../../components/UnsavedInstancesPanel";
 import RawInstanceEditor from "../../components/RawInstanceEditor";
 import InstanceRelease from "../../components/InstanceRelease";
+import InstanceInfo from "../../components/InstanceInfo";
 import {
   FieldValidationError,
   FieldValidationErrors,
@@ -70,13 +72,14 @@ const typeColors: Record<string, string> = {
 };
 
 /** The ways an instance can be shown - switched by the icons in the header */
-type InstanceMode = "read" | "edit" | "raw" | "release";
+type InstanceMode = "read" | "edit" | "raw" | "release" | "info";
 
 const INSTANCE_MODES: Array<{ mode: InstanceMode; icon: IconDefinition }> = [
   { mode: "read", icon: faEye },
   { mode: "edit", icon: faPencil },
   { mode: "raw", icon: faCode },
   { mode: "release", icon: faRocket },
+  { mode: "info", icon: faCircleInfo },
 ];
 
 /** Names the change of an instance edited in the raw mode (e.g. in the unsaved instances) */
@@ -164,6 +167,8 @@ function InstanceDetailView({ instanceId }: { instanceId: string }) {
   const [isRawMode, setIsRawMode] = useState(openInRawMode);
   /** Shows the release tree of the instance instead of its fields (only available when not editing the fields) */
   const [isReleaseMode, setIsReleaseMode] = useState(openInReleaseMode);
+  /** Shows the administrative information of the instance (timestamps, contributors) instead of its fields */
+  const [isInfoMode, setIsInfoMode] = useState(false);
   const [currentFieldValues, setCurrentFieldValues] =
     useState<InstanceFieldValues>(emptyInstanceFieldValues);
   /** The property of the type of the new instance which names its instances */
@@ -408,6 +413,7 @@ function InstanceDetailView({ instanceId }: { instanceId: string }) {
       setIsEditMode(false);
       setIsRawMode(true);
       setIsReleaseMode(false);
+      setIsInfoMode(false);
       return;
     }
 
@@ -417,6 +423,7 @@ function InstanceDetailView({ instanceId }: { instanceId: string }) {
       setIsEditMode(true);
       setIsRawMode(false);
       setIsReleaseMode(false);
+      setIsInfoMode(false);
       return;
     }
 
@@ -427,6 +434,7 @@ function InstanceDetailView({ instanceId }: { instanceId: string }) {
     );
     setIsRawMode(openInRawMode);
     setIsReleaseMode(openInReleaseMode);
+    setIsInfoMode(false);
     // Only re-initialize when navigating between instances or once the instance is loaded — not when unrelated
     // drafts are added (getDraft identity changes would exit edit mode otherwise).
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -532,7 +540,7 @@ function InstanceDetailView({ instanceId }: { instanceId: string }) {
     reloadInstance();
   };
 
-  const mode: InstanceMode = isReleaseMode ? "release" : isRawMode ? "raw" : isEditMode  ? "edit" : "read";
+  const mode: InstanceMode = isInfoMode ? "info" : isReleaseMode ? "release" : isRawMode ? "raw" : isEditMode  ? "edit" : "read";
 
   /** Leaves the current mode - unsaved changes (of the fields or the JSON) are discarded after confirmation. */
   const leaveMode = () => {
@@ -548,6 +556,7 @@ function InstanceDetailView({ instanceId }: { instanceId: string }) {
     resetToSaved();
     setIsRawMode(false);
     setIsReleaseMode(false);
+    setIsInfoMode(false);
     return true;
   };
 
@@ -562,6 +571,8 @@ function InstanceDetailView({ instanceId }: { instanceId: string }) {
       setIsRawMode(true);
     } else if (target === "release") {
       setIsReleaseMode(true);
+    } else if (target === "info") {
+      setIsInfoMode(true);
     }
   };
 
@@ -570,6 +581,7 @@ function InstanceDetailView({ instanceId }: { instanceId: string }) {
     edit: "Edit",
     raw: canEdit ? "Show and edit the raw JSON" : "Show the raw JSON",
     release: "Release",
+    info: "Information",
   };
 
   const handleSave = () => {
@@ -771,7 +783,9 @@ function InstanceDetailView({ instanceId }: { instanceId: string }) {
               </div>
             </div>
 
-            {isReleaseMode ? (
+            {isInfoMode ? (
+              <InstanceInfo instanceId={instanceId} />
+            ) : isReleaseMode ? (
               <InstanceRelease
                 instanceId={instanceId}
                 onInstanceClick={handleLinkClick}

@@ -329,3 +329,33 @@ export function unreleaseInstance(
     accessToken,
   );
 }
+
+/** A user who has contributed to an instance - the name falls back to the username. */
+export interface Contributor {
+  username: string;
+  name: string;
+}
+
+/**
+ * The administrative information of an instance - the timestamps (ISO-8601) are missing if unknown or if the instance
+ * has never been released.
+ */
+export interface InstanceInformation {
+  createdAt?: string;
+  lastModified?: string;
+  firstReleased?: string;
+  lastReleased?: string;
+  contributors: Contributor[];
+}
+
+/** Fetches the administrative information of an instance (timestamps and contributors). */
+export function fetchInstanceInformation(
+  accessToken: string,
+  instanceId: string,
+): Promise<InstanceInformation> {
+  return getJson(
+    `/api/instances/${encodeURIComponent(instanceId)}/info`,
+    "the information of the instance",
+    accessToken,
+  );
+}

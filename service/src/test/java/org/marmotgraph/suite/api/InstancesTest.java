@@ -659,6 +659,43 @@ class InstancesTest {
         verify(instancesResource, never()).createWithId(any(), any(), any());
     }
 
+    @Test
+    void infoProvidesTheTimestampsAndContributors() throws Exception {
+        when(instancesResource.get(any(UUID.class), any(), any())).thenReturn(instance(RELEASED_ID, DEVICE, Map.of(
+                "_timestamps", Map.of("createdAt", "2026-01-02T10:00:00Z", "firstReleaseAt", "2026-02-03T11:00:00Z",
+                        "lastReleaseAt", "2026-03-04T12:00:00Z", "lastUpdateAt", "2026-04-05T13:30:00Z"),
+                "_contributors", List.of(Map.of("username", "jdoe", "name", "Jane Doe"), Map.of("username", "bot")))));
+
+        mockMvc.perform(get("/instances/" + RELEASED_ID + "/info").header(HttpHeaders.AUTHORIZATION, "Bearer theToken"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.createdAt").value("2026-01-02T10:00:00Z"))
+                .andExpect(jsonPath("$.firstReleased").value("2026-02-03T11:00:00Z"))
+                .andExpect(jsonPath("$.lastReleased").value("2026-03-04T12:00:00Z"))
+                .andExpect(jsonPath("$.lastModified").value("2026-04-05T13:30:00Z"))
+                .andExpect(jsonPath("$.contributors.length()").value(2))
+                .andExpect(jsonPath("$.contributors[0].username").value("jdoe"))
+                .andExpect(jsonPath("$.contributors[0].name").value("Jane Doe"))
+                .andExpect(jsonPath("$.contributors[1].name").value("bot"));
+
+        ArgumentCaptor<ResponseOptions> options = ArgumentCaptor.forClass(ResponseOptions.class);
+        verify(instancesResource).get(Mockito.eq(RELEASED_ID), Mockito.eq(Stage.IN_PROGRESS), options.capture());
+        assertTrue(options.getValue().returnTimestamps());
+        assertTrue(options.getValue().returnContributors());
+    }
+
+    @Test
+    void infoOfANeverReleasedInstanceHasNoReleaseTimestamps() throws Exception {
+        when(instancesResource.get(any(UUID.class), any(), any())).thenReturn(instance(NEVER_RELEASED_ID, DEVICE, Map.of(
+                "_timestamps", Map.of("createdAt", "2026-01-02T10:00:00Z", "lastUpdateAt", "2026-01-02T10:00:00Z"))));
+
+        mockMvc.perform(get("/instances/" + NEVER_RELEASED_ID + "/info").header(HttpHeaders.AUTHORIZATION, "Bearer theToken"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.lastModified").value("2026-01-02T10:00:00Z"))
+                .andExpect(jsonPath("$.firstReleased").doesNotExist())
+                .andExpect(jsonPath("$.lastReleased").doesNotExist())
+                .andExpect(jsonPath("$.contributors.length()").value(0));
+    }
+
     /** The scope as deserialized by the SDK from the response of the core */
     private static Scope scope(String json) throws Exception {
         return new ObjectMapper().readValue(json, Scope.class);
