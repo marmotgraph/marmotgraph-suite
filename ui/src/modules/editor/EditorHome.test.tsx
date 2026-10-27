@@ -28,7 +28,7 @@ const instance: InstanceSummary = {
   permissions: "View, Edit",
   favorite: false,
   contributed: false,
-  lastVisited: "2026-01-01",
+  lastModified: "2026-01-01T10:00:00Z",
   releaseStatus: "released",
   validation: [
     { name: "minimal", valid: true, compliance: 100 },
@@ -85,6 +85,8 @@ function renderHome(
     setFavoritesOnly: vi.fn(),
     contributedOnly: false,
     setContributedOnly: vi.fn(),
+    sort: { by: "LAST_MODIFICATION", direction: "DESC" },
+    setSort: vi.fn(),
     toggleFavorite: vi.fn().mockResolvedValue(undefined),
     addInstance: vi.fn(),
     updateInstance: vi.fn(),
@@ -274,7 +276,7 @@ describe("EditorHome", () => {
       expect(card).toHaveTextContent("default");
       expect(card).toHaveTextContent("View");
       expect(card).toHaveTextContent("Edit");
-      expect(card).toHaveTextContent("2026-01-01");
+      expect(card).toHaveTextContent("Last modified");
       expect(
         screen.queryByRole("complementary", { name: "Preview of Headquarters" }),
       ).not.toBeInTheDocument();
@@ -390,6 +392,41 @@ describe("EditorHome", () => {
 
     expect(setContributedOnly).toHaveBeenCalledWith(true);
     expect(screen.getByText("1 result")).toBeInTheDocument();
+  });
+
+  it("shows the last modification of the instances - most recent first by default", () => {
+    renderHome();
+
+    const header = screen.getByRole("columnheader", { name: /Last modified/ });
+    expect(header).toHaveAttribute("aria-sort", "descending");
+    expect(
+      screen.getByTitle("2026-01-01T10:00:00Z"),
+    ).toHaveAttribute("dateTime", "2026-01-01T10:00:00Z");
+  });
+
+  it("sorts by the backend - ascending, descending, then by its default order", () => {
+    const setSort = vi.fn();
+    renderHome([instance], 1, { sort: null, setSort });
+
+    fireEvent.click(screen.getByRole("columnheader", { name: /Type/ }));
+    expect(setSort).toHaveBeenLastCalledWith({ by: "TYPE", direction: "ASC" });
+
+    fireEvent.click(screen.getByRole("columnheader", { name: /Instance Name/ }));
+    expect(setSort).toHaveBeenLastCalledWith({ by: "NAME", direction: "ASC" });
+  });
+
+  it("toggles the direction and resets the sorting of the current column", () => {
+    const setSort = vi.fn();
+    renderHome([instance], 1, { sort: { by: "NAME", direction: "ASC" }, setSort });
+    fireEvent.click(screen.getByRole("columnheader", { name: /Instance Name/ }));
+    expect(setSort).toHaveBeenLastCalledWith({ by: "NAME", direction: "DESC" });
+  });
+
+  it("resets the sorting after the descending order", () => {
+    const setSort = vi.fn();
+    renderHome([instance], 1, { sort: { by: "NAME", direction: "DESC" }, setSort });
+    fireEvent.click(screen.getByRole("columnheader", { name: /Instance Name/ }));
+    expect(setSort).toHaveBeenLastCalledWith(null);
   });
 
   it("closes the preview", () => {

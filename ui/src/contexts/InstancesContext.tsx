@@ -1,7 +1,7 @@
 import React, { createContext, useCallback, useContext, useEffect, useState, ReactNode } from 'react';
 import { InstanceSummary } from '../modules/editor/editorMockData';
 import { useAuth } from './AuthContext';
-import { fetchInstances, setFavorite } from '../services/instances';
+import { fetchInstances, InstanceSortBy, InstanceSortDirection, setFavorite } from '../services/instances';
 
 interface InstancesContextType {
   /** The instances of the overview - only loaded once requested (see {@link useInstances}) */
@@ -23,6 +23,9 @@ interface InstancesContextType {
   /** Whether the instances are restricted to those the user has contributed to (applied by the backend) */
   contributedOnly: boolean;
   setContributedOnly: (contributedOnly: boolean) => void;
+  /** The sorting of the instances (applied by the backend) - none sorts them by name */
+  sort: InstanceSort | null;
+  setSort: (sort: InstanceSort | null) => void;
   /** Flags the instance as favorite (or removes the flag) - shown right away and reverted if the backend rejects it */
   toggleFavorite: (instanceId: string) => Promise<void>;
   addInstance: (instance: InstanceSummary) => void;
@@ -31,6 +34,11 @@ interface InstancesContextType {
   getInstance: (instanceId: string) => InstanceSummary | undefined;
   /** Requests the instances to be loaded - they are kept (and reloaded when the query changes) from then on */
   requestInstances: () => void;
+}
+
+export interface InstanceSort {
+  by: InstanceSortBy;
+  direction: InstanceSortDirection;
 }
 
 const InstancesContext = createContext<InstancesContextType | undefined>(undefined);
@@ -45,6 +53,7 @@ export function InstancesProvider({ children }: { children: ReactNode }) {
   const [spaceFilter, setSpaceFilter] = useState<string[]>([]);
   const [favoritesOnly, setFavoritesOnly] = useState<boolean>(false);
   const [contributedOnly, setContributedOnly] = useState<boolean>(false);
+  const [sort, setSort] = useState<InstanceSort | null>({ by: 'LAST_MODIFICATION', direction: 'DESC' });
   const [requested, setRequested] = useState<boolean>(false);
   const requestInstances = useCallback(() => setRequested(true), []);
 
@@ -55,7 +64,7 @@ export function InstancesProvider({ children }: { children: ReactNode }) {
     let cancelled = false;
     setLoading(true);
     getAccessToken()
-      .then((token) => fetchInstances(token, { search: searchTerm, types: typeFilter, spaces: spaceFilter, favorites: favoritesOnly, contributed: contributedOnly }))
+      .then((token) => fetchInstances(token, { search: searchTerm, types: typeFilter, spaces: spaceFilter, favorites: favoritesOnly, contributed: contributedOnly, sortBy: sort?.by, sortDirection: sort?.direction }))
       .then((loaded) => {
         if (!cancelled) {
           setInstances(loaded.instances);
@@ -67,7 +76,7 @@ export function InstancesProvider({ children }: { children: ReactNode }) {
     return () => {
       cancelled = true;
     };
-  }, [requested, getAccessToken, searchTerm, typeFilter, spaceFilter, favoritesOnly, contributedOnly]);
+  }, [requested, getAccessToken, searchTerm, typeFilter, spaceFilter, favoritesOnly, contributedOnly, sort]);
 
   const addInstance = (instance: InstanceSummary) => {
     setInstances(prev => [...prev, instance]);
@@ -106,7 +115,7 @@ export function InstancesProvider({ children }: { children: ReactNode }) {
   };
 
   return (
-    <InstancesContext.Provider value={{ instances, total, loading, searchTerm, setSearchTerm, typeFilter, setTypeFilter, spaceFilter, setSpaceFilter, favoritesOnly, setFavoritesOnly, contributedOnly, setContributedOnly, toggleFavorite, addInstance, updateInstance, deleteInstances, getInstance, requestInstances }}>
+    <InstancesContext.Provider value={{ instances, total, loading, searchTerm, setSearchTerm, typeFilter, setTypeFilter, spaceFilter, setSpaceFilter, favoritesOnly, setFavoritesOnly, contributedOnly, setContributedOnly, sort, setSort, toggleFavorite, addInstance, updateInstance, deleteInstances, getInstance, requestInstances }}>
       {children}
     </InstancesContext.Provider>
   );

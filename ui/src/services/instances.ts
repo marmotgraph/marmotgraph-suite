@@ -81,6 +81,10 @@ export interface IncomingLinks {
 /** The number of incoming links loaded at once (per property and type). Same step as the outgoing list. */
 export const INCOMING_LINKS_PAGE_SIZE = 5;
 
+/** The attribute the instances are sorted by by the core - by name if not specified */
+export type InstanceSortBy = "TYPE" | "NAME" | "LAST_MODIFICATION";
+export type InstanceSortDirection = "ASC" | "DESC";
+
 export interface InstanceQuery {
   /** Restricts the instances to those whose label matches the term */
   search?: string;
@@ -92,6 +96,10 @@ export interface InstanceQuery {
   favorites?: boolean;
   /** Restricts the instances to those the user has contributed to */
   contributed?: boolean;
+  /** The attribute the instances are sorted by - by name if not specified */
+  sortBy?: InstanceSortBy;
+  /** The direction of the sorting - ascending if not specified */
+  sortDirection?: InstanceSortDirection;
 }
 
 /** The first page of the instances matching a query - with the total number of matching instances (if known). */
@@ -103,7 +111,7 @@ export interface InstanceList {
 /** Fetches the instances shown in the editor - the restrictions of the query are applied by the backend. */
 export function fetchInstances(
   accessToken: string,
-  { search, types = [], spaces = [], favorites = false, contributed = false }: InstanceQuery = {},
+  { search, types = [], spaces = [], favorites = false, contributed = false, sortBy, sortDirection }: InstanceQuery = {},
 ): Promise<InstanceList> {
   const params = new URLSearchParams();
   if (search?.trim()) {
@@ -116,6 +124,12 @@ export function fetchInstances(
   }
   if (contributed) {
     params.set("contributed", "true");
+  }
+  if (sortBy) {
+    params.set("sortBy", sortBy);
+  }
+  if (sortDirection) {
+    params.set("sortDirection", sortDirection);
   }
   const query = params.toString() ? `?${params}` : "";
   return getJson(`/api/instances${query}`, "the instances", accessToken);

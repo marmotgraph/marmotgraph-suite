@@ -89,7 +89,8 @@ export type InstanceSummary = {
   favorite: boolean;
   /** Whether the user has contributed to the instance */
   contributed: boolean;
-  lastVisited?: string;
+  /** The last update of the instance (ISO timestamp) */
+  lastModified?: string;
   releaseStatus: ReleaseStatus;
   /** The results of the last validation per validation schema of the type */
   validation?: InstanceValidation[];

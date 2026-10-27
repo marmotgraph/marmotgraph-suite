@@ -35,7 +35,13 @@ import { MOBILE_VIEWPORT_QUERY, useMediaQuery } from "../../hooks/useMediaQuery"
 import { useTypes } from "../../hooks/useTypes";
 import { useSpaces } from "../../hooks/useSpaces";
 import { typeLabel } from "../../services/types";
-import { fetchInstance, InstanceDetail, InstanceField } from "../../services/instances";
+import {
+  fetchInstance,
+  InstanceDetail,
+  InstanceField,
+  InstanceSortBy,
+} from "../../services/instances";
+import { Timestamp } from "../../components/Timestamp";
 import { InstanceSummary, ReleaseStatus } from "./editorMockData";
 import { ValidationStatus } from "../../components/InstanceValidation";
 import { EDITOR_BREADCRUMB_TRAIL_KEY } from "./editorConstants";
@@ -51,8 +57,6 @@ type InstanceFilters = {
   releaseStatuses: string[];
 };
 
-type SortField = "type" | "instanceName" | "space" | "lastVisited";
-type SortDirection = "asc" | "desc" | null;
 
 // The number of instances additionally rendered whenever the end of the list is scrolled into view
 const PAGE_SIZE = 50;
@@ -84,13 +88,13 @@ export default function EditorHome() {
     setFavoritesOnly,
     contributedOnly,
     setContributedOnly,
+    sort,
+    setSort,
     toggleFavorite,
     deleteInstances,
   } = useInstances({ load: true });
   const types = useTypes();
   const spaces = useSpaces();
-  const [sortField, setSortField] = useState<SortField | null>("lastVisited");
-  const [sortDirection, setSortDirection] = useState<SortDirection>("desc");
   const [searchQuery, setSearchQuery] = useState<string>(searchTerm);
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [itemsToShow, setItemsToShow] = useState<number>(PAGE_SIZE);
@@ -169,57 +173,16 @@ export default function EditorHome() {
     return Array.from(new Set(spaces.map((space) => space.identifier))).sort();
   }, [spaces]);
 
-  // Filter and sort instances
+  // The search term, type, space, favorites and contribution filters as well as the sorting are applied by the
+  // backend (see InstancesContext) - only the release status is filtered on the client
   const filteredAndSortedInstances = useMemo(() => {
-    let result = [...instances];
-
-    // The search term, type, space, favorites and contribution filters are applied by the backend (see InstancesContext)
-
-    // Apply release status filters
-    if (filters.releaseStatuses.length > 0) {
-      result = result.filter((instance) =>
-        filters.releaseStatuses.includes(instance.releaseStatus),
-      );
+    if (filters.releaseStatuses.length === 0) {
+      return instances;
     }
-
-    // Apply sorting
-    if (sortField && sortDirection) {
-      result.sort((a, b) => {
-        let primaryCompare = 0;
-
-        if (sortField === "lastVisited") {
-          const aValue = a.lastVisited || "";
-          const bValue = b.lastVisited || "";
-
-          if (aValue < bValue)
-            primaryCompare = sortDirection === "asc" ? -1 : 1;
-          else if (aValue > bValue)
-            primaryCompare = sortDirection === "asc" ? 1 : -1;
-        } else {
-          const aValue = a[sortField].toLowerCase();
-          const bValue = b[sortField].toLowerCase();
-
-          if (aValue < bValue)
-            primaryCompare = sortDirection === "asc" ? -1 : 1;
-          else if (aValue > bValue)
-            primaryCompare = sortDirection === "asc" ? 1 : -1;
-        }
-
-        // If primary sort values are equal, sort alphabetically by instance name
-        if (primaryCompare === 0) {
-          const aName = a.instanceName.toLowerCase();
-          const bName = b.instanceName.toLowerCase();
-          if (aName < bName) return -1;
-          if (aName > bName) return 1;
-          return 0;
-        }
-
-        return primaryCompare;
-      });
-    }
-
-    return result;
-  }, [instances, filters, sortField, sortDirection]);
+    return instances.filter((instance) =>
+      filters.releaseStatuses.includes(instance.releaseStatus),
+    );
+  }, [instances, filters]);
 
   // The total is reported by the service (the instances are paginated) - it doesn't reflect the filters applied on the
   // client, so only the loaded matches can be counted while any of them is active
@@ -263,18 +226,14 @@ export default function EditorHome() {
     });
   };
 
-  const handleSort = (field: SortField) => {
-    if (sortField === field) {
-      // Cycle through: asc -> desc -> null
-      if (sortDirection === "asc") {
-        setSortDirection("desc");
-      } else if (sortDirection === "desc") {
-        setSortDirection(null);
-        setSortField(null);
-      }
+  const handleSort = (field: InstanceSortBy) => {
+    // Cycle through: asc -> desc -> none (the default order of the backend: by name)
+    if (sort?.by !== field) {
+      setSort({ by: field, direction: "ASC" });
+    } else if (sort.direction === "ASC") {
+      setSort({ by: field, direction: "DESC" });
     } else {
-      setSortField(field);
-      setSortDirection("asc");
+      setSort(null);
     }
   };
 
@@ -328,17 +287,23 @@ export default function EditorHome() {
     setShowDeleteModal(false);
   };
 
-  const getSortIcon = (field: SortField) => {
-    if (sortField !== field) {
+  const getSortIcon = (field: InstanceSortBy) => {
+    if (sort?.by !== field) {
       return <FontAwesomeIcon icon={faSort} className="ms-1 text-muted" />;
     }
-    if (sortDirection === "asc") {
-      return <FontAwesomeIcon icon={faSortUp} className="ms-1" />;
+    return (
+      <FontAwesomeIcon
+        icon={sort.direction === "ASC" ? faSortUp : faSortDown}
+        className="ms-1"
+      />
+    );
+  };
+
+  const getAriaSort = (field: InstanceSortBy) => {
+    if (sort?.by !== field) {
+      return undefined;
     }
-    if (sortDirection === "desc") {
-      return <FontAwesomeIcon icon={faSortDown} className="ms-1" />;
-    }
-    return <FontAwesomeIcon icon={faSort} className="ms-1 text-muted" />;
+    return sort.direction === "ASC" ? "ascending" : "descending";
   };
 
   const handleToggleFavorite = (instanceId: string) => {
@@ -569,16 +534,16 @@ export default function EditorHome() {
           >
             {(
               [
-                ["type", "Type"],
-                ["instanceName", "Name"],
-                ["lastVisited", "Last visited"],
+                ["TYPE", "Type"],
+                ["NAME", "Name"],
+                ["LAST_MODIFICATION", "Last modified"],
               ] as const
             ).map(([field, label]) => (
               <Button
                 key={field}
                 type="button"
                 size="sm"
-                variant={sortField === field ? "dark" : "outline-secondary"}
+                variant={sort?.by === field ? "dark" : "outline-secondary"}
                 onClick={() => handleSort(field)}
               >
                 {label}
@@ -643,23 +608,26 @@ export default function EditorHome() {
                   </th>
                   <th>Fav</th>
                   <th
-                    onClick={() => handleSort("type")}
+                    onClick={() => handleSort("TYPE")}
+                    aria-sort={getAriaSort("TYPE")}
                     style={{ cursor: "pointer", userSelect: "none" }}
                   >
-                    Type {getSortIcon("type")}
+                    Type {getSortIcon("TYPE")}
                   </th>
                   <th
-                    onClick={() => handleSort("instanceName")}
+                    onClick={() => handleSort("NAME")}
+                    aria-sort={getAriaSort("NAME")}
                     style={{ cursor: "pointer", userSelect: "none" }}
                   >
-                    Instance Name {getSortIcon("instanceName")}
+                    Instance Name {getSortIcon("NAME")}
                   </th>
                   <th>Permissions</th>
                   <th
-                    onClick={() => handleSort("lastVisited")}
+                    onClick={() => handleSort("LAST_MODIFICATION")}
+                    aria-sort={getAriaSort("LAST_MODIFICATION")}
                     style={{ cursor: "pointer", userSelect: "none" }}
                   >
-                    Last visited {getSortIcon("lastVisited")}
+                    Last modified {getSortIcon("LAST_MODIFICATION")}
                   </th>
                   <th>Status</th>
                 </tr>
@@ -794,7 +762,9 @@ export default function EditorHome() {
                             />
                           )}
                         </td>
-                        <td>{instance.lastVisited || ""}</td>
+                        <td>
+                          <Timestamp value={instance.lastModified} fallback="" />
+                        </td>
                         <td>
                           <InstanceStatusTags instance={instance} />
                         </td>
@@ -1135,9 +1105,9 @@ function InstanceCardList({
                 )}
                 <div>
                   <span className="instance-preview-meta-label">
-                    Last visited
+                    Last modified
                   </span>
-                  {instance.lastVisited || "Never"}
+                  <Timestamp value={instance.lastModified} fallback="Unknown" />
                 </div>
               </div>
             )}

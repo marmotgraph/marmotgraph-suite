@@ -5,25 +5,8 @@ import {
   fetchInstanceInformation,
   InstanceInformation,
 } from "../services/instances";
+import { Timestamp } from "./Timestamp";
 import "./InstanceInfo.css";
-
-const DATE_FORMAT = new Intl.DateTimeFormat(undefined, {
-  dateStyle: "medium",
-  timeStyle: "short",
-});
-
-/** A timestamp in the locale of the user - the exact (ISO) value is shown as tooltip. */
-function Timestamp({ value, fallback }: { value?: string; fallback: string }) {
-  const date = value ? new Date(value) : undefined;
-  if (!date || Number.isNaN(date.getTime())) {
-    return <span className="instance-info-empty">{fallback}</span>;
-  }
-  return (
-    <time dateTime={value} title={value}>
-      {DATE_FORMAT.format(date)}
-    </time>
-  );
-}
 
 /**
  * Shows the administrative information of an instance: when it was created, last modified and (first / last)
@@ -95,7 +78,10 @@ export default function InstanceInfo({ instanceId }: { instanceId: string }) {
           <div key={label} className="instance-info-item">
             <dt className="view-label">{label}</dt>
             <dd className="view-value">
-              <Timestamp value={value} fallback={fallback} />
+              <Timestamp
+                value={value}
+                fallback={<span className="instance-info-empty">{fallback}</span>}
+              />
             </dd>
           </div>
         ))}

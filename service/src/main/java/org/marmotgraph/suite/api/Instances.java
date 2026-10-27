@@ -4,6 +4,7 @@ import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.AllArgsConstructor;
 import org.marmotgraph.sdk.MarmotGraphClient;
+import org.marmotgraph.sdk.model.InstanceSortBy;
 import org.marmotgraph.sdk.model.InstanceTimestamps;
 import org.marmotgraph.sdk.model.LinkingInstance;
 import org.marmotgraph.sdk.model.ReleaseStatus;
@@ -12,6 +13,7 @@ import org.marmotgraph.sdk.model.ReleaseTreeScope;
 import org.marmotgraph.sdk.model.SchemaValidationResult;
 import org.marmotgraph.sdk.model.ValidationError;
 import org.marmotgraph.sdk.model.Scope;
+import org.marmotgraph.sdk.model.SortDirection;
 import org.marmotgraph.sdk.model.Stage;
 import org.marmotgraph.sdk.pagination.Page;
 import org.marmotgraph.sdk.resources.InstanceListOptions;
@@ -134,7 +136,7 @@ public class Instances {
      */
     @JsonInclude(JsonInclude.Include.NON_NULL)
     public record InstanceSummary(int id, String instanceId, String type, String typeDescription, String typeColor, String instanceName, String space,
-                           String permissions, boolean favorite, boolean contributed, String lastVisited, String releaseStatus, List<Validation> validation) {
+                           String permissions, boolean favorite, boolean contributed, String lastModified, String releaseStatus, List<Validation> validation) {
     }
 
     /**
@@ -256,13 +258,17 @@ public class Instances {
      * @param spaceFilter optional spaces the instances are restricted to - instances in any of them are returned
      * @param favorites   whether the instances are restricted to the favorites of the user
      * @param contributed whether the instances are restricted to those the user has contributed to
+     * @param sortBy        the attribute the instances are sorted by (by name if not specified)
+     * @param sortDirection the direction of the sorting (ascending if not specified)
      */
     @GetMapping
     public InstanceList list(@AuthenticatedClient MarmotGraphClient client, @RequestParam(required = false) String search,
                                @RequestParam(name = "type", required = false) List<String> typeFilter,
                                @RequestParam(name = "space", required = false) List<String> spaceFilter,
                                @RequestParam(defaultValue = "false") boolean favorites,
-                               @RequestParam(defaultValue = "false") boolean contributed) {
+                               @RequestParam(defaultValue = "false") boolean contributed,
+                               @RequestParam(required = false) InstanceSortBy sortBy,
+                               @RequestParam(required = false) SortDirection sortDirection) {
         Page<org.marmotgraph.sdk.model.Instance> page = client.instances().list(InstanceListOptions.builder()
                 .stage(Stage.IN_PROGRESS)
                 .types(nonBlank(typeFilter))
@@ -270,8 +276,10 @@ public class Instances {
                 .searchByLabel(search != null && !search.isBlank() ? search.trim() : null)
                 .favoritesOnly(favorites)
                 .withContribution(contributed)
+                .sortBy(sortBy)
+                .sortDirection(sortDirection)
                 .responseOptions(ResponseOptions.builder().returnPermissions(true).returnValidationResults(true).returnReleaseStatus(true)
-                        .returnFavorite(true).returnHasContributed(true).build())
+                        .returnFavorite(true).returnHasContributed(true).returnTimestamps(true).build())
                 .build());
         List<org.marmotgraph.sdk.model.Instance> instances = page.items();
         if (instances.isEmpty()) {
@@ -288,7 +296,7 @@ public class Instances {
             result.add(new InstanceSummary(result.size() + 1, instanceId, typeLabel(typeName, type), type != null ? type.description() : null, type != null ? type.color() : null,
                     instanceName(instance, type, instanceId), instance.getSpace(),
                     permissions(instance.getPermissions()), Boolean.TRUE.equals(instance.isFavorite()),
-                    Boolean.TRUE.equals(instance.hasContributed()), null,
+                    Boolean.TRUE.equals(instance.hasContributed()), lastModified(instance.getTimestamps()),
                     releaseStatus(instance.getReleaseStatus()),
                     instance.getValidation().stream().map(Validation::of).toList()));
         }
@@ -493,6 +501,11 @@ public class Instances {
         return timestamps == null ? new InstanceInformation(null, null, null, null, contributors)
                 : new InstanceInformation(isoString(timestamps.createdAt()), isoString(timestamps.lastUpdateAt()),
                 isoString(timestamps.firstReleaseAt()), isoString(timestamps.lastReleaseAt()), contributors);
+    }
+
+    /** The last update of the instance (in progress) - null if it isn't known */
+    private static String lastModified(InstanceTimestamps timestamps) {
+        return timestamps != null ? isoString(timestamps.lastUpdateAt()) : null;
     }
 
     private static String isoString(Instant instant) {

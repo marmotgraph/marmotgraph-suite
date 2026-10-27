@@ -6,11 +6,13 @@ import org.junit.jupiter.api.Test;
 import org.marmotgraph.sdk.MarmotGraphApiException;
 import org.marmotgraph.sdk.MarmotGraphClient;
 import org.marmotgraph.sdk.model.Instance;
+import org.marmotgraph.sdk.model.InstanceSortBy;
 import org.marmotgraph.sdk.model.LinkingInstance;
 import org.marmotgraph.sdk.model.Property;
 import org.marmotgraph.sdk.model.ReleaseStatus;
 import org.marmotgraph.sdk.model.ReleaseTreeScope;
 import org.marmotgraph.sdk.model.Scope;
+import org.marmotgraph.sdk.model.SortDirection;
 import org.marmotgraph.sdk.model.Stage;
 import org.marmotgraph.sdk.model.TypeInformation;
 import org.marmotgraph.sdk.pagination.Page;
@@ -124,7 +126,7 @@ class InstancesTest {
     void listMapsTheInstancesOfTheCore() throws Exception {
         when(instancesResource.list(any(InstanceListOptions.class))).thenReturn(page(List.of(
                 instance(RELEASED_ID, DEVICE, Map.of(NAME, "Server-Rack-A1", "_isFavorite", true, "_hasContributed", true, "_permissions", List.of("RELEASE", "READ", "WRITE", "DELETE"),
-                        "_releaseStatus", "RELEASED", "_validation", List.of(Map.of("name", "minimal", "valid", true, "compliance", 100.0, "errors", List.of()),
+                        "_releaseStatus", "RELEASED", "_timestamps", Map.of("createdAt", "2026-01-01T10:00:00Z", "lastUpdateAt", "2026-03-04T12:30:00Z"), "_validation", List.of(Map.of("name", "minimal", "valid", true, "compliance", 100.0, "errors", List.of()),
                                 Map.of("name", "complete", "valid", false, "compliance", 62.5, "errors", List.of())))),
                 instance(UNRELEASED_ID, "https://example.org/types/Unknown", Map.of("_permissions", List.of("READ"), "_releaseStatus", "HAS_CHANGED")),
                 instance(NEVER_RELEASED_ID, DEVICE, Map.of(NAME, "Server-Rack-B2", "_releaseStatus", "UNRELEASED"))
@@ -146,7 +148,7 @@ class InstancesTest {
                 .andExpect(jsonPath("$.instances[0].permissions").value("View, Edit, Release"))
                 .andExpect(jsonPath("$.instances[0].favorite").value(true))
                 .andExpect(jsonPath("$.instances[0].contributed").value(true))
-                .andExpect(jsonPath("$.instances[0].lastVisited").doesNotExist())
+                .andExpect(jsonPath("$.instances[0].lastModified").value("2026-03-04T12:30:00Z"))
                 .andExpect(jsonPath("$.instances[0].releaseStatus").value("released"))
                 .andExpect(jsonPath("$.instances[0].validation.length()").value(2))
                 .andExpect(jsonPath("$.instances[0].validation[0].name").value("minimal"))
@@ -162,6 +164,7 @@ class InstancesTest {
                 .andExpect(jsonPath("$.instances[1].permissions").value("View"))
                 .andExpect(jsonPath("$.instances[1].favorite").value(false))
                 .andExpect(jsonPath("$.instances[1].contributed").value(false))
+                .andExpect(jsonPath("$.instances[1].lastModified").doesNotExist())
                 .andExpect(jsonPath("$.instances[1].releaseStatus").value("has changed"))
                 .andExpect(jsonPath("$.instances[1].validation.length()").value(0))
                 .andExpect(jsonPath("$.instances[2].releaseStatus").value("in progress"));
@@ -174,7 +177,10 @@ class InstancesTest {
         assertTrue(options.getValue().responseOptions().returnReleaseStatus());
         assertTrue(options.getValue().responseOptions().returnFavorite());
         assertTrue(options.getValue().responseOptions().returnHasContributed());
+        assertTrue(options.getValue().responseOptions().returnTimestamps());
         assertFalse(options.getValue().favoritesOnly());
+        assertNull(options.getValue().sortBy());
+        assertNull(options.getValue().sortDirection());
         assertFalse(options.getValue().withContribution());
         assertNull(options.getValue().searchByLabel());
         assertEquals(List.of(), options.getValue().types());
@@ -229,6 +235,28 @@ class InstancesTest {
         ArgumentCaptor<InstanceListOptions> options = ArgumentCaptor.forClass(InstanceListOptions.class);
         verify(instancesResource).list(options.capture());
         assertTrue(options.getValue().withContribution());
+    }
+
+    @Test
+    void listForwardsTheSortingToTheCore() throws Exception {
+        when(instancesResource.list(any(InstanceListOptions.class))).thenReturn(page(List.of()));
+
+        mockMvc.perform(get("/instances").param("sortBy", "LAST_MODIFICATION").param("sortDirection", "DESC")
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer theToken"))
+                .andExpect(status().isOk());
+
+        ArgumentCaptor<InstanceListOptions> options = ArgumentCaptor.forClass(InstanceListOptions.class);
+        verify(instancesResource).list(options.capture());
+        assertEquals(InstanceSortBy.LAST_MODIFICATION, options.getValue().sortBy());
+        assertEquals(SortDirection.DESC, options.getValue().sortDirection());
+    }
+
+    @Test
+    void listRejectsAnUnknownSorting() throws Exception {
+        mockMvc.perform(get("/instances").param("sortBy", "space").header(HttpHeaders.AUTHORIZATION, "Bearer theToken"))
+                .andExpect(status().isBadRequest());
+
+        verify(instancesResource, never()).list(any(InstanceListOptions.class));
     }
 
     @Test
