@@ -50,8 +50,7 @@ import java.util.stream.Collectors;
  * Provides the instances shown in the editor by listing / fetching them from the MarmotGraph core - on behalf of the user who
  * issued the request. The type information (name, description, color, label property) is taken from the {@link TypeCache}.
  * <p>
- * TODO bookmarks and the last visit are not (yet) provided by the core - they are always reported as not bookmarked /
- * never visited. Only the first page of instances is returned (together with the total number of instances).
+ * TODO the last visit is not (yet) provided by the core - it is always reported as never visited. Only the first page of instances is returned (together with the total number of instances).
  */
 @AllArgsConstructor
 @RestController
@@ -133,7 +132,7 @@ public class Instances {
      */
     @JsonInclude(JsonInclude.Include.NON_NULL)
     public record InstanceSummary(int id, String instanceId, String type, String typeDescription, String typeColor, String instanceName, String space,
-                           String permissions, boolean bookmarked, String lastVisited, String releaseStatus, List<Validation> validation) {
+                           String permissions, boolean favorite, String lastVisited, String releaseStatus, List<Validation> validation) {
     }
 
     /**
@@ -238,17 +237,21 @@ public class Instances {
      * @param search      an optional term the instances are filtered by (matched against their labels by the core)
      * @param typeFilter  optional types (IRIs) the instances are restricted to - instances of any of them are returned
      * @param spaceFilter optional spaces the instances are restricted to - instances in any of them are returned
+     * @param favorites   whether the instances are restricted to the favorites of the user
      */
     @GetMapping
     public InstanceList list(@AuthenticatedClient MarmotGraphClient client, @RequestParam(required = false) String search,
                                @RequestParam(name = "type", required = false) List<String> typeFilter,
-                               @RequestParam(name = "space", required = false) List<String> spaceFilter) {
+                               @RequestParam(name = "space", required = false) List<String> spaceFilter,
+                               @RequestParam(defaultValue = "false") boolean favorites) {
         Page<org.marmotgraph.sdk.model.Instance> page = client.instances().list(InstanceListOptions.builder()
                 .stage(Stage.IN_PROGRESS)
                 .types(nonBlank(typeFilter))
                 .spaces(nonBlank(spaceFilter))
                 .searchByLabel(search != null && !search.isBlank() ? search.trim() : null)
-                .responseOptions(ResponseOptions.builder().returnPermissions(true).returnValidationResults(true).returnReleaseStatus(true).build())
+                .favoritesOnly(favorites)
+                .responseOptions(ResponseOptions.builder().returnPermissions(true).returnValidationResults(true).returnReleaseStatus(true)
+                        .returnFavorite(true).build())
                 .build());
         List<org.marmotgraph.sdk.model.Instance> instances = page.items();
         if (instances.isEmpty()) {
@@ -264,7 +267,7 @@ public class Instances {
             TypeDefinition type = typeName != null ? types.get(typeName) : null;
             result.add(new InstanceSummary(result.size() + 1, instanceId, typeLabel(typeName, type), type != null ? type.description() : null, type != null ? type.color() : null,
                     instanceName(instance, type, instanceId), instance.getSpace(),
-                    permissions(instance.getPermissions()), false, null,
+                    permissions(instance.getPermissions()), Boolean.TRUE.equals(instance.isFavorite()), null,
                     releaseStatus(instance.getReleaseStatus()),
                     instance.getValidation().stream().map(Validation::of).toList()));
         }
@@ -451,6 +454,26 @@ public class Instances {
     @PutMapping("/{id}/release")
     public void release(@AuthenticatedClient MarmotGraphClient client, @PathVariable UUID id) {
         client.instances().release(id);
+    }
+
+    /**
+     * Flags the instance as favorite of the user - a no-op if it already is one.
+     *
+     * @param id the uuid of the instance as known by the core
+     */
+    @PutMapping("/{id}/favorite")
+    public void addFavorite(@AuthenticatedClient MarmotGraphClient client, @PathVariable UUID id) {
+        client.instances().addFavorite(id);
+    }
+
+    /**
+     * Removes the favorite flag of the user from the instance - a no-op if it isn't one.
+     *
+     * @param id the uuid of the instance as known by the core
+     */
+    @DeleteMapping("/{id}/favorite")
+    public void removeFavorite(@AuthenticatedClient MarmotGraphClient client, @PathVariable UUID id) {
+        client.instances().removeFavorite(id);
     }
 
     /**

@@ -1,7 +1,7 @@
 import React, { createContext, useCallback, useContext, useEffect, useState, ReactNode } from 'react';
 import { InstanceSummary } from '../modules/editor/editorMockData';
 import { useAuth } from './AuthContext';
-import { fetchInstances } from '../services/instances';
+import { fetchInstances, setFavorite } from '../services/instances';
 
 interface InstancesContextType {
   /** The instances of the overview - only loaded once requested (see {@link useInstances}) */
@@ -17,6 +17,11 @@ interface InstancesContextType {
   /** The spaces the instances are restricted to (applied by the backend) */
   spaceFilter: string[];
   setSpaceFilter: (spaces: string[]) => void;
+  /** Whether the instances are restricted to the favorites of the user (applied by the backend) */
+  favoritesOnly: boolean;
+  setFavoritesOnly: (favoritesOnly: boolean) => void;
+  /** Flags the instance as favorite (or removes the flag) - shown right away and reverted if the backend rejects it */
+  toggleFavorite: (instanceId: string) => Promise<void>;
   addInstance: (instance: InstanceSummary) => void;
   updateInstance: (instanceId: string, updates: Partial<InstanceSummary>) => void;
   deleteInstances: (instanceIds: string[]) => void;
@@ -35,6 +40,7 @@ export function InstancesProvider({ children }: { children: ReactNode }) {
   const [searchTerm, setSearchTerm] = useState<string>('');
   const [typeFilter, setTypeFilter] = useState<string[]>([]);
   const [spaceFilter, setSpaceFilter] = useState<string[]>([]);
+  const [favoritesOnly, setFavoritesOnly] = useState<boolean>(false);
   const [requested, setRequested] = useState<boolean>(false);
   const requestInstances = useCallback(() => setRequested(true), []);
 
@@ -45,7 +51,7 @@ export function InstancesProvider({ children }: { children: ReactNode }) {
     let cancelled = false;
     setLoading(true);
     getAccessToken()
-      .then((token) => fetchInstances(token, { search: searchTerm, types: typeFilter, spaces: spaceFilter }))
+      .then((token) => fetchInstances(token, { search: searchTerm, types: typeFilter, spaces: spaceFilter, favorites: favoritesOnly }))
       .then((loaded) => {
         if (!cancelled) {
           setInstances(loaded.instances);
@@ -57,7 +63,7 @@ export function InstancesProvider({ children }: { children: ReactNode }) {
     return () => {
       cancelled = true;
     };
-  }, [requested, getAccessToken, searchTerm, typeFilter, spaceFilter]);
+  }, [requested, getAccessToken, searchTerm, typeFilter, spaceFilter, favoritesOnly]);
 
   const addInstance = (instance: InstanceSummary) => {
     setInstances(prev => [...prev, instance]);
@@ -74,6 +80,17 @@ export function InstancesProvider({ children }: { children: ReactNode }) {
     );
   };
 
+  const toggleFavorite = async (instanceId: string) => {
+    const favorite = !instances.find(inst => inst.instanceId === instanceId)?.favorite;
+    updateInstance(instanceId, { favorite });
+    try {
+      await setFavorite(await getAccessToken(), instanceId, favorite);
+    } catch (e) {
+      updateInstance(instanceId, { favorite: !favorite });
+      throw e;
+    }
+  };
+
   const deleteInstances = (instanceIds: string[]) => {
     const removed = instances.filter(inst => instanceIds.includes(inst.instanceId)).length;
     setInstances(prev => prev.filter(inst => !instanceIds.includes(inst.instanceId)));
@@ -85,7 +102,7 @@ export function InstancesProvider({ children }: { children: ReactNode }) {
   };
 
   return (
-    <InstancesContext.Provider value={{ instances, total, loading, searchTerm, setSearchTerm, typeFilter, setTypeFilter, spaceFilter, setSpaceFilter, addInstance, updateInstance, deleteInstances, getInstance, requestInstances }}>
+    <InstancesContext.Provider value={{ instances, total, loading, searchTerm, setSearchTerm, typeFilter, setTypeFilter, spaceFilter, setSpaceFilter, favoritesOnly, setFavoritesOnly, toggleFavorite, addInstance, updateInstance, deleteInstances, getInstance, requestInstances }}>
       {children}
     </InstancesContext.Provider>
   );

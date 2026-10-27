@@ -26,7 +26,7 @@ const instance: InstanceSummary = {
   instanceName: "Headquarters",
   space: "default",
   permissions: "View, Edit",
-  bookmarked: false,
+  favorite: false,
   lastVisited: "2026-01-01",
   releaseStatus: "released",
   validation: [
@@ -45,7 +45,11 @@ function Location() {
   );
 }
 
-function renderHome(instances: InstanceSummary[] = [instance], total = instances.length) {
+function renderHome(
+  instances: InstanceSummary[] = [instance],
+  total = instances.length,
+  overrides: Partial<ReturnType<typeof useInstances>> = {},
+) {
   vi.mocked(useTypes).mockReturnValue([]);
   vi.mocked(useSpaces).mockReturnValue([]);
   vi.mocked(fetchInstance).mockResolvedValue({
@@ -76,11 +80,15 @@ function renderHome(instances: InstanceSummary[] = [instance], total = instances
     setTypeFilter: vi.fn(),
     spaceFilter: [],
     setSpaceFilter: vi.fn(),
+    favoritesOnly: false,
+    setFavoritesOnly: vi.fn(),
+    toggleFavorite: vi.fn().mockResolvedValue(undefined),
     addInstance: vi.fn(),
     updateInstance: vi.fn(),
     deleteInstances: vi.fn(),
     getInstance: vi.fn(),
     requestInstances: vi.fn(),
+    ...overrides,
   });
 
   render(
@@ -282,7 +290,7 @@ describe("EditorHome", () => {
   it("keeps filters inline on a wide screen", () => {
     renderHome();
 
-    expect(screen.getByLabelText("Show bookmarked only")).toBeInTheDocument();
+    expect(screen.getByLabelText("Show favorites only")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Type (0)" })).toBeInTheDocument();
     expect(
       screen.queryByRole("button", { name: "Filters" }),
@@ -302,7 +310,7 @@ describe("EditorHome", () => {
       renderHome();
 
       expect(
-        screen.queryByLabelText("Show bookmarked only"),
+        screen.queryByLabelText("Show favorites only"),
       ).not.toBeInTheDocument();
       expect(
         screen.queryByRole("button", { name: "Type (0)" }),
@@ -310,17 +318,56 @@ describe("EditorHome", () => {
 
       fireEvent.click(screen.getByRole("button", { name: "Filters" }));
 
-      fireEvent.click(screen.getByLabelText("Show bookmarked only"));
       fireEvent.click(screen.getByLabelText("Released"));
 
       expect(
-        screen.getByRole("button", { name: "Filters (2)" }),
+        screen.getByRole("button", { name: "Filters (1)" }),
       ).toBeInTheDocument();
       expect(screen.getByRole("heading", { name: "Type" })).toBeInTheDocument();
       expect(screen.getByRole("heading", { name: "Space" })).toBeInTheDocument();
     } finally {
       window.matchMedia = originalMatchMedia;
     }
+  });
+
+  it("flags an instance as favorite without opening its preview", () => {
+    const toggleFavorite = vi.fn().mockResolvedValue(undefined);
+    renderHome([instance], 1, { toggleFavorite });
+
+    fireEvent.click(
+      screen.getByRole("button", { name: "Add Headquarters to favorites" }),
+    );
+
+    expect(toggleFavorite).toHaveBeenCalledWith("inst-1");
+    expect(
+      screen.queryByRole("complementary", { name: "Preview of Headquarters" }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("shows a favorite as pressed star - in the list and in the preview", () => {
+    const toggleFavorite = vi.fn().mockResolvedValue(undefined);
+    renderHome([{ ...instance, favorite: true }], 1, { toggleFavorite });
+    fireEvent.click(screen.getByText("Headquarters"));
+
+    const stars = screen.getAllByRole("button", {
+      name: "Remove Headquarters from favorites",
+    });
+    expect(stars).toHaveLength(2);
+    stars.forEach((star) => expect(star).toHaveAttribute("aria-pressed", "true"));
+
+    fireEvent.click(stars[1]);
+    expect(toggleFavorite).toHaveBeenCalledWith("inst-1");
+  });
+
+  it("restricts the list to the favorites by the backend", () => {
+    const setFavoritesOnly = vi.fn();
+    renderHome([instance], 1, { setFavoritesOnly });
+
+    fireEvent.click(screen.getByLabelText("Show favorites only"));
+
+    expect(setFavoritesOnly).toHaveBeenCalledWith(true);
+    // the total of the backend is still reported since the filter is not applied on the client
+    expect(screen.getByText("1 result")).toBeInTheDocument();
   });
 
   it("closes the preview", () => {

@@ -313,6 +313,7 @@
 .instance-preview-toolbar {
     display: flex;
     justify-content: flex-end;
+    gap: 4px;
     margin-bottom: 4px;
 }
 
@@ -511,4 +512,38 @@
     border-radius: 6px;
     padding: 12px 16px;
     margin-bottom: 16px;
+}
+
+/* The star flagging an instance as favorite - a quiet icon button which is only dark once flagged */
+.favorite-toggle {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    border: none;
+    border-radius: 6px;
+    background: transparent;
+    color: #adb5bd;
+    line-height: 1;
+    cursor: pointer;
+}
+
+/* keeps the rows as low as with the former (static) icon */
+.instances-table .favorite-toggle {
+    margin: -6px 0;
+}
+
+.favorite-toggle:hover {
+    background-color: #e9ecef;
+    color: #212529;
+}
+
+.favorite-toggle--active {
+    color: #212529;
+}
+
+.favorite-toggle:focus-visible {
+    outline: 2px solid #5b5fc7;
+    outline-offset: 2px;
 }

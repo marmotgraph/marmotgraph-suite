@@ -3,7 +3,6 @@ import { Button, Col, Collapse, Form, Modal, Row, Spinner, Table } from "react-b
 import { useNavigate } from "react-router-dom";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
-  faBookmark as faBookmarkSolid,
   faChevronDown,
   faChevronUp,
   faCircle,
@@ -20,10 +19,11 @@ import {
   faSort,
   faSortDown,
   faSortUp,
+  faStar as faStarSolid,
   faXmark,
   IconDefinition
 } from "@fortawesome/free-solid-svg-icons";
-import { faBookmark as faBookmarkRegular } from "@fortawesome/free-regular-svg-icons";
+import { faStar as faStarRegular } from "@fortawesome/free-regular-svg-icons";
 import { useAuth } from "../../contexts/AuthContext";
 import { useInstances } from "../../contexts/InstancesContext";
 import { SearchBar } from "../../components/SearchBar";
@@ -79,11 +79,13 @@ export default function EditorHome() {
     setTypeFilter,
     spaceFilter,
     setSpaceFilter,
+    favoritesOnly,
+    setFavoritesOnly,
+    toggleFavorite,
     deleteInstances,
   } = useInstances({ load: true });
   const types = useTypes();
   const spaces = useSpaces();
-  const [showBookmarkedOnly, setShowBookmarkedOnly] = useState(false);
   const [sortField, setSortField] = useState<SortField | null>("lastVisited");
   const [sortDirection, setSortDirection] = useState<SortDirection>("desc");
   const [searchQuery, setSearchQuery] = useState<string>(searchTerm);
@@ -107,7 +109,7 @@ export default function EditorHome() {
     permissions: [],
     releaseStatuses: [],
   });
-  // The type and space filters are applied by the backend (see InstancesContext) - the others on the client
+  // The type, space and favorites filters are applied by the backend (see InstancesContext) - the others on the client
   const filters: InstanceFilters = useMemo(
     () => ({ ...localFilters, types: typeFilter, spaces: spaceFilter }),
     [localFilters, typeFilter, spaceFilter],
@@ -118,12 +120,12 @@ export default function EditorHome() {
     setSpaceFilter(spaces);
   };
   const activeFilterCount =
-    (showBookmarkedOnly ? 1 : 0) +
+    (favoritesOnly ? 1 : 0) +
     filters.types.length +
     filters.spaces.length +
     filters.releaseStatuses.length;
   const clearFilters = () => {
-    setShowBookmarkedOnly(false);
+    setFavoritesOnly(false);
     setFilters({
       types: [],
       spaces: [],
@@ -135,7 +137,7 @@ export default function EditorHome() {
   // Reset items to show when filters or search change
   useEffect(() => {
     setItemsToShow(PAGE_SIZE);
-  }, [searchTerm, filters, showBookmarkedOnly]);
+  }, [searchTerm, filters, favoritesOnly]);
 
   // Reset the instance breadcrumb trail when the user returns to the editor home so that each new navigation
   // session starts fresh.
@@ -166,12 +168,7 @@ export default function EditorHome() {
   const filteredAndSortedInstances = useMemo(() => {
     let result = [...instances];
 
-    // The search term, type and space filters are applied by the backend (see InstancesContext)
-
-    // Apply bookmarked filter
-    if (showBookmarkedOnly) {
-      result = result.filter((instance) => instance.bookmarked);
-    }
+    // The search term, type, space and favorites filters are applied by the backend (see InstancesContext)
 
     // Apply release status filters
     if (filters.releaseStatuses.length > 0) {
@@ -217,11 +214,11 @@ export default function EditorHome() {
     }
 
     return result;
-  }, [instances, showBookmarkedOnly, filters, sortField, sortDirection]);
+  }, [instances, filters, sortField, sortDirection]);
 
   // The total is reported by the service (the instances are paginated) - it doesn't reflect the filters applied on the
   // client, so only the loaded matches can be counted while any of them is active
-  const clientFiltered = showBookmarkedOnly || filters.releaseStatuses.length > 0;
+  const clientFiltered = filters.releaseStatuses.length > 0;
   const resultCount = clientFiltered ? filteredAndSortedInstances.length : total;
 
   // Infinite scrolling: render more instances once the sentinel below the table becomes visible. The observer is
@@ -339,6 +336,12 @@ export default function EditorHome() {
     return <FontAwesomeIcon icon={faSort} className="ms-1 text-muted" />;
   };
 
+  const handleToggleFavorite = (instanceId: string) => {
+    toggleFavorite(instanceId).catch((e: unknown) =>
+      console.error("Failed to change the favorite", e),
+    );
+  };
+
   const handleRowClick = (instanceId: string) => {
     setPreviewInstanceId(instanceId);
   };
@@ -406,10 +409,10 @@ export default function EditorHome() {
             <div className="d-flex gap-3 align-items-center flex-wrap">
               <Form.Check
                 type="checkbox"
-                id="bookmarked-filter-editor"
-                label="Show bookmarked only"
-                checked={showBookmarkedOnly}
-                onChange={(e) => setShowBookmarkedOnly(e.target.checked)}
+                id="favorites-filter-editor"
+                label="Show favorites only"
+                checked={favoritesOnly}
+                onChange={(e) => setFavoritesOnly(e.target.checked)}
               />
               <InstanceFilterPanel
                 filters={filters}
@@ -436,10 +439,10 @@ export default function EditorHome() {
           <Modal.Body>
             <Form.Check
               type="checkbox"
-              id="bookmarked-filter-editor"
-              label="Show bookmarked only"
-              checked={showBookmarkedOnly}
-              onChange={(e) => setShowBookmarkedOnly(e.target.checked)}
+              id="favorites-filter-editor"
+              label="Show favorites only"
+              checked={favoritesOnly}
+              onChange={(e) => setFavoritesOnly(e.target.checked)}
               className="mb-3"
             />
             <InstanceFilterPanel
@@ -585,6 +588,7 @@ export default function EditorHome() {
               onOpen={handleRowClick}
               onOpenDetail={handleRowDoubleClick}
               onToggleSelected={handleSelectInstance}
+              onToggleFavorite={handleToggleFavorite}
               onToggleDetails={(instanceId) =>
                 setExpandedCardIds((prev) => {
                   const next = new Set(prev);
@@ -691,12 +695,9 @@ export default function EditorHome() {
                           />
                         </td>
                         <td>
-                          <FontAwesomeIcon
-                            icon={
-                              instance.bookmarked
-                                ? faBookmarkSolid
-                                : faBookmarkRegular
-                            }
+                          <FavoriteToggle
+                            instance={instance}
+                            onToggle={handleToggleFavorite}
                           />
                         </td>
                         <td title={instance.typeDescription}>
@@ -795,6 +796,7 @@ export default function EditorHome() {
         {previewInstance && (
           <InstancePreview
             instance={previewInstance}
+            onToggleFavorite={handleToggleFavorite}
             onClose={() => setPreviewInstanceId(null)}
             onOpen={() =>
               navigate(`/editor/instances/${previewInstance.instanceId}`)
@@ -915,6 +917,39 @@ function InstanceStatusTags({ instance }: { instance: InstanceSummary }) {
   );
 }
 
+/** The star flagging an instance as favorite of the user - toggles the flag without opening the instance. */
+function FavoriteToggle({
+  instance,
+  onToggle,
+}: {
+  instance: InstanceSummary;
+  onToggle: (instanceId: string) => void;
+}) {
+  const label = instance.favorite
+    ? `Remove ${instance.instanceName} from favorites`
+    : `Add ${instance.instanceName} to favorites`;
+  return (
+    <button
+      type="button"
+      className={
+        instance.favorite
+          ? "favorite-toggle favorite-toggle--active"
+          : "favorite-toggle"
+      }
+      aria-pressed={instance.favorite}
+      aria-label={label}
+      title={instance.favorite ? "Remove from favorites" : "Add to favorites"}
+      onClick={(event) => {
+        event.stopPropagation();
+        onToggle(instance.instanceId);
+      }}
+      onDoubleClick={(event) => event.stopPropagation()}
+    >
+      <FontAwesomeIcon icon={instance.favorite ? faStarSolid : faStarRegular} />
+    </button>
+  );
+}
+
 const permissionItems = [
   { key: "View", icon: faGlasses },
   { key: "Edit", icon: faPen },
@@ -932,6 +967,7 @@ function InstanceCardList({
   onOpen,
   onOpenDetail,
   onToggleSelected,
+  onToggleFavorite,
   onToggleDetails,
   onCopyId,
 }: {
@@ -944,6 +980,7 @@ function InstanceCardList({
   onOpen: (instanceId: string) => void;
   onOpenDetail: (event: React.MouseEvent, instanceId: string) => void;
   onToggleSelected: (instanceId: string) => void;
+  onToggleFavorite: (instanceId: string) => void;
   onToggleDetails: (instanceId: string) => void;
   onCopyId: (instanceId: string) => void;
 }) {
@@ -1003,13 +1040,9 @@ function InstanceCardList({
                     />
                     {instance.type}
                   </span>
-                  <FontAwesomeIcon
-                    icon={
-                      instance.bookmarked ? faBookmarkSolid : faBookmarkRegular
-                    }
-                    aria-label={
-                      instance.bookmarked ? "Bookmarked" : "Not bookmarked"
-                    }
+                  <FavoriteToggle
+                    instance={instance}
+                    onToggle={onToggleFavorite}
                   />
                 </div>
                 <h3 className="instance-card-name">{instance.instanceName}</h3>
@@ -1088,12 +1121,14 @@ function InstanceCardList({
 
 function InstancePreview({
   instance,
+  onToggleFavorite,
   onClose,
   onOpen,
   onEdit,
   onRaw,
 }: {
   instance: InstanceSummary;
+  onToggleFavorite: (instanceId: string) => void;
   onClose: () => void;
   onOpen: () => void;
   onEdit: () => void;
@@ -1162,6 +1197,7 @@ function InstancePreview({
     >
       <div className="instance-preview-header">
         <div className="instance-preview-toolbar">
+          <FavoriteToggle instance={instance} onToggle={onToggleFavorite} />
           <button
             type="button"
             className="instance-preview-close"

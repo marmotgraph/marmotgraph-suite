@@ -600,7 +600,7 @@ function InstanceDetailView({ instanceId }: { instanceId: string }) {
             instanceName: stored.instanceName,
             space: stored.space,
             permissions: stored.permissions,
-            bookmarked: false,
+            favorite: false,
             releaseStatus: stored.releaseStatus,
           });
           // The instance is known to the core from now on - it is shown as any other instance

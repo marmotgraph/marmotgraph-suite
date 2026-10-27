@@ -88,6 +88,8 @@ export interface InstanceQuery {
   types?: string[];
   /** Restricts the instances to those in any of the given spaces */
   spaces?: string[];
+  /** Restricts the instances to the favorites of the user */
+  favorites?: boolean;
 }
 
 /** The first page of the instances matching a query - with the total number of matching instances (if known). */
@@ -99,7 +101,7 @@ export interface InstanceList {
 /** Fetches the instances shown in the editor - the restrictions of the query are applied by the backend. */
 export function fetchInstances(
   accessToken: string,
-  { search, types = [], spaces = [] }: InstanceQuery = {},
+  { search, types = [], spaces = [], favorites = false }: InstanceQuery = {},
 ): Promise<InstanceList> {
   const params = new URLSearchParams();
   if (search?.trim()) {
@@ -107,6 +109,9 @@ export function fetchInstances(
   }
   types.forEach((type) => params.append("type", type));
   spaces.forEach((space) => params.append("space", space));
+  if (favorites) {
+    params.set("favorites", "true");
+  }
   const query = params.toString() ? `?${params}` : "";
   return getJson(`/api/instances${query}`, "the instances", accessToken);
 }
@@ -289,6 +294,20 @@ export function releaseInstance(
     "PUT",
     `/api/instances/${encodeURIComponent(instanceId)}/release`,
     "release the instance",
+    accessToken,
+  );
+}
+
+/** Flags an instance as favorite of the user - or removes the flag. */
+export function setFavorite(
+  accessToken: string,
+  instanceId: string,
+  favorite: boolean,
+): Promise<void> {
+  return send(
+    favorite ? "PUT" : "DELETE",
+    `/api/instances/${encodeURIComponent(instanceId)}/favorite`,
+    favorite ? "add the favorite" : "remove the favorite",
     accessToken,
   );
 }
