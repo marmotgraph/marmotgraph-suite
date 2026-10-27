@@ -133,33 +133,34 @@ class InstancesTest {
 
         mockMvc.perform(get("/instances").header(HttpHeaders.AUTHORIZATION, "Bearer theToken"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.length()").value(3))
-                .andExpect(jsonPath("$[0].id").value(1))
-                .andExpect(jsonPath("$[0].instanceId").value(RELEASED_ID.toString()))
-                .andExpect(jsonPath("$[0].type").value("Device"))
-                .andExpect(jsonPath("$[0].typeDescription").value("A device in the data center"))
-                .andExpect(jsonPath("$[0].typeColor").value("#ff9800"))
-                .andExpect(jsonPath("$[0].instanceName").value("Server-Rack-A1"))
-                .andExpect(jsonPath("$[0].space").value("myspace"))
-                .andExpect(jsonPath("$[0].permissions").value("View, Edit, Release"))
-                .andExpect(jsonPath("$[0].bookmarked").value(false))
-                .andExpect(jsonPath("$[0].lastVisited").doesNotExist())
-                .andExpect(jsonPath("$[0].releaseStatus").value("released"))
-                .andExpect(jsonPath("$[0].validation.length()").value(2))
-                .andExpect(jsonPath("$[0].validation[0].name").value("minimal"))
-                .andExpect(jsonPath("$[0].validation[0].valid").value(true))
-                .andExpect(jsonPath("$[0].validation[0].compliance").value(100.0))
-                .andExpect(jsonPath("$[0].validation[1].name").value("complete"))
-                .andExpect(jsonPath("$[0].validation[1].valid").value(false))
-                .andExpect(jsonPath("$[0].validation[1].compliance").value(62.5))
-                .andExpect(jsonPath("$[1].type").value("Unknown"))
-                .andExpect(jsonPath("$[1].typeDescription").doesNotExist())
-                .andExpect(jsonPath("$[1].typeColor").doesNotExist())
-                .andExpect(jsonPath("$[1].instanceName").value(UNRELEASED_ID.toString()))
-                .andExpect(jsonPath("$[1].permissions").value("View"))
-                .andExpect(jsonPath("$[1].releaseStatus").value("has changed"))
-                .andExpect(jsonPath("$[1].validation.length()").value(0))
-                .andExpect(jsonPath("$[2].releaseStatus").value("in progress"));
+                .andExpect(jsonPath("$.instances.length()").value(3))
+                .andExpect(jsonPath("$.total").value(3))
+                .andExpect(jsonPath("$.instances[0].id").value(1))
+                .andExpect(jsonPath("$.instances[0].instanceId").value(RELEASED_ID.toString()))
+                .andExpect(jsonPath("$.instances[0].type").value("Device"))
+                .andExpect(jsonPath("$.instances[0].typeDescription").value("A device in the data center"))
+                .andExpect(jsonPath("$.instances[0].typeColor").value("#ff9800"))
+                .andExpect(jsonPath("$.instances[0].instanceName").value("Server-Rack-A1"))
+                .andExpect(jsonPath("$.instances[0].space").value("myspace"))
+                .andExpect(jsonPath("$.instances[0].permissions").value("View, Edit, Release"))
+                .andExpect(jsonPath("$.instances[0].bookmarked").value(false))
+                .andExpect(jsonPath("$.instances[0].lastVisited").doesNotExist())
+                .andExpect(jsonPath("$.instances[0].releaseStatus").value("released"))
+                .andExpect(jsonPath("$.instances[0].validation.length()").value(2))
+                .andExpect(jsonPath("$.instances[0].validation[0].name").value("minimal"))
+                .andExpect(jsonPath("$.instances[0].validation[0].valid").value(true))
+                .andExpect(jsonPath("$.instances[0].validation[0].compliance").value(100.0))
+                .andExpect(jsonPath("$.instances[0].validation[1].name").value("complete"))
+                .andExpect(jsonPath("$.instances[0].validation[1].valid").value(false))
+                .andExpect(jsonPath("$.instances[0].validation[1].compliance").value(62.5))
+                .andExpect(jsonPath("$.instances[1].type").value("Unknown"))
+                .andExpect(jsonPath("$.instances[1].typeDescription").doesNotExist())
+                .andExpect(jsonPath("$.instances[1].typeColor").doesNotExist())
+                .andExpect(jsonPath("$.instances[1].instanceName").value(UNRELEASED_ID.toString()))
+                .andExpect(jsonPath("$.instances[1].permissions").value("View"))
+                .andExpect(jsonPath("$.instances[1].releaseStatus").value("has changed"))
+                .andExpect(jsonPath("$.instances[1].validation.length()").value(0))
+                .andExpect(jsonPath("$.instances[2].releaseStatus").value("in progress"));
 
         ArgumentCaptor<InstanceListOptions> options = ArgumentCaptor.forClass(InstanceListOptions.class);
         verify(instancesResource).list(options.capture());
@@ -211,12 +212,25 @@ class InstancesTest {
     }
 
     @Test
+    void listReportsTheTotalOfTheCore() throws Exception {
+        when(instancesResource.list(any(InstanceListOptions.class))).thenReturn(new Page<>(
+                List.of(instance(RELEASED_ID, DEVICE, Map.of(NAME, "Server-Rack-A1"))), 1234, 50, null, null, Map.of(), null));
+        when(typesResource.getByNames(List.of(DEVICE), Stage.IN_PROGRESS, null, false, false)).thenReturn(Map.of());
+
+        mockMvc.perform(get("/instances").header(HttpHeaders.AUTHORIZATION, "Bearer theToken"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.instances.length()").value(1))
+                .andExpect(jsonPath("$.total").value(1234));
+    }
+
+    @Test
     void listWithoutInstancesDoesNotResolveTypes() throws Exception {
         when(instancesResource.list(any(InstanceListOptions.class))).thenReturn(page(List.of()));
 
         mockMvc.perform(get("/instances").header(HttpHeaders.AUTHORIZATION, "Bearer theToken"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.length()").value(0));
+                .andExpect(jsonPath("$.instances.length()").value(0))
+                .andExpect(jsonPath("$.total").value(0));
         verifyNoInteractions(typesResource);
     }
 

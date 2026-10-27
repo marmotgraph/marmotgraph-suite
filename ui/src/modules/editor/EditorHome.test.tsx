@@ -45,7 +45,7 @@ function Location() {
   );
 }
 
-function renderHome(instances: InstanceSummary[] = [instance]) {
+function renderHome(instances: InstanceSummary[] = [instance], total = instances.length) {
   vi.mocked(useTypes).mockReturnValue([]);
   vi.mocked(useSpaces).mockReturnValue([]);
   vi.mocked(fetchInstance).mockResolvedValue({
@@ -68,6 +68,7 @@ function renderHome(instances: InstanceSummary[] = [instance]) {
   });
   vi.mocked(useInstances).mockReturnValue({
     instances,
+    total,
     loading: false,
     searchTerm: "",
     setSearchTerm: vi.fn(),
@@ -120,6 +121,23 @@ describe("EditorHome", () => {
     expect(screen.getByText("Warehouse")).toBeInTheDocument();
     expect(screen.queryByText("Headquarters")).not.toBeInTheDocument();
     expect(screen.queryByText("Garage")).not.toBeInTheDocument();
+  });
+
+  it("shows the total number of instances reported by the service - not only the loaded ones", () => {
+    renderHome([instance], 1234);
+
+    expect(screen.getByText("1234 results")).toBeInTheDocument();
+  });
+
+  it("counts the loaded matches while a filter applied on the client is active", () => {
+    renderHome(
+      [instance, { ...instance, id: 2, instanceId: "inst-2", instanceName: "Warehouse", releaseStatus: "has changed" }],
+      1234,
+    );
+
+    fireEvent.click(screen.getByLabelText("Has Changed"));
+
+    expect(screen.getByText("1 result")).toBeInTheDocument();
   });
 
   it("opens the instance page when a row is double clicked", async () => {

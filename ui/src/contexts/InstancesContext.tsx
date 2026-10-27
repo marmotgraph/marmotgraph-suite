@@ -6,6 +6,8 @@ import { fetchInstances } from '../services/instances';
 interface InstancesContextType {
   /** The instances of the overview - only loaded once requested (see {@link useInstances}) */
   instances: InstanceSummary[];
+  /** The number of instances matching the query as reported by the service - more than loaded if there are further pages */
+  total: number;
   loading: boolean;
   searchTerm: string;
   setSearchTerm: (searchTerm: string) => void;
@@ -28,6 +30,7 @@ const InstancesContext = createContext<InstancesContextType | undefined>(undefin
 export function InstancesProvider({ children }: { children: ReactNode }) {
   const { getAccessToken } = useAuth();
   const [instances, setInstances] = useState<InstanceSummary[]>([]);
+  const [total, setTotal] = useState<number>(0);
   const [loading, setLoading] = useState<boolean>(true);
   const [searchTerm, setSearchTerm] = useState<string>('');
   const [typeFilter, setTypeFilter] = useState<string[]>([]);
@@ -43,7 +46,12 @@ export function InstancesProvider({ children }: { children: ReactNode }) {
     setLoading(true);
     getAccessToken()
       .then((token) => fetchInstances(token, { search: searchTerm, types: typeFilter, spaces: spaceFilter }))
-      .then((loaded) => !cancelled && setInstances(loaded))
+      .then((loaded) => {
+        if (!cancelled) {
+          setInstances(loaded.instances);
+          setTotal(loaded.total ?? loaded.instances.length);
+        }
+      })
       .catch((e: unknown) => console.error('Failed to load the instances', e))
       .finally(() => !cancelled && setLoading(false));
     return () => {
@@ -53,6 +61,7 @@ export function InstancesProvider({ children }: { children: ReactNode }) {
 
   const addInstance = (instance: InstanceSummary) => {
     setInstances(prev => [...prev, instance]);
+    setTotal(prev => prev + 1);
   };
 
   const updateInstance = (instanceId: string, updates: Partial<InstanceSummary>) => {
@@ -66,7 +75,9 @@ export function InstancesProvider({ children }: { children: ReactNode }) {
   };
 
   const deleteInstances = (instanceIds: string[]) => {
+    const removed = instances.filter(inst => instanceIds.includes(inst.instanceId)).length;
     setInstances(prev => prev.filter(inst => !instanceIds.includes(inst.instanceId)));
+    setTotal(prev => Math.max(prev - removed, 0));
   };
 
   const getInstance = (instanceId: string) => {
@@ -74,7 +85,7 @@ export function InstancesProvider({ children }: { children: ReactNode }) {
   };
 
   return (
-    <InstancesContext.Provider value={{ instances, loading, searchTerm, setSearchTerm, typeFilter, setTypeFilter, spaceFilter, setSpaceFilter, addInstance, updateInstance, deleteInstances, getInstance, requestInstances }}>
+    <InstancesContext.Provider value={{ instances, total, loading, searchTerm, setSearchTerm, typeFilter, setTypeFilter, spaceFilter, setSpaceFilter, addInstance, updateInstance, deleteInstances, getInstance, requestInstances }}>
       {children}
     </InstancesContext.Provider>
   );

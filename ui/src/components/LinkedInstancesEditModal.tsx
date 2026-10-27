@@ -117,7 +117,7 @@ export default function LinkedInstancesEditModal({
         (loaded) =>
           !cancelled &&
           setLoadedInstances(
-            loaded
+            loaded.instances
               .filter((instance) => instance.instanceId !== currentInstanceId)
               .map(toLinkedInstance),
           ),

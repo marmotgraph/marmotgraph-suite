@@ -88,11 +88,17 @@ export interface InstanceQuery {
   spaces?: string[];
 }
 
+/** The first page of the instances matching a query - with the total number of matching instances (if known). */
+export interface InstanceList {
+  instances: InstanceSummary[];
+  total?: number;
+}
+
 /** Fetches the instances shown in the editor - the restrictions of the query are applied by the backend. */
 export function fetchInstances(
   accessToken: string,
   { search, types = [], spaces = [] }: InstanceQuery = {},
-): Promise<InstanceSummary[]> {
+): Promise<InstanceList> {
   const params = new URLSearchParams();
   if (search?.trim()) {
     params.set("search", search.trim());

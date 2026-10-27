@@ -72,6 +72,7 @@ export default function EditorHome() {
   // const location = useLocation();
   const {
     instances,
+    total,
     loading,
     searchTerm,
     setSearchTerm,
@@ -218,6 +219,11 @@ export default function EditorHome() {
 
     return result;
   }, [instances, showBookmarkedOnly, filters, sortField, sortDirection]);
+
+  // The total is reported by the service (the instances are paginated) - it doesn't reflect the filters applied on the
+  // client, so only the loaded matches can be counted while any of them is active
+  const clientFiltered = showBookmarkedOnly || filters.releaseStatuses.length > 0;
+  const resultCount = clientFiltered ? filteredAndSortedInstances.length : total;
 
   // Infinite scrolling: render more instances once the sentinel below the table becomes visible. The observer is
   // recreated after each increment so it fires again if the sentinel is still visible (e.g. the rows don't fill the
@@ -563,7 +569,7 @@ export default function EditorHome() {
 
       <div className="instances-result-count text-muted small">
         {!loading &&
-          `${filteredAndSortedInstances.length} result${filteredAndSortedInstances.length !== 1 ? "s" : ""}`}
+          `${resultCount} result${resultCount !== 1 ? "s" : ""}`}
       </div>
 
       {/* The table takes the remaining height of the page and only scrolls its body (the header is sticky) */}

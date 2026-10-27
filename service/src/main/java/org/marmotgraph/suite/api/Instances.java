@@ -50,7 +50,7 @@ import java.util.stream.Collectors;
  * issued the request. The type information (name, description, color, label property) is taken from the {@link TypeCache}.
  * <p>
  * TODO bookmarks and the last visit are not (yet) provided by the core - they are always reported as not bookmarked /
- * never visited. Only the first page of instances is returned.
+ * never visited. Only the first page of instances is returned (together with the total number of instances).
  */
 @AllArgsConstructor
 @RestController
@@ -108,6 +108,14 @@ public class Instances {
     @JsonInclude(JsonInclude.Include.NON_NULL)
     public record InstanceSummary(int id, String instanceId, String type, String typeDescription, String typeColor, String instanceName, String space,
                            String permissions, boolean bookmarked, String lastVisited, String releaseStatus, List<Validation> validation) {
+    }
+
+    /**
+     * The first page of the instances listed in the overview - the total is the number of instances matching the query
+     * as reported by the core (unknown if not reported).
+     */
+    @JsonInclude(JsonInclude.Include.NON_NULL)
+    public record InstanceList(List<InstanceSummary> instances, Integer total) {
     }
 
     /**
@@ -205,18 +213,19 @@ public class Instances {
      * @param spaceFilter optional spaces the instances are restricted to - instances in any of them are returned
      */
     @GetMapping
-    public List<InstanceSummary> list(@AuthenticatedClient MarmotGraphClient client, @RequestParam(required = false) String search,
+    public InstanceList list(@AuthenticatedClient MarmotGraphClient client, @RequestParam(required = false) String search,
                                @RequestParam(name = "type", required = false) List<String> typeFilter,
                                @RequestParam(name = "space", required = false) List<String> spaceFilter) {
-        List<org.marmotgraph.sdk.model.Instance> instances = client.instances().list(InstanceListOptions.builder()
+        Page<org.marmotgraph.sdk.model.Instance> page = client.instances().list(InstanceListOptions.builder()
                 .stage(Stage.IN_PROGRESS)
                 .types(nonBlank(typeFilter))
                 .spaces(nonBlank(spaceFilter))
                 .searchByLabel(search != null && !search.isBlank() ? search.trim() : null)
                 .responseOptions(ResponseOptions.builder().returnPermissions(true).returnValidationResults(true).returnReleaseStatus(true).build())
-                .build()).items();
+                .build());
+        List<org.marmotgraph.sdk.model.Instance> instances = page.items();
         if (instances.isEmpty()) {
-            return List.of();
+            return new InstanceList(List.of(), page.total());
         }
         List<String> typeNames = instances.stream().map(org.marmotgraph.sdk.model.Instance::getType).filter(Objects::nonNull).distinct().toList();
         Map<String, TypeDefinition> types = typeNames.isEmpty() ? Map.of() : typeCache.get(client, typeNames);
@@ -232,7 +241,7 @@ public class Instances {
                     releaseStatus(instance.getReleaseStatus()),
                     instance.getValidation().stream().map(Validation::of).toList()));
         }
-        return result;
+        return new InstanceList(result, page.total());
     }
 
     /**
