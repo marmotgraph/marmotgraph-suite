@@ -56,12 +56,21 @@ export function linkedInstanceStatusDescription(
   }
 }
 
+/** A violation reported by a validation schema - field is the identifier of the field it concerns (if any). */
+export type InstanceValidationError = {
+  field?: string;
+  keyword?: string;
+  message: string;
+};
+
 /** The outcome of the last validation of an instance against one of the validation schemas of its type. */
 export type InstanceValidation = {
   name: string;
   valid: boolean;
   /** The share of the properties declared by the schema which the instance fulfills (0-100) - unknown for old results */
   compliance?: number;
+  /** The violations - only provided for the detail of an instance */
+  errors?: InstanceValidationError[];
 };
 
 /** "has changed": released, but modified since the release. */

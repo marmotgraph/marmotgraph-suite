@@ -1,4 +1,4 @@
-import { InstanceSummary, LinkedInstance, ReleaseStatus } from "../modules/editor/editorMockData";
+import { InstanceSummary, InstanceValidation, LinkedInstance, ReleaseStatus } from "../modules/editor/editorMockData";
 import { getJson, send } from "./http";
 
 /** The kinds of fields as provided by the backend (translated from the widgets defined for the properties of the type). */
@@ -42,6 +42,8 @@ export interface InstanceDetail {
   fields?: InstanceField[];
   /** The instances linked by the fields (labeled with the field they are linked by) */
   directLinks?: LinkedInstance[];
+  /** The results of the last validation per validation schema of the type - with their errors */
+  validation?: InstanceValidation[];
 }
 
 /** An instance linking to another one - its type is given by the group it is listed in. */

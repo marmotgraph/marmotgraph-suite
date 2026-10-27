@@ -47,6 +47,13 @@ import InstanceLinkConnectors from "../../components/InstanceLinkConnectors";
 import UnsavedInstancesPanel from "../../components/UnsavedInstancesPanel";
 import RawInstanceEditor from "../../components/RawInstanceEditor";
 import InstanceRelease from "../../components/InstanceRelease";
+import {
+  FieldValidationError,
+  FieldValidationErrors,
+  FieldValidationIndicator,
+  InstanceValidationSummary,
+  validationErrorsByField,
+} from "../../components/InstanceValidation";
 import DirLinkIcon from "../../assets/icons/DirLink.svg";
 import RevLinkIcon from "../../assets/icons/RevLink.svg";
 import RevDirLinkIcon from "../../assets/icons/RevDirLink.svg";
@@ -358,6 +365,16 @@ function InstanceDetailView({ instanceId }: { instanceId: string }) {
       fields
         .filter((field) => field.kind === "UNSUPPORTED")
         .sort((a, b) => a.label.localeCompare(b.label)),
+    [fields],
+  );
+
+  /** The errors of the last validation by the identifier of the field they concern */
+  const fieldErrors = useMemo(
+    () => validationErrorsByField(instance?.validation),
+    [instance],
+  );
+  const fieldLabels = useMemo(
+    () => new Map(fields.map((field) => [field.identifier, field.label])),
     [fields],
   );
 
@@ -715,6 +732,12 @@ function InstanceDetailView({ instanceId }: { instanceId: string }) {
                       <strong>Space:</strong> {instance.space}
                     </div>
                   </div>
+                  {!isNewInstance && instance.validation && instance.validation.length > 0 && (
+                    <InstanceValidationSummary
+                      validation={instance.validation}
+                      fieldLabels={fieldLabels}
+                    />
+                  )}
                 </div>
                 <div className="d-flex flex-column align-items-end gap-2">
                   {!isNewInstance && (
@@ -773,9 +796,12 @@ function InstanceDetailView({ instanceId }: { instanceId: string }) {
                   <div className="instance-view">
                     {supportedFields.map((field) => (
                       <div key={field.identifier} {...fieldSectionProps(field)}>
-                        <div className="view-label" title={field.tooltip}>
+                        <ViewFieldLabel
+                          tooltip={field.tooltip}
+                          validationErrors={fieldErrors.get(field.identifier)}
+                        >
                           {field.label}
-                        </div>
+                        </ViewFieldLabel>
                         <InstanceFieldControl
                           field={field}
                           value={currentFieldValues[field.identifier]}
@@ -786,6 +812,7 @@ function InstanceDetailView({ instanceId }: { instanceId: string }) {
                           onInstanceClick={handleLinkClick}
                           {...linkHoverProps(field)}
                         />
+                        <FieldErrors errors={fieldErrors.get(field.identifier)} />
                       </div>
                     ))}
                   </div>
@@ -796,6 +823,7 @@ function InstanceDetailView({ instanceId }: { instanceId: string }) {
                         <InstanceFieldLabel
                           isChanged={changedFieldKeys.has(field.identifier)}
                           tooltip={field.tooltip}
+                          validationErrors={fieldErrors.get(field.identifier)}
                         >
                           {field.label}
                           {field.required && " *"}
@@ -812,6 +840,7 @@ function InstanceDetailView({ instanceId }: { instanceId: string }) {
                           parentSpace={instance.space}
                           {...linkHoverProps(field)}
                         />
+                        <FieldErrors errors={fieldErrors.get(field.identifier)} />
                       </Form.Group>
                     ))}
 
@@ -822,6 +851,7 @@ function InstanceDetailView({ instanceId }: { instanceId: string }) {
                         onChange={setFieldValue}
                         isEditMode
                         changedFieldKeys={changedFieldKeys}
+                        fieldErrors={fieldErrors}
                         onInstanceClick={handleLinkClick}
                       />
                     )}
@@ -860,6 +890,7 @@ function InstanceDetailView({ instanceId }: { instanceId: string }) {
                     onChange={setFieldValue}
                     isEditMode={false}
                     changedFieldKeys={changedFieldKeys}
+                    fieldErrors={fieldErrors}
                     onInstanceClick={handleLinkClick}
                   />
                 )}
@@ -894,6 +925,7 @@ function UnsupportedFieldsSection({
   onChange,
   isEditMode,
   changedFieldKeys,
+  fieldErrors,
   onInstanceClick,
 }: {
   fields: InstanceField[];
@@ -901,9 +933,12 @@ function UnsupportedFieldsSection({
   onChange: (identifier: string, value: unknown) => void;
   isEditMode: boolean;
   changedFieldKeys: Set<string>;
+  fieldErrors: Map<string, FieldValidationError[]>;
   onInstanceClick: (instanceId: string) => void;
 }) {
   const [isExpanded, setIsExpanded] = useState(false);
+  // The section is flagged if any of its fields is - so the errors aren't missed while it is collapsed
+  const errors = fields.flatMap((field) => fieldErrors.get(field.identifier) ?? []);
   return (
     <div className="instance-unsupported-fields">
       <Button
@@ -916,6 +951,7 @@ function UnsupportedFieldsSection({
         aria-controls="instance-unsupported-fields-list"
       >
         Unsupported fields ({fields.length})
+        {errors.length > 0 && <FieldValidationIndicator errors={errors} />}
         <FontAwesomeIcon
           icon={isExpanded ? faChevronUp : faChevronDown}
           className="ms-2 instance-unsupported-fields-toggle-icon"
@@ -939,18 +975,24 @@ function UnsupportedFieldsSection({
                   <InstanceFieldLabel
                     isChanged={changedFieldKeys.has(field.identifier)}
                     tooltip={field.tooltip}
+                    validationErrors={fieldErrors.get(field.identifier)}
                   >
                     {field.label}
                     {field.required && " *"}
                   </InstanceFieldLabel>
                   {control}
+                  <FieldErrors errors={fieldErrors.get(field.identifier)} />
                 </Form.Group>
               ) : (
                 <div key={field.identifier} {...fieldSectionProps(field)}>
-                  <div className="view-label" title={field.tooltip}>
+                  <ViewFieldLabel
+                    tooltip={field.tooltip}
+                    validationErrors={fieldErrors.get(field.identifier)}
+                  >
                     {field.label}
-                  </div>
+                  </ViewFieldLabel>
                   {control}
+                  <FieldErrors errors={fieldErrors.get(field.identifier)} />
                 </div>
               );
             })}
@@ -968,14 +1010,38 @@ function fieldSectionProps(field: InstanceField) {
   };
 }
 
+/** The label of a field in the read mode - flagged if the validation reports errors for the field. */
+function ViewFieldLabel({
+  children,
+  tooltip,
+  validationErrors,
+}: {
+  children: React.ReactNode;
+  tooltip?: string;
+  validationErrors?: FieldValidationError[];
+}) {
+  return (
+    <div className="view-label" title={tooltip}>
+      {children}
+      {validationErrors && <FieldValidationIndicator errors={validationErrors} />}
+    </div>
+  );
+}
+
+function FieldErrors({ errors }: { errors?: FieldValidationError[] }) {
+  return errors ? <FieldValidationErrors errors={errors} /> : null;
+}
+
 function InstanceFieldLabel({
   children,
   isChanged = false,
   tooltip,
+  validationErrors,
 }: {
   children: React.ReactNode;
   isChanged?: boolean;
   tooltip?: string;
+  validationErrors?: FieldValidationError[];
 }) {
   return (
     <Form.Label
@@ -983,6 +1049,7 @@ function InstanceFieldLabel({
       title={tooltip}
     >
       {children}
+      {validationErrors && <FieldValidationIndicator errors={validationErrors} />}
       {isChanged && (
         <span className="instance-field-label-changed-badge">Unsaved</span>
       )}

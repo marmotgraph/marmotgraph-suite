@@ -1,0 +1,148 @@
+/* name, bar and value of all validations are aligned in columns */
+.instance-validations {
+    display: grid;
+    grid-template-columns: auto minmax(0, auto) 56px auto;
+    align-items: center;
+    column-gap: 6px;
+    row-gap: 3px;
+    font-size: 0.75rem;
+    line-height: 1.2;
+    color: #495057;
+}
+
+.instance-validation {
+    display: contents;
+}
+
+.instance-validation-icon {
+    font-size: 0.8rem;
+}
+
+.instance-validation--valid {
+    --validation-color: #1e7a42;
+}
+
+.instance-validation--invalid {
+    --validation-color: #c27c0e;
+}
+
+.instance-validation-icon,
+.instance-validation-value {
+    color: var(--validation-color);
+}
+
+.instance-validation-name {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    max-width: 140px;
+}
+
+.instance-validation-bar {
+    display: block;
+    height: 6px;
+    border-radius: 999px;
+    background-color: #e9ecef;
+    overflow: hidden;
+}
+
+.instance-validation-bar-fill {
+    display: block;
+    height: 100%;
+    border-radius: 999px;
+    background-color: var(--validation-color);
+}
+
+.instance-validation-value {
+    font-variant-numeric: tabular-nums;
+    font-weight: 600;
+    text-align: right;
+}
+
+.instance-validation-unknown {
+    grid-column: span 2;
+}
+
+/* The validation of the open instance - in its header */
+.instance-validation-summary {
+    margin-top: 16px;
+}
+
+.instance-validation-summary-title {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: #6c757d;
+    margin-bottom: 8px;
+}
+
+.instance-validation-summary-count {
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: none;
+    letter-spacing: 0;
+    color: #9a5b00;
+    background-color: #fff4e5;
+    border-radius: 999px;
+    padding: 2px 8px;
+}
+
+.instance-validations--detail {
+    grid-template-columns: auto minmax(0, max-content) 120px auto;
+    column-gap: 8px;
+    row-gap: 6px;
+    font-size: 0.85rem;
+}
+
+.instance-validations--detail .instance-validation-name {
+    max-width: 280px;
+}
+
+.instance-validation-errors {
+    grid-column: 1 / -1;
+    list-style: none;
+    margin: 0 0 4px;
+    padding: 0 0 0 22px;
+    font-size: 0.8rem;
+    line-height: 1.4;
+    color: #495057;
+}
+
+.instance-validation-error + .instance-validation-error {
+    margin-top: 2px;
+}
+
+.instance-validation-error-field {
+    font-weight: 600;
+    color: #212529;
+    margin-right: 6px;
+}
+
+.instance-validation-error-message {
+    overflow-wrap: anywhere;
+}
+
+/* A field the validation reports errors for */
+.instance-field-validation-icon {
+    color: #c27c0e;
+    font-size: 0.85em;
+    margin-left: 6px;
+}
+
+.instance-field-validation-errors {
+    list-style: none;
+    margin: 6px 0 0;
+    padding: 0;
+    font-size: 0.8rem;
+    line-height: 1.4;
+    color: #9a5b00;
+    overflow-wrap: anywhere;
+}
+
+.instance-field-validation-schema {
+    color: #868e96;
+}

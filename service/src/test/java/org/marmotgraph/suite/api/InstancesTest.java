@@ -342,6 +342,50 @@ class InstancesTest {
         assertTrue(options.getValue().returnSummaryOfOutgoingLinks());
     }
 
+    @Test
+    void getProvidesTheValidationResultsWithTheErrorsAttributedToTheFields() throws Exception {
+        String rack = "https://example.org/types/Rack";
+        String height = "https://example.org/height";
+        when(instancesResource.get(any(UUID.class), any(), any())).thenReturn(instance(RELEASED_ID, rack, Map.of(
+                height, "tall",
+                "_validation", List.of(
+                        Map.of("name", "minimal", "valid", true, "compliance", 100.0, "errors", List.of()),
+                        Map.of("name", "complete", "valid", false, "compliance", 0.0, "errors", List.of(
+                                Map.of("instanceLocation", List.of(height), "keyword", "type", "message", "string found, integer expected"),
+                                Map.of("instanceLocation", List.of(), "keyword", "required", "message", "required property '" + NAME + "' not found"),
+                                Map.of("instanceLocation", List.of(), "keyword", "additionalProperties", "message", "property 'https://example.org/other' is not defined in the schema")))))));
+        when(typesResource.getByNames(List.of(rack), Stage.IN_PROGRESS, null, false, false))
+                .thenReturn(Map.of(rack, new TypeInformation(rack, null, "Rack", "#4caf50", NAME, null, null, List.of(), List.of(), List.of())));
+        when(typesResource.getByNames(List.of(rack), Stage.IN_PROGRESS, null, true, false))
+                .thenReturn(Map.of(rack, new TypeInformation(rack, null, "Rack", "#4caf50", NAME, null, null, List.of(), List.of(
+                        new Property(height, "height", null, "InputNumber", null, null, null, 2, null, List.of()),
+                        new Property(NAME, "name", null, "InputText", null, null, null, 1, null, List.of())
+                ), List.of())));
+        when(instancesResource.releaseStatus(RELEASED_ID, ReleaseTreeScope.TOP_INSTANCE_ONLY)).thenReturn(ReleaseStatus.RELEASED);
+
+        mockMvc.perform(get("/instances/" + RELEASED_ID).header(HttpHeaders.AUTHORIZATION, "Bearer theToken"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.validation.length()").value(2))
+                .andExpect(jsonPath("$.validation[0].name").value("minimal"))
+                .andExpect(jsonPath("$.validation[0].valid").value(true))
+                .andExpect(jsonPath("$.validation[0].errors.length()").value(0))
+                .andExpect(jsonPath("$.validation[1].name").value("complete"))
+                .andExpect(jsonPath("$.validation[1].valid").value(false))
+                .andExpect(jsonPath("$.validation[1].compliance").value(0.0))
+                .andExpect(jsonPath("$.validation[1].errors.length()").value(3))
+                .andExpect(jsonPath("$.validation[1].errors[0].field").value(height))
+                .andExpect(jsonPath("$.validation[1].errors[0].keyword").value("type"))
+                .andExpect(jsonPath("$.validation[1].errors[0].message").value("string found, integer expected"))
+                .andExpect(jsonPath("$.validation[1].errors[1].field").value(NAME))
+                .andExpect(jsonPath("$.validation[1].errors[1].message").value("required property 'Name' not found"))
+                .andExpect(jsonPath("$.validation[1].errors[2].field").doesNotExist())
+                .andExpect(jsonPath("$.validation[1].errors[2].message").value("property 'https://example.org/other' is not defined in the schema"));
+
+        ArgumentCaptor<ResponseOptions> options = ArgumentCaptor.forClass(ResponseOptions.class);
+        verify(instancesResource).get(Mockito.eq(RELEASED_ID), Mockito.eq(Stage.IN_PROGRESS), options.capture());
+        assertTrue(options.getValue().returnValidationResults());
+    }
+
     /**
      * A link as summarized by the core (all properties are present - with null values if not applicable).
      */

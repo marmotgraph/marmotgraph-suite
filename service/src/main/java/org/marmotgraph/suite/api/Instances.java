@@ -9,6 +9,7 @@ import org.marmotgraph.sdk.model.ReleaseStatus;
 import org.marmotgraph.sdk.model.Functionality;
 import org.marmotgraph.sdk.model.ReleaseTreeScope;
 import org.marmotgraph.sdk.model.SchemaValidationResult;
+import org.marmotgraph.sdk.model.ValidationError;
 import org.marmotgraph.sdk.model.Scope;
 import org.marmotgraph.sdk.model.Stage;
 import org.marmotgraph.sdk.pagination.Page;
@@ -94,10 +95,35 @@ public class Instances {
      * for results stored before the score was introduced).
      */
     @JsonInclude(JsonInclude.Include.NON_NULL)
-    public record Validation(String name, boolean valid, Double compliance) {
+    public record Validation(String name, boolean valid, Double compliance, List<ValidationIssue> errors) {
 
+        /** The outcome without its errors - as listed in the overview. */
         static Validation of(SchemaValidationResult result) {
-            return new Validation(result.name(), result.valid(), result.compliance());
+            return new Validation(result.name(), result.valid(), result.compliance(), null);
+        }
+
+        /** The outcome with its errors - attributed to the given fields of the instance where possible. */
+        static Validation of(SchemaValidationResult result, List<Field> fields) {
+            List<ValidationError> errors = Objects.requireNonNullElse(result.errors(), List.of());
+            return new Validation(result.name(), result.valid(), result.compliance(), errors.stream().map(e -> ValidationIssue.of(e, fields)).toList());
+        }
+    }
+
+    /**
+     * A violation reported by a validation schema - the field is the identifier of the field it concerns (null if it
+     * concerns the instance as a whole or a property which is no field of the type). The identifiers of the fields
+     * mentioned in the message are replaced by their labels.
+     */
+    @JsonInclude(JsonInclude.Include.NON_NULL)
+    public record ValidationIssue(String field, String keyword, String message) {
+
+        static ValidationIssue of(ValidationError error, List<Field> fields) {
+            Field field = validationErrorField(error, fields);
+            String message = Objects.requireNonNullElse(error.message(), Objects.requireNonNullElse(error.keyword(), ""));
+            for (Field f : fields) {
+                message = message.replace("'" + f.identifier() + "'", "'" + f.label() + "'");
+            }
+            return new ValidationIssue(field != null ? field.identifier() : null, error.keyword(), message);
         }
     }
 
@@ -131,11 +157,12 @@ public class Instances {
      * The representation of a single instance as shown in its detail view - its fields are sorted in the order they are
      * to be shown in. The direct links are the instances linked by its fields (labeled with the field they are linked
      * by, in the order of the fields). The incoming links are provided separately (see {@link #incomingLinks}) since they are paginated.
+     * The validation holds the results of the last validation per validation schema of the type - with their errors.
      */
     @JsonInclude(JsonInclude.Include.NON_NULL)
     public record InstanceDetail(String instanceId, String type, String typeDescription, String typeColor, String instanceName,
                                  String space, String permissions, String releaseStatus, List<Field> fields,
-                                 List<LinkedInstance> directLinks) {
+                                 List<LinkedInstance> directLinks, List<Validation> validation) {
     }
 
     /**
@@ -250,7 +277,7 @@ public class Instances {
     @GetMapping("/{id}")
     public InstanceDetail get(@AuthenticatedClient MarmotGraphClient client, @PathVariable UUID id) {
         org.marmotgraph.sdk.model.Instance instance = client.instances().get(id, Stage.IN_PROGRESS,
-                ResponseOptions.builder().returnPermissions(true).returnSummaryOfOutgoingLinks(true).build());
+                ResponseOptions.builder().returnPermissions(true).returnSummaryOfOutgoingLinks(true).returnValidationResults(true).build());
         String instanceId = instance.getUuid().map(UUID::toString).orElse(id.toString());
         String typeName = instance.getType();
         TypeDefinition type = typeName != null ? typeCache.get(client, List.of(typeName)).get(typeName) : null;
@@ -258,7 +285,21 @@ public class Instances {
         List<Field> fields = fields(client, instance, typeName);
         return new InstanceDetail(instanceId, typeLabel(typeName, type), type != null ? type.description() : null, type != null ? type.color() : null,
                 instanceName(instance, type, instanceId), instance.getSpace(), permissions(instance.getPermissions()),
-                releaseStatus(releaseStatus), fields, directLinks(fields));
+                releaseStatus(releaseStatus), fields, directLinks(fields),
+                instance.getValidation().stream().map(v -> Validation.of(v, fields)).toList());
+    }
+
+    /**
+     * The field a validation error concerns: the property its location starts with - or, for an error of the instance
+     * itself (e.g. a missing "required" property), the property named in its message. Null if there is none.
+     */
+    static Field validationErrorField(ValidationError error, List<Field> fields) {
+        List<Object> location = Objects.requireNonNullElse(error.instanceLocation(), List.of());
+        if (!location.isEmpty()) {
+            return location.getFirst() instanceof String property ? fields.stream().filter(f -> f.identifier().equals(property)).findFirst().orElse(null) : null;
+        }
+        String message = Objects.requireNonNullElse(error.message(), "");
+        return fields.stream().filter(f -> message.contains("'" + f.identifier() + "'")).findFirst().orElse(null);
     }
 
     /**

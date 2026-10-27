@@ -18,7 +18,8 @@ Source of truth: the CSS below. Use these values when the stylesheet does not al
 | Links | `ui/src/components/InstanceLinksPanel.css` | `instance-links-panel`, `type-group`, `link-item` |
 | Connectors | `InstanceDetail.css` (`.instance-link-edge`) | existing connector layer |
 | Breadcrumbs | `ui/src/components/Breadcrumbs/Breadcrumbs.css` | `breadcrumbs` |
-| Release and validation | `ui/src/components/InstanceRelease.css`, `EditorHome.css` | `release-status`, `instance-validation` |
+| Release | `ui/src/components/InstanceRelease.css` | `release-status` |
+| Validation | `ui/src/components/InstanceValidation.css` (`InstanceValidation.tsx`) | `ValidationStatus`, `instance-validation-summary`, `instance-field-validation-*` |
 | Unsaved | `ui/src/components/UnsavedInstancesPanel.css` | `unsaved-instances-panel` |
 | Footer | `ui/src/views/PoweredBy.tsx` | leave the credit line as it is |
 
@@ -130,6 +131,7 @@ Fixed to the right edge, `z-index: 1040`, gray shell `#f1f3f5`, left corners rad
 | Empty | `.links-empty-state`: centered, 0.875rem, padding `24px 12px` |
 | Loading | keep the same slots; do not swap the page for a blank spinner |
 | Error on a field | Bootstrap invalid border and ring, as in `.json-field.form-control.is-invalid` |
+| Validation error on a field | `#c27c0e` warning icon in the label, the message in `#9a5b00` below the field with the schema in `#868e96` (`FieldValidationIndicator`, `FieldValidationErrors`) |
 | Copy | existing tooltip: `#212529` background, white text, 4px radius |
 
 ## Motion and breakpoints

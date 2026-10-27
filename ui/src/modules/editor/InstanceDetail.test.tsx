@@ -8,6 +8,7 @@ import {
   fetchInstance,
   fetchRawInstance,
   fetchReleaseTree,
+  InstanceDetail as InstanceDetailData,
   InstanceField,
   updateInstance,
 } from "../../services/instances";
@@ -41,7 +42,12 @@ vi.mock("../../services/types", async (importOriginal) => ({
   fetchTypeFields: vi.fn(),
 }));
 
-function renderDetail(search = "", fields: InstanceField[] = [], instanceId = "inst-1") {
+function renderDetail(
+  search = "",
+  fields: InstanceField[] = [],
+  instanceId = "inst-1",
+  details: Partial<InstanceDetailData> = {},
+) {
   vi.mocked(fetchInstance).mockResolvedValue({
     instanceId: "inst-1",
     type: "Building",
@@ -51,6 +57,7 @@ function renderDetail(search = "", fields: InstanceField[] = [], instanceId = "i
     releaseStatus: "released",
     fields,
     directLinks: [],
+    ...details,
   });
   vi.mocked(fetchIncomingLinks).mockResolvedValue([]);
   vi.mocked(fetchRawInstance).mockResolvedValue({});
@@ -244,5 +251,53 @@ describe("InstanceDetail", () => {
       }),
     );
     expect(await screen.findByRole("heading", { name: "Renamed" })).toBeInTheDocument();
+  });
+
+  it("shows the validation results and flags the fields with errors", async () => {
+    const name = "https://example.org/name";
+    const height = "https://example.org/height";
+    renderDetail(
+      "",
+      [
+        { identifier: name, label: "Name", kind: "TEXT", value: "HQ", required: false, readOnly: false },
+        { identifier: height, label: "Height", kind: "TEXT", value: "tall", required: false, readOnly: false },
+      ],
+      "inst-1",
+      {
+        validation: [
+          { name: "minimal", valid: true, compliance: 100, errors: [] },
+          {
+            name: "complete",
+            valid: false,
+            compliance: 50,
+            errors: [
+              { field: height, keyword: "type", message: "string found, integer expected" },
+              { keyword: "additionalProperties", message: "property 'x' is not defined in the schema" },
+            ],
+          },
+        ],
+      },
+    );
+
+    const summary = await screen.findByRole("region", { name: "Validation" });
+    expect(summary).toHaveTextContent("minimal");
+    expect(summary).toHaveTextContent("complete");
+    expect(summary).toHaveTextContent("50%");
+    expect(summary).toHaveTextContent("2 errors");
+    expect(summary).toHaveTextContent("Heightstring found, integer expected");
+    expect(summary).toHaveTextContent("property 'x' is not defined in the schema");
+
+    // Only the field concerned by an error is flagged - with the error and its schema below it
+    const heightSection = document.querySelector('[data-instance-field="Height"]') as HTMLElement;
+    const nameSection = document.querySelector('[data-instance-field="Name"]') as HTMLElement;
+    expect(heightSection.querySelector(".instance-field-validation-icon")).not.toBeNull();
+    expect(heightSection).toHaveTextContent("string found, integer expected · complete");
+    expect(nameSection.querySelector(".instance-field-validation-icon")).toBeNull();
+    expect(nameSection.querySelector(".instance-field-validation-errors")).toBeNull();
+
+    // The fields stay flagged while editing
+    fireEvent.click(screen.getByRole("button", { name: "Edit" }));
+    const editedHeight = document.querySelector('[data-instance-field="Height"]') as HTMLElement;
+    expect(editedHeight).toHaveTextContent("string found, integer expected · complete");
   });
 });

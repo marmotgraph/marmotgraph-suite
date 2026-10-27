@@ -7,7 +7,6 @@ import {
   faChevronDown,
   faChevronUp,
   faCircle,
-  faCircleCheck,
   faClipboardCheck,
   faCode,
   faCopy,
@@ -21,7 +20,6 @@ import {
   faSort,
   faSortDown,
   faSortUp,
-  faTriangleExclamation,
   faXmark,
   IconDefinition
 } from "@fortawesome/free-solid-svg-icons";
@@ -37,7 +35,8 @@ import { useTypes } from "../../hooks/useTypes";
 import { useSpaces } from "../../hooks/useSpaces";
 import { typeLabel } from "../../services/types";
 import { fetchInstance, InstanceDetail, InstanceField } from "../../services/instances";
-import { InstanceSummary, InstanceValidation, ReleaseStatus } from "./editorMockData";
+import { InstanceSummary, ReleaseStatus } from "./editorMockData";
+import { ValidationStatus } from "../../components/InstanceValidation";
 import { EDITOR_BREADCRUMB_TRAIL_KEY } from "./editorConstants";
 import "../query-builder/SharedQueries.css";
 import "./EditorHome.css";
@@ -877,47 +876,6 @@ export default function EditorHome() {
           </Button>
         </Modal.Footer>
       </Modal>
-    </div>
-  );
-}
-
-function formatCompliance(compliance: number) {
-  return `${Math.floor(compliance)}%`;
-}
-
-/** One validation schema: an icon telling whether the instance is valid, the name and a bar with its compliance. */
-function ValidationStatus({ validation }: { validation: InstanceValidation }) {
-  const state = validation.valid ? "valid" : "invalid";
-  const compliance =
-    validation.compliance != null
-      ? Math.min(100, Math.max(0, validation.compliance))
-      : null;
-  return (
-    <div
-      className={`instance-validation instance-validation--${state}`}
-      title={`Validation "${validation.name}": ${state}${compliance != null ? ` (${formatCompliance(compliance)} compliant)` : ""}`}
-    >
-      <FontAwesomeIcon
-        icon={validation.valid ? faCircleCheck : faTriangleExclamation}
-        className="instance-validation-icon"
-        aria-label={state}
-      />
-      <span className="instance-validation-name">{validation.name}</span>
-      {compliance != null ? (
-        <>
-          <span className="instance-validation-bar" aria-hidden="true">
-            <span
-              className="instance-validation-bar-fill"
-              style={{ width: `${compliance}%` }}
-            />
-          </span>
-          <span className="instance-validation-value">
-            {formatCompliance(compliance)}
-          </span>
-        </>
-      ) : (
-        <span className="instance-validation-unknown" />
-      )}
     </div>
   );
 }
