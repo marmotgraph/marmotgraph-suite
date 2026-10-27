@@ -100,18 +100,22 @@ export interface InstanceQuery {
   sortBy?: InstanceSortBy;
   /** The direction of the sorting - ascending if not specified */
   sortDirection?: InstanceSortDirection;
+  /** The nextMarker of the previous page - the first page is loaded if not specified */
+  marker?: string;
 }
 
-/** The first page of the instances matching a query - with the total number of matching instances (if known). */
+/** A page of the instances matching a query - with the total number of matching instances (if known). */
 export interface InstanceList {
   instances: InstanceSummary[];
   total?: number;
+  /** Loads the following page (see {@link InstanceQuery.marker}) - not provided if there are no more instances */
+  nextMarker?: string;
 }
 
 /** Fetches the instances shown in the editor - the restrictions of the query are applied by the backend. */
 export function fetchInstances(
   accessToken: string,
-  { search, types = [], spaces = [], favorites = false, contributed = false, sortBy, sortDirection }: InstanceQuery = {},
+  { search, types = [], spaces = [], favorites = false, contributed = false, sortBy, sortDirection, marker }: InstanceQuery = {},
 ): Promise<InstanceList> {
   const params = new URLSearchParams();
   if (search?.trim()) {
@@ -130,6 +134,9 @@ export function fetchInstances(
   }
   if (sortDirection) {
     params.set("sortDirection", sortDirection);
+  }
+  if (marker) {
+    params.set("marker", marker);
   }
   const query = params.toString() ? `?${params}` : "";
   return getJson(`/api/instances${query}`, "the instances", accessToken);

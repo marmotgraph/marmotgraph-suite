@@ -75,6 +75,9 @@ function renderHome(
     instances,
     total,
     loading: false,
+    hasMore: false,
+    loadingMore: false,
+    loadMore: vi.fn(),
     searchTerm: "",
     setSearchTerm: vi.fn(),
     typeFilter: [],
@@ -140,6 +143,34 @@ describe("EditorHome", () => {
     renderHome([instance], 1234);
 
     expect(screen.getByText("1234 results")).toBeInTheDocument();
+  });
+
+  it("loads the following page from the backend once the end of the list is scrolled into view", () => {
+    let intersect: IntersectionObserverCallback = () => undefined;
+    vi.stubGlobal(
+      "IntersectionObserver",
+      class {
+        constructor(callback: IntersectionObserverCallback) {
+          intersect = callback;
+        }
+        observe() {}
+        disconnect() {}
+      },
+    );
+    const loadMore = vi.fn();
+    renderHome([instance], 1234, { hasMore: true, loadMore });
+
+    expect(screen.getByText("Loading more instances...")).toBeInTheDocument();
+    intersect([{ isIntersecting: true } as IntersectionObserverEntry], {} as IntersectionObserver);
+
+    expect(loadMore).toHaveBeenCalledTimes(1);
+    vi.unstubAllGlobals();
+  });
+
+  it("doesn't offer to load more if there are no further pages", () => {
+    renderHome([instance], 1);
+
+    expect(screen.queryByText("Loading more instances...")).not.toBeInTheDocument();
   });
 
   it("counts the loaded matches while a filter applied on the client is active", () => {

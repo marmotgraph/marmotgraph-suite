@@ -1,7 +1,7 @@
-import React, { createContext, useCallback, useContext, useEffect, useState, ReactNode } from 'react';
+import React, { createContext, useCallback, useContext, useEffect, useRef, useState, ReactNode } from 'react';
 import { InstanceSummary } from '../modules/editor/editorMockData';
 import { useAuth } from './AuthContext';
-import { fetchInstances, InstanceSortBy, InstanceSortDirection, setFavorite } from '../services/instances';
+import { fetchInstances, InstanceQuery, InstanceSortBy, InstanceSortDirection, setFavorite } from '../services/instances';
 
 interface InstancesContextType {
   /** The instances of the overview - only loaded once requested (see {@link useInstances}) */
@@ -9,6 +9,12 @@ interface InstancesContextType {
   /** The number of instances matching the query as reported by the service - more than loaded if there are further pages */
   total: number;
   loading: boolean;
+  /** Whether there are further pages of instances (see {@link loadMore}) */
+  hasMore: boolean;
+  /** Whether the following page of instances is being loaded */
+  loadingMore: boolean;
+  /** Loads the following page of instances and appends it - a no-op if there is none or it is already being loaded */
+  loadMore: () => void;
   searchTerm: string;
   setSearchTerm: (searchTerm: string) => void;
   /** The identifiers of the types the instances are restricted to (applied by the backend) */
@@ -48,6 +54,10 @@ export function InstancesProvider({ children }: { children: ReactNode }) {
   const [instances, setInstances] = useState<InstanceSummary[]>([]);
   const [total, setTotal] = useState<number>(0);
   const [loading, setLoading] = useState<boolean>(true);
+  const [nextMarker, setNextMarker] = useState<string | undefined>(undefined);
+  const [loadingMore, setLoadingMore] = useState<boolean>(false);
+  // The query of the loaded instances - a following page only belongs to them if the query didn't change meanwhile
+  const queryRef = useRef<InstanceQuery | null>(null);
   const [searchTerm, setSearchTerm] = useState<string>('');
   const [typeFilter, setTypeFilter] = useState<string[]>([]);
   const [spaceFilter, setSpaceFilter] = useState<string[]>([]);
@@ -62,13 +72,17 @@ export function InstancesProvider({ children }: { children: ReactNode }) {
       return;
     }
     let cancelled = false;
+    const query: InstanceQuery = { search: searchTerm, types: typeFilter, spaces: spaceFilter, favorites: favoritesOnly, contributed: contributedOnly, sortBy: sort?.by, sortDirection: sort?.direction };
+    queryRef.current = query;
     setLoading(true);
+    setLoadingMore(false);
     getAccessToken()
-      .then((token) => fetchInstances(token, { search: searchTerm, types: typeFilter, spaces: spaceFilter, favorites: favoritesOnly, contributed: contributedOnly, sortBy: sort?.by, sortDirection: sort?.direction }))
+      .then((token) => fetchInstances(token, query))
       .then((loaded) => {
         if (!cancelled) {
           setInstances(loaded.instances);
           setTotal(loaded.total ?? loaded.instances.length);
+          setNextMarker(loaded.nextMarker);
         }
       })
       .catch((e: unknown) => console.error('Failed to load the instances', e))
@@ -77,6 +91,33 @@ export function InstancesProvider({ children }: { children: ReactNode }) {
       cancelled = true;
     };
   }, [requested, getAccessToken, searchTerm, typeFilter, spaceFilter, favoritesOnly, contributedOnly, sort]);
+
+  const loadMore = useCallback(() => {
+    const query = queryRef.current;
+    if (!query || loading || loadingMore || !nextMarker) {
+      return;
+    }
+    setLoadingMore(true);
+    getAccessToken()
+      .then((token) => fetchInstances(token, { ...query, marker: nextMarker }))
+      .then((loaded) => {
+        if (queryRef.current === query) {
+          setInstances(prev => [...prev, ...loaded.instances]);
+          if (loaded.total !== undefined) {
+            setTotal(loaded.total);
+          }
+          setNextMarker(loaded.nextMarker);
+        }
+      })
+      .catch((e: unknown) => {
+        console.error('Failed to load more instances', e);
+        // Stops paginating - otherwise the following page would be requested over and over again while scrolled down
+        if (queryRef.current === query) {
+          setNextMarker(undefined);
+        }
+      })
+      .finally(() => queryRef.current === query && setLoadingMore(false));
+  }, [getAccessToken, loading, loadingMore, nextMarker]);
 
   const addInstance = (instance: InstanceSummary) => {
     setInstances(prev => [...prev, instance]);
@@ -115,7 +156,7 @@ export function InstancesProvider({ children }: { children: ReactNode }) {
   };
 
   return (
-    <InstancesContext.Provider value={{ instances, total, loading, searchTerm, setSearchTerm, typeFilter, setTypeFilter, spaceFilter, setSpaceFilter, favoritesOnly, setFavoritesOnly, contributedOnly, setContributedOnly, sort, setSort, toggleFavorite, addInstance, updateInstance, deleteInstances, getInstance, requestInstances }}>
+    <InstancesContext.Provider value={{ instances, total, loading, hasMore: !!nextMarker, loadingMore, loadMore, searchTerm, setSearchTerm, typeFilter, setTypeFilter, spaceFilter, setSpaceFilter, favoritesOnly, setFavoritesOnly, contributedOnly, setContributedOnly, sort, setSort, toggleFavorite, addInstance, updateInstance, deleteInstances, getInstance, requestInstances }}>
       {children}
     </InstancesContext.Provider>
   );

@@ -252,6 +252,21 @@ class InstancesTest {
     }
 
     @Test
+    void listForwardsTheMarkerAndReportsTheNextOne() throws Exception {
+        when(instancesResource.list(any(InstanceListOptions.class))).thenReturn(new Page<>(
+                List.of(instance(RELEASED_ID, DEVICE, Map.of(NAME, "Server-Rack-A1"))), 1234, 50, "m2", null, Map.of(), null));
+        when(typesResource.getByNames(List.of(DEVICE), Stage.IN_PROGRESS, null, false, false)).thenReturn(Map.of());
+
+        mockMvc.perform(get("/instances").param("marker", "m1").header(HttpHeaders.AUTHORIZATION, "Bearer theToken"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.nextMarker").value("m2"));
+
+        ArgumentCaptor<InstanceListOptions> options = ArgumentCaptor.forClass(InstanceListOptions.class);
+        verify(instancesResource).list(options.capture());
+        assertEquals("m1", options.getValue().marker());
+    }
+
+    @Test
     void listRejectsAnUnknownSorting() throws Exception {
         mockMvc.perform(get("/instances").param("sortBy", "space").header(HttpHeaders.AUTHORIZATION, "Bearer theToken"))
                 .andExpect(status().isBadRequest());

@@ -57,10 +57,6 @@ type InstanceFilters = {
   releaseStatuses: string[];
 };
 
-
-// The number of instances additionally rendered whenever the end of the list is scrolled into view
-const PAGE_SIZE = 50;
-
 // Type color mapping
 const typeColors: Record<string, string> = {
   Appliance: "#ff9800",
@@ -78,6 +74,9 @@ export default function EditorHome() {
     instances,
     total,
     loading,
+    hasMore,
+    loadingMore,
+    loadMore,
     searchTerm,
     setSearchTerm,
     typeFilter,
@@ -97,7 +96,6 @@ export default function EditorHome() {
   const spaces = useSpaces();
   const [searchQuery, setSearchQuery] = useState<string>(searchTerm);
   const [copiedId, setCopiedId] = useState<string | null>(null);
-  const [itemsToShow, setItemsToShow] = useState<number>(PAGE_SIZE);
   const [selectedInstances, setSelectedInstances] = useState<Set<string>>(
     new Set(),
   );
@@ -143,11 +141,6 @@ export default function EditorHome() {
     });
   };
 
-  // Reset items to show when filters or search change
-  useEffect(() => {
-    setItemsToShow(PAGE_SIZE);
-  }, [searchTerm, filters, favoritesOnly, contributedOnly]);
-
   // Reset the instance breadcrumb trail when the user returns to the editor home so that each new navigation
   // session starts fresh.
   useEffect(() => {
@@ -189,28 +182,28 @@ export default function EditorHome() {
   const clientFiltered = filters.releaseStatuses.length > 0;
   const resultCount = clientFiltered ? filteredAndSortedInstances.length : total;
 
-  // Infinite scrolling: render more instances once the sentinel below the table becomes visible. The observer is
-  // recreated after each increment so it fires again if the sentinel is still visible (e.g. the rows don't fill the
-  // container yet).
+  // Infinite scrolling: load the following page once the sentinel below the table becomes visible. The observer is
+  // recreated after each page so it fires again if the sentinel is still visible (e.g. the rows don't fill the
+  // container yet or the release status filter hides all of the page).
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const loadMoreRef = useRef<HTMLDivElement>(null);
-  const hasMore = !loading && itemsToShow < filteredAndSortedInstances.length;
+  const showLoadMore = !loading && hasMore;
   useEffect(() => {
     const sentinel = loadMoreRef.current;
-    if (!hasMore || !sentinel) {
+    if (!showLoadMore || loadingMore || !sentinel) {
       return;
     }
     const observer = new IntersectionObserver(
       (entries) => {
         if (entries.some((entry) => entry.isIntersecting)) {
-          setItemsToShow((prev) => prev + PAGE_SIZE);
+          loadMore();
         }
       },
       { root: scrollContainerRef.current, rootMargin: "0px 0px 200px 0px" },
     );
     observer.observe(sentinel);
     return () => observer.disconnect();
-  }, [hasMore, itemsToShow]);
+  }, [showLoadMore, loadingMore, loadMore]);
 
   const handleSearch = () => {
     setSearchTerm(searchQuery.trim());
@@ -252,14 +245,12 @@ export default function EditorHome() {
   const handleSelectAll = () => {
     if (
       selectedInstances.size ===
-      filteredAndSortedInstances.slice(0, itemsToShow).length
+      filteredAndSortedInstances.length
     ) {
       setSelectedInstances(new Set());
     } else {
       const allIds = new Set(
-        filteredAndSortedInstances
-          .slice(0, itemsToShow)
-          .map((inst) => inst.instanceId),
+        filteredAndSortedInstances.map((inst) => inst.instanceId),
       );
       setSelectedInstances(allIds);
     }
@@ -521,7 +512,7 @@ export default function EditorHome() {
             label="Select all"
             checked={
               selectedInstances.size ===
-                filteredAndSortedInstances.slice(0, itemsToShow).length &&
+                filteredAndSortedInstances.length &&
               selectedInstances.size > 0
             }
             onChange={handleSelectAll}
@@ -564,7 +555,7 @@ export default function EditorHome() {
         <div className="table-scroll-container" ref={scrollContainerRef}>
           {isMobile ? (
             <InstanceCardList
-              instances={filteredAndSortedInstances.slice(0, itemsToShow)}
+              instances={filteredAndSortedInstances}
               loading={loading}
               selectedInstances={selectedInstances}
               previewInstanceId={previewInstance?.instanceId}
@@ -600,8 +591,7 @@ export default function EditorHome() {
                       type="checkbox"
                       checked={
                         selectedInstances.size ===
-                          filteredAndSortedInstances.slice(0, itemsToShow)
-                            .length && selectedInstances.size > 0
+                          filteredAndSortedInstances.length && selectedInstances.size > 0
                       }
                       onChange={handleSelectAll}
                     />
@@ -647,11 +637,9 @@ export default function EditorHome() {
                   </tr>
                 )}
                 {!loading &&
-                  filteredAndSortedInstances
-                    .slice(0, itemsToShow)
-                    .map((instance) => (
+                  filteredAndSortedInstances.map((instance) => (
                       <tr
-                        key={instance.id}
+                        key={instance.instanceId}
                         className={
                           previewInstance?.instanceId === instance.instanceId
                             ? "instance-row-selected"
@@ -773,7 +761,7 @@ export default function EditorHome() {
               </tbody>
             </Table>
           )}
-          {hasMore && (
+          {showLoadMore && (
             <div
               ref={loadMoreRef}
               className="text-center text-muted small py-2"
@@ -1003,7 +991,7 @@ function InstanceCardList({
         );
         return (
           <article
-            key={instance.id}
+            key={instance.instanceId}
             className={
               previewInstanceId === instance.instanceId
                 ? "instance-card instance-card-selected"

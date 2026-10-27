@@ -54,7 +54,7 @@ import java.util.stream.Collectors;
  * Provides the instances shown in the editor by listing / fetching them from the MarmotGraph core - on behalf of the user who
  * issued the request. The type information (name, description, color, label property) is taken from the {@link TypeCache}.
  * <p>
- * TODO the last visit is not (yet) provided by the core - it is always reported as never visited. Only the first page of instances is returned (together with the total number of instances).
+ * TODO the last visit is not (yet) provided by the core - it is always reported as never visited. The instances are returned page by page (together with the total number of instances).
  */
 @AllArgsConstructor
 @RestController
@@ -140,11 +140,11 @@ public class Instances {
     }
 
     /**
-     * The first page of the instances listed in the overview - the total is the number of instances matching the query
-     * as reported by the core (unknown if not reported).
+     * A page of the instances listed in the overview - the total is the number of instances matching the query as
+     * reported by the core (unknown if not reported). The following page can be loaded with the nextMarker (if any).
      */
     @JsonInclude(JsonInclude.Include.NON_NULL)
-    public record InstanceList(List<InstanceSummary> instances, Integer total) {
+    public record InstanceList(List<InstanceSummary> instances, Integer total, String nextMarker) {
     }
 
     /**
@@ -260,6 +260,7 @@ public class Instances {
      * @param contributed whether the instances are restricted to those the user has contributed to
      * @param sortBy        the attribute the instances are sorted by (by name if not specified)
      * @param sortDirection the direction of the sorting (ascending if not specified)
+     * @param marker        the nextMarker of the previous page - the first page is returned if not specified
      */
     @GetMapping
     public InstanceList list(@AuthenticatedClient MarmotGraphClient client, @RequestParam(required = false) String search,
@@ -268,7 +269,8 @@ public class Instances {
                                @RequestParam(defaultValue = "false") boolean favorites,
                                @RequestParam(defaultValue = "false") boolean contributed,
                                @RequestParam(required = false) InstanceSortBy sortBy,
-                               @RequestParam(required = false) SortDirection sortDirection) {
+                               @RequestParam(required = false) SortDirection sortDirection,
+                               @RequestParam(required = false) String marker) {
         Page<org.marmotgraph.sdk.model.Instance> page = client.instances().list(InstanceListOptions.builder()
                 .stage(Stage.IN_PROGRESS)
                 .types(nonBlank(typeFilter))
@@ -278,12 +280,13 @@ public class Instances {
                 .withContribution(contributed)
                 .sortBy(sortBy)
                 .sortDirection(sortDirection)
+                .marker(marker != null && !marker.isBlank() ? marker : null)
                 .responseOptions(ResponseOptions.builder().returnPermissions(true).returnValidationResults(true).returnReleaseStatus(true)
                         .returnFavorite(true).returnHasContributed(true).returnTimestamps(true).build())
                 .build());
         List<org.marmotgraph.sdk.model.Instance> instances = page.items();
         if (instances.isEmpty()) {
-            return new InstanceList(List.of(), page.total());
+            return new InstanceList(List.of(), page.total(), null);
         }
         List<String> typeNames = instances.stream().map(org.marmotgraph.sdk.model.Instance::getType).filter(Objects::nonNull).distinct().toList();
         Map<String, TypeDefinition> types = typeNames.isEmpty() ? Map.of() : typeCache.get(client, typeNames);
@@ -300,7 +303,7 @@ public class Instances {
                     releaseStatus(instance.getReleaseStatus()),
                     instance.getValidation().stream().map(Validation::of).toList()));
         }
-        return new InstanceList(result, page.total());
+        return new InstanceList(result, page.total(), page.nextMarker());
     }
 
     /**
