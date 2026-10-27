@@ -1,5 +1,5 @@
 import React from "react";
-import { Route, Routes } from "react-router-dom";
+import { Navigate, Route, Routes } from "react-router-dom";
 import "bootstrap/dist/css/bootstrap.min.css";
 import "./App.css";
 import Layout from "./views/Layout";
@@ -23,7 +23,8 @@ function App() {
       <UnsavedInstancesProvider>
         <Layout>
         <Routes>
-          <Route index element={<h3 className="text-center">Welcome!</h3>} />
+          {/* TODO: replace with a proper welcome page; until then open the first module */}
+          <Route index element={<Navigate to="/editor" replace />} />
           <Route path="queries" element={<QueryHome />} />
           <Route path="queries/shared" element={<SharedQueries />} />
           <Route path="queries/:queryId" element={<QueryDetail />} />
