@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { Alert, Button, Collapse, Form, Spinner } from "react-bootstrap";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
@@ -178,7 +178,7 @@ function InstanceDetailView({ instanceId }: { instanceId: string }) {
   );
   /** The linked instance hovered - either in the form or in the outgoing links */
   const [hoveredLink, setHoveredLink] = useState<HoveredLink>();
-  const layoutRef = useRef<HTMLDivElement>(null);
+  const [layoutEl, setLayoutEl] = useState<HTMLDivElement | null>(null);
   // New instances are only loading while the fields of their type are fetched
   const [loading, setLoading] = useState(!isNewInstance || Boolean(newInstanceType));
   const [loadError, setLoadError] = useState<string>();
@@ -642,8 +642,8 @@ function InstanceDetailView({ instanceId }: { instanceId: string }) {
 
   return (
     <>
-      <div className="instance-detail-layout" ref={layoutRef}>
-        <InstanceLinkConnectors layoutRef={layoutRef} />
+      <div className="instance-detail-layout" ref={setLayoutEl}>
+        <InstanceLinkConnectors layout={layoutEl} />
         <Breadcrumbs
           items={[
             { id: "__editor__", label: "Editor" },

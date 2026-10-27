@@ -1,4 +1,4 @@
-import React, { RefObject, useId, useLayoutEffect, useRef, useState } from "react";
+import React, { useId, useLayoutEffect, useRef, useState } from "react";
 import {
   LinkEdge,
   Point,
@@ -7,7 +7,7 @@ import {
 } from "./instanceLinkEdges";
 
 interface InstanceLinkConnectorsProps {
-  layoutRef: RefObject<HTMLDivElement | null>;
+  layout: HTMLDivElement | null;
 }
 
 type Graph = {
@@ -29,14 +29,13 @@ function roundPx(value: number) {
  * Incoming links point back at this instance, one for each linked instance.
  */
 export default function InstanceLinkConnectors({
-  layoutRef,
+  layout,
 }: InstanceLinkConnectorsProps) {
   const markerId = `link-arrow-${useId().replace(/:/g, "")}`;
   const [graph, setGraph] = useState<Graph>(EMPTY_GRAPH);
   const signature = useRef("");
 
   useLayoutEffect(() => {
-    const layout = layoutRef.current;
     if (!layout) {
       return;
     }
@@ -84,7 +83,7 @@ export default function InstanceLinkConnectors({
       document.removeEventListener("scroll", schedule, true);
       window.removeEventListener("resize", schedule);
     };
-  }, [layoutRef]);
+  }, [layout]);
 
   if (graph.edges.length === 0) {
     return null;
