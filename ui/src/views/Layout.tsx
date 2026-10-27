@@ -3,6 +3,7 @@ import SidebarMG from "../components/SidebarMG";
 import AppSubNav from "../components/composites/AppSubNav";
 import Footer from "../components/composites/Footer";
 import { useAppSubNav } from "../hooks/useAppSubNav";
+import { SubNavActionsProvider } from "../contexts/SubNavActionsContext";
 import { MOBILE_VIEWPORT_QUERY, useMediaQuery } from "../hooks/useMediaQuery";
 import "./Layout.css";
 
@@ -53,28 +54,30 @@ export default function Layout({ subNav, children }: LayoutProps) {
   const effectiveSubNav = subNav ?? routeSubNav;
 
   return (
-    <div className="d-flex layout-container">
-      <SidebarMG
-        isCollapsed={isSidebarCollapsed}
-        onToggle={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
-      />
+    <SubNavActionsProvider>
+      <div className="d-flex layout-container">
+        <SidebarMG
+          isCollapsed={isSidebarCollapsed}
+          onToggle={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
+        />
 
-      <div className="d-flex flex-column layout-content">
-        {effectiveSubNav && (
-          <div className="layout-subnav-wrapper">
-            <AppSubNav
-              title={effectiveSubNav.title}
-              ctas={effectiveSubNav.ctas}
-            />
+        <div className="d-flex flex-column layout-content">
+          {effectiveSubNav && (
+            <div className="layout-subnav-wrapper">
+              <AppSubNav
+                title={effectiveSubNav.title}
+                ctas={effectiveSubNav.ctas}
+              />
+            </div>
+          )}
+
+          <main className="px-4 layout-main">{children}</main>
+
+          <div className="layout-footer-wrapper">
+            <Footer />
           </div>
-        )}
-
-        <main className="px-4 layout-main">{children}</main>
-
-        <div className="layout-footer-wrapper">
-          <Footer />
         </div>
       </div>
-    </div>
+    </SubNavActionsProvider>
   );
 }

@@ -126,7 +126,7 @@ export default function PropertyModal({
       : `Add property to ${typeName(type)}`;
 
   return (
-    <Modal show onHide={onHide} centered size="lg">
+    <Modal show onHide={onHide} centered size="lg" className="modeler-modal">
       <Modal.Header closeButton>
         <Modal.Title>{title}</Modal.Title>
       </Modal.Header>
@@ -134,7 +134,7 @@ export default function PropertyModal({
         {error && <Alert variant="danger">{error}</Alert>}
         {!specification ? (
           !error && (
-            <div className="text-center py-4">
+            <div className="modeler-loading">
               <Spinner animation="border" size="sm" /> Loading property...
             </div>
           )
@@ -142,7 +142,7 @@ export default function PropertyModal({
           <Form onSubmit={(e) => e.preventDefault()}>
             {!property && (
               <Form.Group className="mb-3" controlId="modeler-property-new-name">
-                <Form.Label className="fw-bold">Name</Form.Label>
+                <Form.Label>Name</Form.Label>
                 <Form.Control
                   size="sm"
                   value={specification.name ?? ""}
@@ -153,7 +153,7 @@ export default function PropertyModal({
               </Form.Group>
             )}
             <Form.Group className="mb-3" controlId="modeler-property-identifier">
-              <Form.Label className="fw-bold">Identifier</Form.Label>
+              <Form.Label>Identifier</Form.Label>
               <Form.Control
                 size="sm"
                 className="modeler-code"
@@ -168,7 +168,7 @@ export default function PropertyModal({
             </Form.Group>
             {property && (
               <Form.Group className="mb-3" controlId="modeler-property-name">
-                <Form.Label className="fw-bold">Name</Form.Label>
+                <Form.Label>Name</Form.Label>
                 <Form.Control size="sm" value={specification.name ?? ""} onChange={(e) => change({ name: e.target.value })} />
               </Form.Group>
             )}
@@ -188,7 +188,7 @@ export default function PropertyModal({
             {isRelation && (
               <Row className="mb-3">
                 <Col md={7} className="mb-3 mb-md-0">
-                  <Form.Label className="fw-bold">Target types</Form.Label>
+                  <Form.Label>Target types</Form.Label>
                   <Form.Control
                     size="sm"
                     type="search"
@@ -205,7 +205,7 @@ export default function PropertyModal({
                         id={`modeler-target-${t.identifier}`}
                         label={
                           <span title={t.identifier}>
-                            <span className="modeler-color-dot me-1" style={{ backgroundColor: t.color || "#adb5bd" }} />
+                            <span className="modeler-color-dot me-1" style={{ backgroundColor: t.color || "#6c757d" }} />
                             {typeName(t)}
                           </span>
                         }
@@ -224,7 +224,7 @@ export default function PropertyModal({
                 </Col>
                 <Col md={5}>
                   <Form.Group controlId="modeler-property-reverse">
-                    <Form.Label className="fw-bold">Name of the reverse link</Form.Label>
+                    <Form.Label>Name of the reverse link</Form.Label>
                     <Form.Control
                       size="sm"
                       value={specification.nameForReverseLink ?? ""}
@@ -239,7 +239,7 @@ export default function PropertyModal({
             <Row>
               <Col sm={6}>
                 <Form.Group className="mb-3" controlId="modeler-property-widget">
-                  <Form.Label className="fw-bold">Widget</Form.Label>
+                  <Form.Label>Widget</Form.Label>
                   <Form.Select size="sm" value={specification.widget ?? ""} onChange={(e) => change({ widget: e.target.value || undefined })}>
                     <option value="">(default)</option>
                     {specification.widget && !WIDGETS.includes(specification.widget) && (
@@ -255,7 +255,7 @@ export default function PropertyModal({
               </Col>
               <Col sm={6}>
                 <Form.Group className="mb-3" controlId="modeler-property-order">
-                  <Form.Label className="fw-bold">Order</Form.Label>
+                  <Form.Label>Order</Form.Label>
                   <Form.Control
                     size="sm"
                     type="number"
@@ -266,7 +266,7 @@ export default function PropertyModal({
               </Col>
             </Row>
             <Form.Group className="mb-3" controlId="modeler-property-tooltip">
-              <Form.Label className="fw-bold">Tooltip</Form.Label>
+              <Form.Label>Tooltip</Form.Label>
               <Form.Control size="sm" value={specification.labelTooltip ?? ""} onChange={(e) => change({ labelTooltip: e.target.value || undefined })} />
             </Form.Group>
             <div className="d-flex gap-4">

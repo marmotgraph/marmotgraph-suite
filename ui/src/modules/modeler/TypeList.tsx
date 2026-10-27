@@ -1,8 +1,9 @@
 import React, { useMemo, useState } from "react";
-import { Alert, Badge, Button, Col, Form, ListGroup, Modal, Row } from "react-bootstrap";
+import { Alert, Button, Col, Form, Modal, Row } from "react-bootstrap";
 import { useSearchParams } from "react-router-dom";
-import { ArrowLeft, CircleDashed, Plus } from "lucide-react";
+import { ArrowLeft, ArrowRight, CircleDashed, Plus } from "lucide-react";
 import { useAuth } from "../../contexts/AuthContext";
+import { useSubNavActions } from "../../contexts/SubNavActionsContext";
 import { MOBILE_VIEWPORT_QUERY, useMediaQuery } from "../../hooks/useMediaQuery";
 import { defineType, relations, suggestIdentifier, typeName } from "../../services/modeler";
 import type { ModelerContext } from "./ModelerHome";
@@ -19,6 +20,10 @@ export default function TypeList(context: ModelerContext) {
   const selectedType = types.find((type) => type.identifier === selected);
 
   const select = (identifier?: string) => setSearchParams(identifier ? { type: identifier } : {});
+
+  useSubNavActions(
+    canDefineTypes ? [{ label: "Create new type", icon: <Plus size={16} />, onClick: () => setCreating(true) }] : [],
+  );
 
   const sorted = useMemo(
     () => [...types].sort((a, b) => typeName(a).localeCompare(typeName(b), undefined, { sensitivity: "base" })),
@@ -42,78 +47,70 @@ export default function TypeList(context: ModelerContext) {
     <Row>
       {showList && (
         <Col md={4} lg={3} className="mb-3">
-          <div className="d-flex align-items-center mb-2 gap-2">
-            <Form.Control
-              size="sm"
-              type="search"
-              placeholder="Filter types..."
-              value={filter}
-              onChange={(e) => setFilter(e.target.value)}
-              aria-label="Filter types"
-            />
-            {canDefineTypes && (
-              <Button size="sm" variant="dark" className="d-flex align-items-center text-nowrap" onClick={() => setCreating(true)}>
-                <Plus size={16} className="me-1" />
-                New type
-              </Button>
-            )}
-          </div>
-          <div className="text-muted small mb-2">
+          <Form.Control
+            size="sm"
+            type="search"
+            className="mb-2"
+            placeholder="Filter types..."
+            value={filter}
+            onChange={(e) => setFilter(e.target.value)}
+            aria-label="Filter types"
+          />
+          <div className="modeler-result-count">
             {visible.length === types.length ? `${types.length} types` : `${visible.length} of ${types.length} types`}
           </div>
-          <ListGroup className="modeler-type-list">
-            {visible.map((type) => (
-              <ListGroup.Item
-                key={type.identifier}
-                action
-                active={type.identifier === selected}
-                onClick={() => select(type.identifier)}
-                className="d-flex align-items-center"
-              >
-                <span className="modeler-color-dot me-2" style={{ backgroundColor: type.color || "#adb5bd" }} />
-                <span className="text-truncate" title={type.identifier}>
-                  {typeName(type)}
-                </span>
-                {specificationStatus?.[type.identifier]?.specified === false && (
-                  <CircleDashed
-                    size={14}
-                    className="ms-1 flex-shrink-0 modeler-unspecified"
-                    aria-label="Not specified"
-                  >
-                    <title>Not specified - the type is only known from the data</title>
-                  </CircleDashed>
-                )}
-                <span className="ms-auto d-flex gap-1 ps-2">
-                  <Badge bg="light" text="dark" title="Properties">
-                    {type.properties.length}
-                  </Badge>
-                  {!!relationCounts.get(type.identifier) && (
-                    <Badge bg="secondary" title="Relations to other types">
-                      {relationCounts.get(type.identifier)}
-                    </Badge>
+          <div className="modeler-type-list">
+            {visible.map((type) => {
+              const status = specificationStatus?.[type.identifier];
+              const relationCount = relationCounts.get(type.identifier);
+              return (
+                <button
+                  type="button"
+                  key={type.identifier}
+                  aria-current={type.identifier === selected ? "true" : undefined}
+                  onClick={() => select(type.identifier)}
+                  className={`modeler-type-item${type.identifier === selected ? " modeler-type-item--selected" : ""}`}
+                >
+                  <span className="modeler-color-dot" style={{ backgroundColor: type.color || "#6c757d" }} />
+                  <span className="modeler-type-item-name" title={type.identifier}>
+                    {typeName(type)}
+                  </span>
+                  {status?.specified === false && (
+                    <CircleDashed size={14} className="flex-shrink-0 modeler-unspecified" aria-label="Not specified">
+                      <title>Not specified - the type is only known from the data</title>
+                    </CircleDashed>
                   )}
-                  {!!specificationStatus?.[type.identifier]?.unspecifiedProperties && (
-                    <Badge
-                      bg="warning"
-                      text="dark"
-                      className="d-inline-flex align-items-center"
-                      title="Properties without a specification - they are only known from the data"
-                    >
-                      <CircleDashed size={10} className="me-1" />
-                      {specificationStatus[type.identifier].unspecifiedProperties}
-                    </Badge>
-                  )}
-                </span>
-              </ListGroup.Item>
-            ))}
-          </ListGroup>
-          {visible.length === 0 && <p className="text-muted small mt-2">No types match the filter.</p>}
+                  <span className="ms-auto d-flex gap-1 ps-2">
+                    <span className="modeler-count" title="Properties">
+                      {type.properties.length}
+                    </span>
+                    {!!relationCount && (
+                      <span className="modeler-count" title="Relations to other types">
+                        {relationCount}
+                        <ArrowRight size={10} className="ms-1" aria-hidden />
+                      </span>
+                    )}
+                    {!!status?.unspecifiedProperties && (
+                      <span
+                        className="modeler-status modeler-status--unspecified"
+                        title="Properties without a specification - they are only known from the data"
+                      >
+                        <CircleDashed size={10} aria-hidden />
+                        {status.unspecifiedProperties}
+                      </span>
+                    )}
+                  </span>
+                </button>
+              );
+            })}
+            {visible.length === 0 && <p className="modeler-empty mb-0">No types match the filter.</p>}
+          </div>
         </Col>
       )}
       {showDetails && (
         <Col md={8} lg={9}>
           {isMobile && (
-            <Button variant="link" className="px-0 mb-2 d-flex align-items-center" onClick={() => select(undefined)}>
+            <Button variant="link" className="modeler-type-link px-0 mb-2 d-flex align-items-center" onClick={() => select(undefined)}>
               <ArrowLeft size={16} className="me-1" />
               All types
             </Button>
@@ -123,7 +120,7 @@ export default function TypeList(context: ModelerContext) {
           ) : selected ? (
             <Alert variant="warning">The type {selected} is unknown (or not visible to you).</Alert>
           ) : (
-            <p className="text-muted">Select a type to see and edit its definition, properties, validation schemas and spaces.</p>
+            <p className="modeler-empty">Select a type to see and edit its definition, properties, validation schemas and spaces.</p>
           )}
         </Col>
       )}
@@ -201,7 +198,7 @@ function NewTypeModal({
   };
 
   return (
-    <Modal show={show} onHide={close} centered>
+    <Modal show={show} onHide={close} centered className="modeler-modal">
       <Modal.Header closeButton>
         <Modal.Title>New type</Modal.Title>
       </Modal.Header>

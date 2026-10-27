@@ -66,27 +66,17 @@ export default function ModelerHome() {
 
   if (!functionalities) {
     return (
-      <div className="text-center py-4">
+      <div className="modeler-loading">
         <Spinner animation="border" size="sm" /> Loading permissions...
       </div>
     );
   }
 
   if (!available) {
-    return <p className="text-muted">The modeler is only available to administrators.</p>;
+    return <p className="modeler-empty">The modeler is only available to administrators.</p>;
   }
 
-  if (!types) {
-    return error ? (
-      <Alert variant="danger">{error}</Alert>
-    ) : (
-      <div className="text-center py-4">
-        <Spinner animation="border" size="sm" /> Loading types...
-      </div>
-    );
-  }
-
-  const context: ModelerContext = {
+  const context: ModelerContext | undefined = types && {
     types,
     reload,
     specificationStatus,
@@ -101,7 +91,7 @@ export default function ModelerHome() {
   return (
     <div className="modeler-home">
       {error && (
-        <Alert variant="danger" dismissible onClose={() => setError(undefined)}>
+        <Alert variant="danger" dismissible={!!types} onClose={() => setError(undefined)}>
           {error}
         </Alert>
       )}
@@ -119,11 +109,20 @@ export default function ModelerHome() {
           </Nav.Link>
         </Nav.Item>
       </Nav>
-      <Routes>
-        <Route path="types" element={<TypeList {...context} />} />
-        <Route path="graph" element={<TypeGraph {...context} />} />
-        <Route path="*" element={<Navigate to={`/modeler/types${query}`} replace />} />
-      </Routes>
+      {context ? (
+        <Routes>
+          <Route path="types" element={<TypeList {...context} />} />
+          <Route path="graph" element={<TypeGraph {...context} />} />
+          <Route path="*" element={<Navigate to={`/modeler/types${query}`} replace />} />
+        </Routes>
+      ) : (
+        // The tabs stay in place while the model is loaded
+        !error && (
+          <div className="modeler-loading">
+            <Spinner animation="border" size="sm" /> Loading types...
+          </div>
+        )
+      )}
     </div>
   );
 }

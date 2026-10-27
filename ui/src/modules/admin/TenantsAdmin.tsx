@@ -1,7 +1,8 @@
 import React, { useCallback, useEffect, useState } from "react";
-import { Alert, Button, Card, Col, Form, ListGroup, Modal, Row, Spinner, Tab, Tabs } from "react-bootstrap";
+import { Alert, Button, Col, Form, Modal, Row, Spinner, Tab, Tabs } from "react-bootstrap";
 import { Plus, Upload } from "lucide-react";
 import { useAuth } from "../../contexts/AuthContext";
+import { useSubNavActions } from "../../contexts/SubNavActionsContext";
 import { useConfig } from "../../contexts/ConfigContext";
 import SaveButton from "../../components/SaveButton";
 import {
@@ -99,6 +100,8 @@ export default function TenantsAdmin() {
     }
   };
 
+  useSubNavActions([{ label: "Create new tenant", icon: <Plus size={16} />, onClick: () => setCreating(true) }]);
+
   return (
     <div>
       {error && (
@@ -109,30 +112,34 @@ export default function TenantsAdmin() {
       <Row>
         <Col md={3} className="mb-3">
           <div className="d-flex align-items-center mb-2">
-            <span className="fw-semibold">Tenants</span>
-            <Button
-              size="sm"
-              variant="dark"
-              className="ms-auto d-flex align-items-center"
-              onClick={() => setCreating(true)}
-            >
-              <Plus size={16} className="me-1" />
-              New tenant
-            </Button>
+            <span className="admin-kicker">Tenants</span>
+            {names && <span className="admin-result-count ms-auto">{names.length}</span>}
           </div>
-          {!names && !error && <Spinner animation="border" size="sm" />}
-          {names && names.length === 0 && <p className="text-muted">No tenants are defined yet.</p>}
-          <ListGroup>
-            {names?.map((name) => (
-              <ListGroup.Item key={name} action active={name === selected} onClick={() => setSelected(name)}>
-                {name}
-              </ListGroup.Item>
-            ))}
-          </ListGroup>
+          {!names && !error && (
+            <div className="admin-loading">
+              <Spinner animation="border" size="sm" /> Loading tenants...
+            </div>
+          )}
+          {names && names.length === 0 && <p className="admin-empty">No tenants are defined yet.</p>}
+          {!!names?.length && (
+            <div className="admin-tenant-list">
+              {names.map((name) => (
+                <button
+                  type="button"
+                  key={name}
+                  aria-current={name === selected ? "true" : undefined}
+                  className={`admin-tenant-item${name === selected ? " admin-tenant-item--selected" : ""}`}
+                  onClick={() => setSelected(name)}
+                >
+                  {name}
+                </button>
+              ))}
+            </div>
+          )}
         </Col>
         <Col md={9}>
           {selected && !tenant && !error && (
-            <div className="text-center py-4">
+            <div className="admin-loading">
               <Spinner animation="border" size="sm" /> Loading tenant...
             </div>
           )}
@@ -149,40 +156,39 @@ type Modify = (action: (token: string, name: string) => Promise<void>) => Promis
 function TenantDetails({ tenant, modify }: { tenant: Tenant; modify: Modify }) {
   const disabled = !tenant.editable;
   return (
-    <Card>
-      <Card.Header>
-        <span className="fw-semibold">{tenant.title || tenant.name}</span>
-        <span className="text-muted ms-2 small">{tenant.name}</span>
-      </Card.Header>
-      <Card.Body>
-        {disabled && (
-          <Alert variant="info" className="py-2">
-            The "{tenant.name}" tenant is provided by the core and can not be modified.
-          </Alert>
-        )}
-        <Tabs defaultActiveKey="general" className="mb-3">
-          <Tab eventKey="general" title="General">
-            <GeneralForm tenant={tenant} disabled={disabled} modify={modify} />
-          </Tab>
-          <Tab eventKey="font" title="Font">
-            <FontForm font={tenant.theme.font} disabled={disabled} modify={modify} />
-          </Tab>
-          <Tab eventKey="colors" title="Colors">
-            <ColorsForm colors={tenant.theme.colors} disabled={disabled} modify={modify} />
-          </Tab>
-          <Tab eventKey="images" title="Images">
-            <ImagesForm name={tenant.name} disabled={disabled} modify={modify} />
-          </Tab>
-          <Tab eventKey="css" title="Custom CSS">
-            <CustomCssForm css={tenant.theme.customCss} disabled={disabled} modify={modify} />
-          </Tab>
-          <Tab eventKey="resultingCss" title="Resulting CSS">
-            <pre className="admin-code admin-resulting-css">{tenant.css}</pre>
-            <Form.Text muted>The stylesheet the core provides for the tenant - generated from its font, colors and custom CSS.</Form.Text>
-          </Tab>
-        </Tabs>
-      </Card.Body>
-    </Card>
+    <div className="instance-focus-panel admin-tenant-details">
+      <div className="instance-header">
+        <div className="instance-type-label">Tenant</div>
+        <h2 className="instance-name">{tenant.title || tenant.name}</h2>
+        <div className="admin-tenant-name">{tenant.name}</div>
+      </div>
+      {disabled && (
+        <Alert variant="info" className="py-2">
+          The "{tenant.name}" tenant is provided by the core and can not be modified.
+        </Alert>
+      )}
+      <Tabs defaultActiveKey="general" className="mb-3">
+        <Tab eventKey="general" title="General">
+          <GeneralForm tenant={tenant} disabled={disabled} modify={modify} />
+        </Tab>
+        <Tab eventKey="font" title="Font">
+          <FontForm font={tenant.theme.font} disabled={disabled} modify={modify} />
+        </Tab>
+        <Tab eventKey="colors" title="Colors">
+          <ColorsForm colors={tenant.theme.colors} disabled={disabled} modify={modify} />
+        </Tab>
+        <Tab eventKey="images" title="Images">
+          <ImagesForm name={tenant.name} disabled={disabled} modify={modify} />
+        </Tab>
+        <Tab eventKey="css" title="Custom CSS">
+          <CustomCssForm css={tenant.theme.customCss} disabled={disabled} modify={modify} />
+        </Tab>
+        <Tab eventKey="resultingCss" title="Resulting CSS">
+          <pre className="admin-code admin-resulting-css">{tenant.css}</pre>
+          <Form.Text muted>The stylesheet the core provides for the tenant - generated from its font, colors and custom CSS.</Form.Text>
+        </Tab>
+      </Tabs>
+    </div>
   );
 }
 
@@ -198,7 +204,7 @@ function DefinitionFields({
   return (
     <>
       <Form.Group className="mb-3">
-        <Form.Label className="fw-bold">Title</Form.Label>
+        <Form.Label>Title</Form.Label>
         <Form.Control
           size="sm"
           disabled={disabled}
@@ -207,7 +213,7 @@ function DefinitionFields({
         />
       </Form.Group>
       <Form.Group className="mb-3">
-        <Form.Label className="fw-bold">Contact email</Form.Label>
+        <Form.Label>Contact email</Form.Label>
         <Form.Control
           size="sm"
           type="email"
@@ -217,7 +223,7 @@ function DefinitionFields({
         />
       </Form.Group>
       <Form.Group className="mb-3">
-        <Form.Label className="fw-bold">Copyright</Form.Label>
+        <Form.Label>Copyright</Form.Label>
         <Form.Control
           size="sm"
           disabled={disabled}
@@ -240,7 +246,7 @@ function GeneralForm({ tenant, disabled, modify }: { tenant: Tenant; disabled: b
       <DefinitionFields definition={definition} disabled={disabled} onChange={setDefinition} />
       {tenant.idNamespace && (
         <Form.Group className="mb-3">
-          <Form.Label className="fw-bold">Id namespace</Form.Label>
+          <Form.Label>Id namespace</Form.Label>
           <Form.Control size="sm" readOnly plaintext value={tenant.idNamespace} />
         </Form.Group>
       )}
@@ -254,7 +260,7 @@ function FontForm({ font: initial, disabled, modify }: { font: Font; disabled: b
   return (
     <Form onSubmit={(e) => e.preventDefault()}>
       <Form.Group className="mb-3">
-        <Form.Label className="fw-bold">Font URL</Form.Label>
+        <Form.Label>Font URL</Form.Label>
         <Form.Control
           size="sm"
           disabled={disabled}
@@ -265,7 +271,7 @@ function FontForm({ font: initial, disabled, modify }: { font: Font; disabled: b
         <Form.Text muted>The stylesheet the font is imported from (optional).</Form.Text>
       </Form.Group>
       <Form.Group className="mb-3">
-        <Form.Label className="fw-bold">Font family</Form.Label>
+        <Form.Label>Font family</Form.Label>
         <Form.Control
           size="sm"
           disabled={disabled}
@@ -295,7 +301,7 @@ function ColorsForm({ colors: initial, disabled, modify }: { colors: Colors; dis
     <Form onSubmit={(e) => e.preventDefault()}>
       {Object.entries(colors).map(([group, values]) => (
         <fieldset key={group} className="mb-3">
-          <legend className="fs-6 fw-bold">{COLOR_GROUP_LABELS[group] ?? group}</legend>
+          <legend className="admin-kicker">{COLOR_GROUP_LABELS[group] ?? group}</legend>
           <Row>
             {Object.entries(values).map(([color, value]) => {
               const picker = pickerValue(value);
@@ -360,7 +366,7 @@ function ImagesForm({ name, disabled, modify }: { name: string; disabled: boolea
     <Row>
       {variants.map(({ image, darkMode, label }) => (
         <Col key={`${image}-${darkMode}`} xs={12} sm={6} lg={4} className="mb-3">
-          <div className="fw-bold small mb-1">{label}</div>
+          <div className="admin-kicker mb-1">{label}</div>
           <div className={`admin-image-preview ${darkMode ? "admin-image-preview-dark" : ""}`}>
             <img
               src={imageUrl(coreUrl, name, image, darkMode, version)}
@@ -460,7 +466,7 @@ function CreateTenantModal({
   };
 
   return (
-    <Modal show={show} onHide={onHide} centered>
+    <Modal show={show} onHide={onHide} centered className="admin-modal">
       <Modal.Header closeButton>
         <Modal.Title>New tenant</Modal.Title>
       </Modal.Header>
@@ -468,7 +474,7 @@ function CreateTenantModal({
         {error && <Alert variant="danger">{error}</Alert>}
         <Form onSubmit={(e) => e.preventDefault()}>
           <Form.Group className="mb-3">
-            <Form.Label className="fw-bold">
+            <Form.Label>
               Name <span className="text-danger">*</span>
             </Form.Label>
             <Form.Control

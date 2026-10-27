@@ -24,7 +24,7 @@ export default function AdminHome() {
 
   if (!functionalities) {
     return (
-      <div className="text-center py-4">
+      <div className="admin-loading">
         <Spinner animation="border" size="sm" /> Loading permissions...
       </div>
     );
@@ -32,7 +32,7 @@ export default function AdminHome() {
 
   const sections = adminSections(functionalities);
   if (sections.length === 0) {
-    return <p className="text-muted">You don't have the permissions to administrate MarmotGraph.</p>;
+    return <p className="admin-empty">You don't have the permissions to administrate MarmotGraph.</p>;
   }
 
   return (

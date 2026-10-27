@@ -3,6 +3,8 @@ import { act, fireEvent, render, screen, within } from "@testing-library/react";
 import { MemoryRouter, Route, Routes, useLocation } from "react-router-dom";
 import ModelerHome from "./ModelerHome";
 import { POSITIONS_KEY } from "./nodePositions";
+import AppSubNav from "../../components/composites/AppSubNav";
+import { SubNavActionsProvider } from "../../contexts/SubNavActionsContext";
 import { useGlobalFunctionalities } from "../../hooks/useGlobalFunctionalities";
 import {
   fetchModel,
@@ -62,9 +64,12 @@ function renderAt(path: string, functionalities: string[] = SCHEMA_ADMIN) {
   vi.mocked(fetchTypeSpecification).mockResolvedValue(undefined);
   render(
     <MemoryRouter initialEntries={[path]}>
-      <Routes>
-        <Route path="modeler/*" element={<ModelerHome />} />
-      </Routes>
+      <SubNavActionsProvider>
+        <AppSubNav ctas={[]} />
+        <Routes>
+          <Route path="modeler/*" element={<ModelerHome />} />
+        </Routes>
+      </SubNavActionsProvider>
       <Location />
     </MemoryRouter>,
   );
@@ -114,7 +119,7 @@ describe("ModelerHome", () => {
 
   it("shows the incoming relations of a type", async () => {
     renderAt(`/modeler/types?type=${encodeURIComponent(ROOM)}`);
-    expect(await screen.findByText("Incoming relations")).toBeInTheDocument();
+    expect(await screen.findByText("Incoming relations (1)")).toBeInTheDocument();
     expect(screen.getByText("via")).toBeInTheDocument();
   });
 
@@ -122,7 +127,15 @@ describe("ModelerHome", () => {
     renderAt(`/modeler/types?type=${encodeURIComponent(DEVICE)}`, ["DEFINE_TYPES_AND_PROPERTIES"]);
     expect(await screen.findByText("Add property")).toBeInTheDocument();
     expect(screen.getByText("Add relation")).toBeInTheDocument();
-    expect(screen.getByText("New type")).toBeInTheDocument();
+    // Creating a type is the page action in the subnav
+    fireEvent.click(screen.getByText("Create new type"));
+    expect(await screen.findByText("New type")).toBeInTheDocument();
+  });
+
+  it("offers no page action without the rights to define types", async () => {
+    renderAt("/modeler/types");
+    expect(await screen.findByText("3 types")).toBeInTheDocument();
+    expect(screen.queryByText("Create new type")).not.toBeInTheDocument();
   });
 
   it("keeps the selected type when switching to the graph", async () => {

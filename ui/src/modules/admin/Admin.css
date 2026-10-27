@@ -2,33 +2,162 @@
     padding-bottom: 1rem;
 }
 
+.admin-home .form-control:focus,
+.admin-home .form-select:focus,
+.admin-home .form-check-input:focus,
+.admin-modal .form-control:focus,
+.admin-modal .form-select:focus {
+    border-color: #6c8ebf;
+    box-shadow: 0 0 0 0.2rem rgba(108, 142, 191, 0.25);
+}
+
+.admin-home .form-label,
+.admin-modal .form-label {
+    font-weight: 500;
+    color: #333;
+}
+
 .admin-filter {
     max-width: 320px;
 }
 
+/* Group labels */
+.admin-kicker {
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: #6c757d;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.admin-result-count {
+    font-size: 0.8rem;
+    color: #6c757d;
+    font-variant-numeric: tabular-nums;
+}
+
+.admin-empty,
+.admin-loading {
+    padding: 24px 12px;
+    text-align: center;
+    font-size: 0.875rem;
+    color: #6c757d;
+}
+
+.admin-icon-btn {
+    min-width: 32px;
+    min-height: 32px;
+    padding: 6px 8px !important;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* Permissions - one card per space */
+.admin-space-card {
+    background-color: #fff;
+    border: 1px solid #dee2e6;
+    border-radius: 10px;
+    margin-bottom: 16px;
+    overflow: hidden;
+}
+
+.admin-space-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 6px 6px 16px;
+    background-color: #f8f9fb;
+    border-bottom: 1px solid #e4e7eb;
+    font-weight: 600;
+    color: #212529;
+    overflow-wrap: anywhere;
+}
+
+.admin-space-body {
+    padding: 8px 16px;
+}
+
 .admin-role + .admin-role {
-    border-top: 1px solid var(--border-color);
+    border-top: 1px solid #f1f3f5;
     margin-top: 0.5rem;
     padding-top: 0.5rem;
 }
 
-.admin-role-badge {
-    font-size: 0.8rem;
-    text-transform: uppercase;
-    letter-spacing: 0.03em;
-}
-
 .admin-claim {
     padding: 0.25rem 0;
+    border-bottom: 1px solid #f1f3f5;
+}
+
+.admin-claim:last-child {
+    border-bottom: none;
 }
 
 .admin-claim code {
     word-break: break-all;
+    color: #495057;
 }
 
 .admin-code {
     font-family: SFMono-Regular, Menlo, Monaco, Consolas, monospace;
     font-size: 0.85rem;
+}
+
+/* Tenants */
+.admin-tenant-list {
+    border: 1px solid #dee2e6;
+    border-radius: 10px;
+    background-color: #fff;
+    overflow: hidden;
+}
+
+.admin-tenant-item {
+    display: block;
+    width: 100%;
+    padding: 10px 12px;
+    border: none;
+    border-bottom: 1px solid #f1f3f5;
+    border-left: 4px solid transparent;
+    background-color: transparent;
+    color: #333;
+    font-size: 0.95rem;
+    text-align: left;
+    overflow-wrap: anywhere;
+    cursor: pointer;
+    transition: background-color 0.15s ease;
+}
+
+.admin-tenant-item:last-child {
+    border-bottom: none;
+}
+
+.admin-tenant-item:hover {
+    background-color: #e8e9f3;
+    border-left-color: #5b5fc7;
+}
+
+.admin-tenant-item--selected,
+.admin-tenant-item--selected:hover {
+    background-color: #eef0fb;
+    border-left-color: #5b5fc7;
+    color: #212529;
+    font-weight: 600;
+}
+
+.admin-tenant-item:focus-visible {
+    outline: 2px solid #5b5fc7;
+    outline-offset: -2px;
+}
+
+.admin-tenant-details .instance-header {
+    padding-top: 0;
+    margin-bottom: 16px;
+}
+
+.admin-tenant-name {
+    font-family: monospace;
+    font-size: 0.75rem;
+    color: #6c757d;
 }
 
 .admin-color-picker {
@@ -42,7 +171,7 @@
     height: 1.5rem;
     flex-shrink: 0;
     border-radius: 4px;
-    border: 1px solid var(--border-color);
+    border: 1px solid #dee2e6;
     /* Shows the transparency of colors with alpha channel */
     background-image: repeating-conic-gradient(#ccc 0 25%, #fff 0 50%);
     background-size: 8px 8px;
@@ -50,7 +179,7 @@
 
 .admin-image-preview {
     height: 120px;
-    border: 1px solid var(--border-color);
+    border: 1px solid #dee2e6;
     border-radius: 6px;
     display: flex;
     align-items: center;
@@ -73,8 +202,14 @@
     max-height: 60vh;
     overflow: auto;
     padding: 0.75rem;
-    border: 1px solid var(--border-color);
+    border: 1px solid #dee2e6;
     border-radius: 6px;
     background: #f8f9fa;
     white-space: pre-wrap;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .admin-tenant-item {
+        transition: none;
+    }
 }

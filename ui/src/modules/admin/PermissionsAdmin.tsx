@@ -1,7 +1,8 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { Alert, Badge, Button, Card, Form, Modal, Spinner } from "react-bootstrap";
+import { Alert, Button, Form, Modal, Spinner } from "react-bootstrap";
 import { Globe, Plus, Trash2 } from "lucide-react";
 import { useAuth } from "../../contexts/AuthContext";
+import { useSubNavActions } from "../../contexts/SubNavActionsContext";
 import { useSpaces } from "../../hooks/useSpaces";
 import {
   Claims,
@@ -116,20 +117,25 @@ export default function PermissionsAdmin() {
   const openDraft = (space: string, role?: string) =>
     setDraft({ space, role: role ?? roles[0] ?? "", json: '{\n  "roles": {\n    "group": [""]\n  }\n}' });
 
+  useSubNavActions([{ label: "Add claim", icon: <Plus size={16} />, onClick: () => openDraft(GLOBAL) }]);
+
   return (
     <div>
-      <div className="d-flex align-items-center mb-3 gap-2">
+      <div className="d-flex align-items-center flex-wrap mb-3 gap-2">
         <Form.Control
           size="sm"
+          type="search"
           className="admin-filter"
           placeholder="Filter by space or claim..."
+          aria-label="Filter by space or claim"
           value={filter}
           onChange={(e) => setFilter(e.target.value)}
         />
-        <Button size="sm" variant="dark" className="ms-auto d-flex align-items-center" onClick={() => openDraft(GLOBAL)}>
-          <Plus size={16} className="me-1" />
-          Add claim
-        </Button>
+        {definitions && (
+          <span className="admin-result-count ms-auto">
+            {sections.length} {sections.length === 1 ? "space" : "spaces"}
+          </span>
+        )}
       </div>
 
       {error && (
@@ -139,84 +145,85 @@ export default function PermissionsAdmin() {
       )}
 
       {!definitions && !error && (
-        <div className="text-center py-4">
+        <div className="admin-loading">
           <Spinner animation="border" size="sm" /> Loading permissions...
         </div>
       )}
 
       {definitions && sections.length === 0 && (
-        <p className="text-muted">{filter ? "No permissions match the filter." : "No permissions are defined yet."}</p>
+        <p className="admin-empty">{filter ? "No permissions match the filter." : "No permissions are defined yet."}</p>
       )}
 
-      {sections.map(([space, roleDefinitions]) => (
-        <Card key={space || "global"} className="mb-3">
-          <Card.Header className="d-flex align-items-center">
-            {space === GLOBAL ? (
-              <span className="d-flex align-items-center fw-semibold">
-                <Globe size={16} className="me-2" />
-                Global
-              </span>
-            ) : (
-              <span className="fw-semibold">{space}</span>
-            )}
-            <Button
-              size="sm"
-              variant="outline-secondary"
-              className="ms-auto d-flex align-items-center"
-              onClick={() => openDraft(space)}
-            >
-              <Plus size={14} className="me-1" />
-              Add claim
-            </Button>
-          </Card.Header>
-          <Card.Body className="py-2">
-            {roleDefinitions.map((definition) => (
-              <div key={definition.role} className="admin-role">
-                <div className="d-flex align-items-center mb-1">
-                  <Badge bg="secondary" className="admin-role-badge">{definition.role}</Badge>
-                  <Button
-                    size="sm"
-                    variant="link"
-                    className="ms-auto p-0 text-decoration-none"
-                    onClick={() => openDraft(space, definition.role)}
-                  >
-                    Add claim to {definition.role}
-                  </Button>
+      {sections.map(([space, roleDefinitions]) => {
+        const spaceLabel = space === GLOBAL ? "Global" : space;
+        return (
+          <section key={space || "global"} className="admin-space-card">
+            <div className="admin-space-header">
+              {space === GLOBAL && <Globe size={16} aria-hidden />}
+              <span>{spaceLabel}</span>
+              <Button
+                size="sm"
+                variant="link"
+                className="ms-auto edit-icon-btn admin-icon-btn"
+                title={`Add claim (${spaceLabel})`}
+                aria-label={`Add claim (${spaceLabel})`}
+                onClick={() => openDraft(space)}
+              >
+                <Plus size={16} />
+              </Button>
+            </div>
+            <div className="admin-space-body">
+              {roleDefinitions.map((definition) => (
+                <div key={definition.role} className="admin-role">
+                  <div className="d-flex align-items-center">
+                    <span className="admin-kicker">{definition.role}</span>
+                    <Button
+                      size="sm"
+                      variant="link"
+                      className="ms-auto edit-icon-btn admin-icon-btn"
+                      title={`Add claim to ${definition.role}`}
+                      aria-label={`Add claim to ${definition.role}`}
+                      onClick={() => openDraft(space, definition.role)}
+                    >
+                      <Plus size={14} />
+                    </Button>
+                  </div>
+                  <ul className="list-unstyled mb-0">
+                    {individualClaims(definition.claims).map((claim) => {
+                      const json = JSON.stringify(claim);
+                      return (
+                        <li key={json} className="admin-claim d-flex align-items-center">
+                          <code className="flex-grow-1">{json}</code>
+                          <Button
+                            size="sm"
+                            variant="link"
+                            className="ms-2 edit-icon-btn admin-icon-btn"
+                            title="Remove this claim"
+                            aria-label={`Remove the claim ${json} from ${definition.role}`}
+                            disabled={busy}
+                            onClick={() => removeClaim(definition, claim)}
+                          >
+                            <Trash2 size={14} />
+                          </Button>
+                        </li>
+                      );
+                    })}
+                  </ul>
                 </div>
-                <ul className="list-unstyled mb-0">
-                  {individualClaims(definition.claims).map((claim) => {
-                    const json = JSON.stringify(claim);
-                    return (
-                      <li key={json} className="admin-claim d-flex align-items-center">
-                        <code className="flex-grow-1">{json}</code>
-                        <Button
-                          size="sm"
-                          variant="outline-danger"
-                          className="ms-2 d-flex align-items-center"
-                          title="Remove this claim"
-                          disabled={busy}
-                          onClick={() => removeClaim(definition, claim)}
-                        >
-                          <Trash2 size={14} />
-                        </Button>
-                      </li>
-                    );
-                  })}
-                </ul>
-              </div>
-            ))}
-          </Card.Body>
-        </Card>
-      ))}
+              ))}
+            </div>
+          </section>
+        );
+      })}
 
-      <Modal show={!!draft} onHide={() => setDraft(undefined)} centered>
+      <Modal show={!!draft} onHide={() => setDraft(undefined)} centered className="admin-modal">
         <Modal.Header closeButton>
           <Modal.Title>Add claim</Modal.Title>
         </Modal.Header>
         {draft && (
           <Modal.Body>
             <Form.Group className="mb-3">
-              <Form.Label className="fw-bold">Space</Form.Label>
+              <Form.Label>Space</Form.Label>
               <Form.Control
                 size="sm"
                 list="admin-spaces"
@@ -233,7 +240,7 @@ export default function PermissionsAdmin() {
               </datalist>
             </Form.Group>
             <Form.Group className="mb-3">
-              <Form.Label className="fw-bold">Role</Form.Label>
+              <Form.Label>Role</Form.Label>
               <Form.Select size="sm" value={draft.role} onChange={(e) => setDraft({ ...draft, role: e.target.value })}>
                 {roles.map((r) => (
                   <option key={r} value={r}>
@@ -243,7 +250,7 @@ export default function PermissionsAdmin() {
               </Form.Select>
             </Form.Group>
             <Form.Group>
-              <Form.Label className="fw-bold">Claim (JSON)</Form.Label>
+              <Form.Label>Claim (JSON)</Form.Label>
               <Form.Control
                 as="textarea"
                 rows={8}

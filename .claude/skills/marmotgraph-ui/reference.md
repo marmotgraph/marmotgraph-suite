@@ -9,6 +9,7 @@ Source of truth: the CSS below. Use these values when the stylesheet does not al
 | Page shell | `ui/src/App.css`, `ui/src/views/Layout.css` | `layout-container`, `layout-content`, `layout-main` |
 | Sidebar | `ui/src/components/SidebarMG.css` | `SidebarMG`, `sidebar-nav-link` |
 | Page actions | `ui/src/components/composites/AppSubNav.tsx` | subnav `ctas`, `variant: "dark"`, `size: "sm"` |
+| Page actions from a view | `ui/src/contexts/SubNavActionsContext.tsx` | `useSubNavActions` when the action depends on view state or permissions |
 | Instance list | `ui/src/modules/editor/EditorHome.css` | `editor-home`, `instance-card`, `instance-preview` |
 | Table | `ui/src/modules/query-builder/SharedQueries.css` | `shared-queries-table` |
 | Search | `ui/src/components/SearchBar.tsx` | `SearchBar` |
@@ -90,7 +91,7 @@ Spacing rhythm: 4, 6, 8, 10, 12, 16, 20, 24, 28. Detail columns gap 40px. The li
 
 ### Buttons
 
-The page action is a subnav CTA, `btn btn-dark btn-sm`, label in sentence case. `SearchBar` has the other dark button: magnifying glass plus the word "Search", and Enter submits. Dialog confirmation uses `variant="dark"`; a destructive confirm uses `variant="danger"` (`Delete Selected`, `Clear all` is `outline-danger`). Toolbar and row actions use `edit-icon-btn`.
+The page action is a subnav CTA, `btn btn-dark btn-sm`, label in sentence case. A static action goes in the module's `*SubNav.tsx`; an action that opens a view's dialog or needs a permission is registered from the view with `useSubNavActions` and renders as the same dark button. `SearchBar` has the other dark button: magnifying glass plus the word "Search", and Enter submits. Dialog confirmation uses `variant="dark"`; a destructive confirm uses `variant="danger"` (`Delete Selected`, `Clear all` is `outline-danger`). Toolbar and row actions use `edit-icon-btn`. `SaveButton` in a form is `outline-dark`, so it stays below the page action.
 
 ### List
 

@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useState } from "react";
-import { Alert, Button, Card, Form, Spinner } from "react-bootstrap";
+import { Alert, Button, Form, Spinner } from "react-bootstrap";
 import CodeMirror from "@uiw/react-codemirror";
 import { Plus, Trash2 } from "lucide-react";
 import { useAuth } from "../../contexts/AuthContext";
@@ -92,18 +92,18 @@ export default function ValidationSchemas({ type, canDefine }: { type: string; c
             onChange={(e) => setNewName(e.target.value)}
             aria-label="Name of the new schema"
           />
-          <Button size="sm" variant="dark" type="submit" disabled={!trimmedName || duplicate} className="d-flex align-items-center text-nowrap">
+          <Button size="sm" variant="outline-secondary" type="submit" disabled={!trimmedName || duplicate} className="d-flex align-items-center text-nowrap">
             <Plus size={16} className="me-1" />
             Add schema
           </Button>
         </Form>
       )}
       {!schemas && !error && (
-        <div className="text-center py-4">
+        <div className="modeler-loading">
           <Spinner animation="border" size="sm" /> Loading validation schemas...
         </div>
       )}
-      {schemas?.length === 0 && <p className="text-muted">No validation schemas are defined for the type.</p>}
+      {schemas?.length === 0 && <p className="modeler-empty">No validation schemas are defined for the type.</p>}
       {schemas?.map((schema) => (
         <SchemaEditor
           key={`${schema.name} ${JSON.stringify(schema.schema)}`}
@@ -131,14 +131,14 @@ function SchemaEditor({
   const [text, setText] = useState(() => JSON.stringify(schema.schema, null, 2));
   const parsed = parseObject(text);
   return (
-    <Card className="mb-3">
-      <Card.Header className="d-flex align-items-center py-2">
-        <span className="fw-semibold">{schema.name}</span>
+    <div className="modeler-schema mb-3">
+      <div className="modeler-schema-header">
+        <span className="modeler-schema-name">{schema.name}</span>
         {canDefine && (
           <Button
             size="sm"
             variant="link"
-            className="ms-auto p-1 text-danger"
+            className="ms-auto edit-icon-btn"
             title="Delete"
             aria-label={`Delete ${schema.name}`}
             onClick={onDelete}
@@ -146,8 +146,8 @@ function SchemaEditor({
             <Trash2 size={16} />
           </Button>
         )}
-      </Card.Header>
-      <Card.Body>
+      </div>
+      <div className="modeler-schema-body">
         <CodeMirror
           className={`json-field form-control p-0${parsed ? "" : " is-invalid"}`}
           value={text}
@@ -163,7 +163,7 @@ function SchemaEditor({
             <SaveButton disabled={!parsed} onSave={() => onSave(parsed!)} />
           </div>
         )}
-      </Card.Body>
-    </Card>
+      </div>
+    </div>
   );
 }

@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useState } from "react";
-import { Alert, Badge, Form, Spinner } from "react-bootstrap";
+import { Alert, Form, Spinner } from "react-bootstrap";
 import { useAuth } from "../../contexts/AuthContext";
 import { useSpaces } from "../../hooks/useSpaces";
 import { assignSpace, fetchAssignedSpaces, ModelType } from "../../services/modeler";
@@ -48,22 +48,22 @@ export default function TypeSpaces({ type, canDefine }: { type: ModelType; canDe
           {error}
         </Alert>
       )}
-      <h6>Occurs in</h6>
+      <div className="modeler-kicker">Occurs in ({type.spaces.length})</div>
       {type.spaces.length === 0 ? (
-        <p className="text-muted small">There are no instances of the type yet.</p>
+        <p className="modeler-empty">There are no instances of the type yet.</p>
       ) : (
-        <div className="d-flex flex-wrap gap-1 mb-3">
+        <div className="d-flex flex-wrap gap-2 mb-3">
           {type.spaces.map((space) => (
-            <Badge key={space} bg="light" text="dark">
+            <span key={space} className="tag-badge">
               {space}
-            </Badge>
+            </span>
           ))}
         </div>
       )}
-      <h6 className="mt-3">Applicable in</h6>
+      <div className="modeler-kicker mt-4">Applicable in ({assigned?.length ?? 0})</div>
       <p className="text-muted small">The spaces the type is assigned to.</p>
       {!assigned && !error ? (
-        <div className="text-center py-4">
+        <div className="modeler-loading">
           <Spinner animation="border" size="sm" /> Loading spaces...
         </div>
       ) : (

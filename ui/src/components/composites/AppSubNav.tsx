@@ -1,6 +1,7 @@
 // src/components/composites/AppSubNav.tsx
 import React, { useState } from "react";
 import { Button, Col, Container, Modal, Row } from "react-bootstrap";
+import { useRegisteredSubNavActions } from "../../contexts/SubNavActionsContext";
 
 type CtaButton = {
   label: string;
@@ -32,6 +33,8 @@ type AppSubNavProps = {
 export default function AppSubNav({ title, ctas }: AppSubNavProps) {
   const [openModalIndex, setOpenModalIndex] = useState<number | null>(null);
   const [selectedType, setSelectedType] = useState<string | null>(null);
+  // The page actions of the current view (e.g. only available with the permissions to use them)
+  const actions = useRegisteredSubNavActions();
 
   const handleModalClick = (index: number) => {
     setOpenModalIndex(index);
@@ -91,6 +94,12 @@ export default function AppSubNav({ title, ctas }: AppSubNavProps) {
               </Button>
             );
           })}
+          {actions.map((action) => (
+            <Button key={action.label} variant="dark" size="sm" className="ms-2" onClick={action.onClick}>
+              {action.icon && <span className="me-1 d-inline-flex align-items-center">{action.icon}</span>}
+              {action.label}
+            </Button>
+          ))}
         </Col>
       </Row>
 

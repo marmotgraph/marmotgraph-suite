@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { Alert, Badge, Button, Card, Form, Spinner, Tab, Table, Tabs } from "react-bootstrap";
+import { Alert, Button, Form, Spinner, Tab, Table, Tabs } from "react-bootstrap";
 import { Link } from "react-router-dom";
 import { ArrowRight, CircleDashed, Globe, Network, Pencil, Plus, Trash2 } from "lucide-react";
 import { useAuth } from "../../contexts/AuthContext";
@@ -23,6 +23,7 @@ import type { ModelerContext } from "./ModelerHome";
 import PropertyModal from "./PropertyModal";
 import ValidationSchemas from "./ValidationSchemas";
 import TypeSpaces from "./TypeSpaces";
+import TypeIdentifier from "./TypeIdentifier";
 
 type Props = ModelerContext & { type: ModelType };
 
@@ -30,76 +31,82 @@ type Props = ModelerContext & { type: ModelType };
 export default function TypeDetails(props: Props) {
   const { type } = props;
   const [tab, setTab] = useState("properties");
+  const unspecified = props.specificationStatus?.[type.identifier]?.specified === false;
   return (
-    <Card>
-      <Card.Header className="d-flex align-items-center flex-wrap gap-2">
-        <span className="modeler-color-dot" style={{ backgroundColor: type.color || "#adb5bd" }} />
-        <span className="fw-semibold">{typeName(type)}</span>
-        <code className="small text-muted text-break">{type.identifier}</code>
-        {props.specificationStatus?.[type.identifier]?.specified === false && <UnspecifiedBadge what="type" />}
-        <span className="ms-auto d-flex align-items-center gap-2">
-          {type.occurrences !== undefined && (
-            <Badge bg="light" text="dark">
-              {type.occurrences} instances
-            </Badge>
-          )}
+    <div
+      className="instance-focus-panel modeler-type-details"
+      style={{ "--instance-type-color": type.color || "#6c757d" } as React.CSSProperties}
+    >
+      <div className="instance-header">
+        <div className="d-flex align-items-start gap-2">
+          <div className="modeler-header-main">
+            <div className="instance-type-label">
+              <span className="modeler-color-dot me-2" style={{ backgroundColor: type.color || "#6c757d" }} />
+              Type
+            </div>
+            <h2 className="instance-name">{typeName(type)}</h2>
+          </div>
           <Link
             to={`/modeler/graph?type=${encodeURIComponent(type.identifier)}`}
-            className="btn btn-sm btn-outline-secondary d-flex align-items-center"
+            className="btn btn-link edit-icon-btn flex-shrink-0"
+            title="Show in graph"
+            aria-label="Show in graph"
           >
-            <Network size={14} className="me-1" />
-            Show in graph
+            <Network size={16} />
           </Link>
-        </span>
-      </Card.Header>
-      <Card.Body>
-        {type.description && <p className="text-muted">{type.description}</p>}
-        <Tabs activeKey={tab} onSelect={(key) => setTab(key ?? "properties")} className="mb-3" mountOnEnter>
-          <Tab eventKey="properties" title={`Properties (${type.properties.length})`}>
-            <PropertiesTab {...props} />
-          </Tab>
-          <Tab eventKey="general" title="Definition">
-            <DefinitionTab {...props} />
-          </Tab>
-          <Tab eventKey="validation" title="Validation">
-            <ValidationSchemas type={type.identifier} canDefine={props.canDefineSchemas} />
-          </Tab>
-          <Tab eventKey="spaces" title="Spaces">
-            <TypeSpaces type={type} canDefine={props.canDefineTypes} />
-          </Tab>
-        </Tabs>
-      </Card.Body>
-    </Card>
+        </div>
+        <TypeIdentifier identifier={type.identifier} />
+        <div className="instance-meta d-flex align-items-center flex-wrap gap-2 mt-2">
+          {type.occurrences !== undefined && (
+            <span>
+              <strong>{type.occurrences}</strong> instances
+            </span>
+          )}
+          {unspecified && <UnspecifiedBadge what="type" />}
+        </div>
+        {type.description && <p className="instance-meta mt-2 mb-0">{type.description}</p>}
+      </div>
+      <Tabs activeKey={tab} onSelect={(key) => setTab(key ?? "properties")} className="mb-3" mountOnEnter>
+        <Tab eventKey="properties" title={`Properties (${type.properties.length})`}>
+          <PropertiesTab {...props} />
+        </Tab>
+        <Tab eventKey="general" title="Definition">
+          <DefinitionTab {...props} />
+        </Tab>
+        <Tab eventKey="validation" title="Validation">
+          <ValidationSchemas type={type.identifier} canDefine={props.canDefineSchemas} />
+        </Tab>
+        <Tab eventKey="spaces" title="Spaces">
+          <TypeSpaces type={type} canDefine={props.canDefineTypes} />
+        </Tab>
+      </Tabs>
+    </div>
   );
 }
 
 /** Marks a type or property without a specification - it is only known from the data. */
 function UnspecifiedBadge({ what }: { what: "type" | "property" }) {
   return (
-    <Badge
-      bg="warning"
-      text="dark"
-      className="d-inline-flex align-items-center fw-normal"
+    <span
+      className="modeler-status modeler-status--unspecified"
       title={`There is no specification for the ${what} - it is only known from the data`}
     >
-      <CircleDashed size={12} className="me-1" />
+      <CircleDashed size={12} aria-hidden />
       Not specified
-    </Badge>
+    </span>
   );
 }
 
 /** Marks a property only specified globally (for all types) - not for this type. */
 function GlobalBadge() {
   return (
-    <Badge
-      bg="light"
-      text="dark"
-      className="d-inline-flex align-items-center fw-normal border"
+    <span
+      className="modeler-status"
       title="There is no specification of the property for this type - the global one (for all types) applies"
     >
-      <Globe size={12} className="me-1" />
+      <Globe size={12} aria-hidden />
       Global
-    </Badge>
+    </span>
   );
 }
 
@@ -108,7 +115,7 @@ function TypeLink({ identifier, types }: { identifier: string; types: ModelType[
   const type = types.find((t) => t.identifier === identifier);
   return (
     <Link to={`?type=${encodeURIComponent(identifier)}`} className="modeler-type-link" title={identifier}>
-      <span className="modeler-color-dot me-1" style={{ backgroundColor: type?.color || "#adb5bd" }} />
+      <span className="modeler-color-dot me-1" style={{ backgroundColor: type?.color || "#6c757d" }} />
       {type ? typeName(type) : shortName(identifier)}
     </Link>
   );
@@ -157,18 +164,18 @@ function PropertiesTab({ type, types, reload, canDefineTypes }: Props) {
       )}
       {canDefineTypes && (
         <div className="d-flex gap-2 mb-3">
-          <Button size="sm" variant="dark" className="d-flex align-items-center" onClick={() => setEditing({ relation: false })}>
+          <Button size="sm" variant="outline-secondary" className="d-flex align-items-center" onClick={() => setEditing({ relation: false })}>
             <Plus size={16} className="me-1" />
             Add property
           </Button>
-          <Button size="sm" variant="outline-dark" className="d-flex align-items-center" onClick={() => setEditing({ relation: true })}>
+          <Button size="sm" variant="outline-secondary" className="d-flex align-items-center" onClick={() => setEditing({ relation: true })}>
             <ArrowRight size={16} className="me-1" />
             Add relation
           </Button>
         </div>
       )}
       {type.properties.length === 0 ? (
-        <p className="text-muted">The type has no properties yet.</p>
+        <p className="modeler-empty">The type has no properties yet.</p>
       ) : (
         <div className="table-responsive">
           <Table size="sm" hover className="align-middle modeler-properties">
@@ -197,9 +204,9 @@ function PropertiesTab({ type, types, reload, canDefineTypes }: Props) {
                       {sources?.[property.identifier] === "NONE" && <UnspecifiedBadge what="property" />}
                       {sources?.[property.identifier] === "GLOBAL" && <GlobalBadge />}
                     </div>
-                    <code className="small text-muted text-break">{property.identifier}</code>
+                    <TypeIdentifier identifier={property.identifier} />
                   </td>
-                  <td className="small">{property.widget ?? <span className="text-muted">-</span>}</td>
+                  <td>{property.widget ?? <span className="text-muted">-</span>}</td>
                   <td>
                     <div className="d-flex flex-wrap gap-2">
                       {property.targetTypes.map((target) => (
@@ -207,13 +214,13 @@ function PropertiesTab({ type, types, reload, canDefineTypes }: Props) {
                       ))}
                     </div>
                   </td>
-                  <td className="text-end small text-muted">{property.occurrences ?? 0}</td>
+                  <td className="text-end text-muted modeler-num">{property.occurrences ?? 0}</td>
                   {canDefineTypes && (
                     <td className="text-end text-nowrap">
                       <Button
                         size="sm"
                         variant="link"
-                        className="p-1"
+                        className="edit-icon-btn"
                         title="Edit"
                         aria-label={`Edit ${propertyName(property)}`}
                         onClick={() => setEditing({ property, relation: property.targetTypes.length > 0 })}
@@ -223,7 +230,7 @@ function PropertiesTab({ type, types, reload, canDefineTypes }: Props) {
                       <Button
                         size="sm"
                         variant="link"
-                        className="p-1 text-danger"
+                        className="edit-icon-btn"
                         title="Remove the definition for this type (properties used by instances remain visible)"
                         aria-label={`Remove ${propertyName(property)}`}
                         onClick={() => remove(property)}
@@ -238,9 +245,9 @@ function PropertiesTab({ type, types, reload, canDefineTypes }: Props) {
           </Table>
         </div>
       )}
-      <h6 className="mt-4">Incoming relations</h6>
+      <div className="modeler-kicker mt-4">Incoming relations ({incoming.length})</div>
       {incoming.length === 0 ? (
-        <p className="text-muted small">No type links to {typeName(type)}.</p>
+        <p className="modeler-empty">No type links to {typeName(type)}.</p>
       ) : (
         <ul className="list-unstyled small">
           {incoming.map((relation) => (
@@ -304,7 +311,7 @@ function DefinitionTab({ type, reload, canDefineTypes }: Props) {
     return error ? (
       <Alert variant="danger">{error}</Alert>
     ) : (
-      <div className="text-center py-4">
+      <div className="modeler-loading">
         <Spinner animation="border" size="sm" /> Loading definition...
       </div>
     );
@@ -353,11 +360,11 @@ function DefinitionTab({ type, reload, canDefineTypes }: Props) {
         </Alert>
       )}
       <Form.Group className="mb-3" controlId="modeler-type-name">
-        <Form.Label className="fw-bold">Name</Form.Label>
+        <Form.Label>Name</Form.Label>
         <Form.Control size="sm" disabled={disabled} value={specification.name ?? ""} onChange={(e) => change({ name: e.target.value })} />
       </Form.Group>
       <Form.Group className="mb-3" controlId="modeler-type-description">
-        <Form.Label className="fw-bold">Description</Form.Label>
+        <Form.Label>Description</Form.Label>
         <Form.Control
           as="textarea"
           rows={2}
@@ -368,7 +375,7 @@ function DefinitionTab({ type, reload, canDefineTypes }: Props) {
         />
       </Form.Group>
       <Form.Group className="mb-3" controlId="modeler-type-color">
-        <Form.Label className="fw-bold">Color</Form.Label>
+        <Form.Label>Color</Form.Label>
         <div className="d-flex align-items-center gap-2">
           <Form.Control
             type="color"
@@ -388,7 +395,7 @@ function DefinitionTab({ type, reload, canDefineTypes }: Props) {
         </div>
       </Form.Group>
       <Form.Group className="mb-3" controlId="modeler-type-label">
-        <Form.Label className="fw-bold">Label property</Form.Label>
+        <Form.Label>Label property</Form.Label>
         <Form.Select
           size="sm"
           disabled={disabled}
@@ -408,7 +415,7 @@ function DefinitionTab({ type, reload, canDefineTypes }: Props) {
         <Form.Text muted>The property the instances of the type are labeled with.</Form.Text>
       </Form.Group>
       <Form.Group className="mb-3">
-        <Form.Label className="fw-bold">Searchable properties</Form.Label>
+        <Form.Label>Searchable properties</Form.Label>
         {type.properties.length === 0 && <div className="text-muted small">The type has no properties yet.</div>}
         <div className="modeler-checklist">
           {type.properties.map((property) => (
@@ -443,7 +450,7 @@ function DefinitionTab({ type, reload, canDefineTypes }: Props) {
       <div className="d-flex gap-2">
         <SaveButton disabled={disabled} onSave={save} />
         {canDefineTypes && exists && (
-          <Button size="sm" variant="outline-danger" className="d-flex align-items-center" onClick={remove}>
+          <Button size="sm" variant="outline-danger" className="d-flex align-items-center ms-auto" onClick={remove}>
             <Trash2 size={14} className="me-1" />
             Delete definition
           </Button>

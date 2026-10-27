@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { Button, ButtonGroup, Card, Col, Form, Row } from "react-bootstrap";
+import { Button, Col, Form, Row } from "react-bootstrap";
 import { Link, useSearchParams } from "react-router-dom";
 import { Maximize, Pencil, RotateCcw, ZoomIn, ZoomOut } from "lucide-react";
 import { ModelType, relations, Relation, shortName, typeName } from "../../services/modeler";
@@ -9,6 +9,7 @@ import { select } from "d3-selection";
 import { D3ZoomEvent, zoom, zoomIdentity, ZoomTransform } from "d3-zoom";
 import { layoutGraph, Point } from "./graphLayout";
 import { loadPositions, savePositions } from "./nodePositions";
+import TypeIdentifier from "./TypeIdentifier";
 
 interface GraphNode {
   identifier: string;
@@ -31,7 +32,7 @@ interface Size {
   height: number;
 }
 
-const DEFAULT_COLOR = "#adb5bd";
+const DEFAULT_COLOR = "#6c757d";
 const PADDING = 40;
 /** Small graphs are not blown up beyond this scale when fitted to the view. */
 const MAX_FIT_SCALE = 1.5;
@@ -301,18 +302,19 @@ export default function TypeGraph({ types }: ModelerContext) {
             checked={showLabels}
             onChange={(e) => setShowLabels(e.target.checked)}
           />
-          <ButtonGroup size="sm" className="ms-auto">
-            <Button variant="outline-secondary" onClick={() => zoomBy(1.3)} title="Zoom in" aria-label="Zoom in">
+          <div className="ms-auto d-flex modeler-graph-tools">
+            <Button variant="link" className="edit-icon-btn" onClick={() => zoomBy(1.3)} title="Zoom in" aria-label="Zoom in">
               <ZoomIn size={16} />
             </Button>
-            <Button variant="outline-secondary" onClick={() => zoomBy(1 / 1.3)} title="Zoom out" aria-label="Zoom out">
+            <Button variant="link" className="edit-icon-btn" onClick={() => zoomBy(1 / 1.3)} title="Zoom out" aria-label="Zoom out">
               <ZoomOut size={16} />
             </Button>
-            <Button variant="outline-secondary" onClick={() => fitView()} title="Fit to view" aria-label="Fit to view">
+            <Button variant="link" className="edit-icon-btn" onClick={() => fitView()} title="Fit to view" aria-label="Fit to view">
               <Maximize size={16} />
             </Button>
             <Button
-              variant="outline-secondary"
+              variant="link"
+              className="edit-icon-btn"
               onClick={resetArrangement}
               disabled={arranged.size === 0}
               title="Discard the arrangement of the types and lay out the graph automatically"
@@ -320,10 +322,10 @@ export default function TypeGraph({ types }: ModelerContext) {
             >
               <RotateCcw size={16} />
             </Button>
-          </ButtonGroup>
+          </div>
         </div>
         <div className="modeler-graph">
-          {nodes.length === 0 && <div className="modeler-graph-empty text-muted">There are no types to show.</div>}
+          {nodes.length === 0 && <div className="modeler-graph-empty modeler-empty">There are no types to show.</div>}
           <svg
             ref={svgRef}
             role="img"
@@ -347,7 +349,12 @@ export default function TypeGraph({ types }: ModelerContext) {
                   const active = !!focus && (edge.source === focus || edge.target === focus);
                   const label = labelPosition(source, edge.source === edge.target ? source : target, sourceNode.radius, curved);
                   return (
-                    <g key={`${edge.source} ${edge.target}`} className={`modeler-edge${active ? " active" : ""}${focus && !active ? " dimmed" : ""}`}>
+                    <g
+                      key={`${edge.source} ${edge.target}`}
+                      className={`modeler-edge${active ? " active" : ""}${focus && !active ? " dimmed" : ""}`}
+                      // The active edges take the color of the focused type
+                      style={active ? ({ "--edge-color": allNodes.get(focus!)?.color } as React.CSSProperties) : undefined}
+                    >
                       <path
                         d={edgePath(source, edge.source === edge.target ? source : target, sourceNode.radius, targetNode.radius, curved)}
                         markerEnd="url(#modeler-arrow)"
@@ -394,7 +401,7 @@ export default function TypeGraph({ types }: ModelerContext) {
             </g>
           </svg>
         </div>
-        <div className="text-muted small mt-1">
+        <div className="modeler-result-count mt-1">
           {nodes.length} types, {edges.length} relations - drag the types to arrange them (the arrangement is kept in this browser), scroll to zoom, click a type to select it.
         </div>
       </Col>
@@ -427,63 +434,64 @@ function SelectionPanel({
     </Link>
   );
   return (
-    <Card>
-      <Card.Header className="d-flex align-items-center gap-2">
-        <span className="modeler-color-dot" style={{ backgroundColor: node.color }} />
-        <span className="fw-semibold text-truncate">{node.label}</span>
-      </Card.Header>
-      <Card.Body className="small">
-        <code className="text-muted text-break d-block mb-2">{node.identifier}</code>
-        {type ? (
-          <>
-            {type.description && <p>{type.description}</p>}
-            <p className="mb-2">
-              {type.properties.length} properties, {type.occurrences ?? 0} instances
-            </p>
-            <Link
-              to={`/modeler/types?type=${encodeURIComponent(node.identifier)}`}
-              className="btn btn-sm btn-dark d-inline-flex align-items-center mb-3"
-            >
-              <Pencil size={14} className="me-1" />
-              Edit type
-            </Link>
-          </>
-        ) : (
-          <p className="text-muted">This type is linked to but not part of the model (or not visible to you).</p>
-        )}
-        <h6>Links to</h6>
-        {outgoing.length === 0 ? (
-          <p className="text-muted">No relations.</p>
-        ) : (
-          <ul className="list-unstyled">
-            {outgoing.map((relation) => (
-              <li key={`${relation.property} ${relation.target}`} className="mb-1">
-                <span className="fw-medium" title={relation.property}>
-                  {relation.label}
-                </span>
-                <span className="text-muted mx-1">→</span>
-                {link(relation.target)}
-              </li>
-            ))}
-          </ul>
-        )}
-        <h6>Linked from</h6>
-        {incoming.length === 0 ? (
-          <p className="text-muted mb-0">No relations.</p>
-        ) : (
-          <ul className="list-unstyled mb-0">
-            {incoming.map((relation) => (
-              <li key={`${relation.source} ${relation.property}`} className="mb-1">
-                {link(relation.source)}
-                <span className="text-muted mx-1">via</span>
-                <span className="fw-medium" title={relation.property}>
-                  {relation.label}
-                </span>
-              </li>
-            ))}
-          </ul>
-        )}
-      </Card.Body>
-    </Card>
+    <div className="modeler-side-panel" style={{ "--modeler-type-color": node.color } as React.CSSProperties}>
+      <div className="instance-type-label">
+        <span className="modeler-color-dot me-2" style={{ backgroundColor: node.color }} />
+        Type
+      </div>
+      <div className="modeler-side-panel-name">{node.label}</div>
+      <div className="mb-2">
+        <TypeIdentifier identifier={node.identifier} />
+      </div>
+      {type ? (
+        <>
+          {type.description && <p>{type.description}</p>}
+          <p className="mb-2 text-muted modeler-num">
+            {type.properties.length} properties, {type.occurrences ?? 0} instances
+          </p>
+          <Link
+            to={`/modeler/types?type=${encodeURIComponent(node.identifier)}`}
+            className="btn btn-sm btn-outline-secondary d-inline-flex align-items-center mb-3"
+          >
+            <Pencil size={14} className="me-1" />
+            Edit type
+          </Link>
+        </>
+      ) : (
+        <p className="text-muted">This type is linked to but not part of the model (or not visible to you).</p>
+      )}
+      <div className="modeler-kicker">Links to ({outgoing.length})</div>
+      {outgoing.length === 0 ? (
+        <p className="text-muted">No relations.</p>
+      ) : (
+        <ul className="list-unstyled">
+          {outgoing.map((relation) => (
+            <li key={`${relation.property} ${relation.target}`} className="mb-1">
+              <span className="fw-medium" title={relation.property}>
+                {relation.label}
+              </span>
+              <span className="text-muted mx-1">→</span>
+              {link(relation.target)}
+            </li>
+          ))}
+        </ul>
+      )}
+      <div className="modeler-kicker">Linked from ({incoming.length})</div>
+      {incoming.length === 0 ? (
+        <p className="text-muted mb-0">No relations.</p>
+      ) : (
+        <ul className="list-unstyled mb-0">
+          {incoming.map((relation) => (
+            <li key={`${relation.source} ${relation.property}`} className="mb-1">
+              {link(relation.source)}
+              <span className="text-muted mx-1">via</span>
+              <span className="fw-medium" title={relation.property}>
+                {relation.label}
+              </span>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
   );
 }

@@ -19,7 +19,7 @@ export default function SaveButton({ disabled, onSave }: { disabled: boolean; on
   };
 
   return (
-    <Button variant="dark" size="sm" disabled={disabled || state === "saving"} onClick={save}>
+    <Button variant="outline-dark" size="sm" disabled={disabled || state === "saving"} onClick={save}>
       {state === "saving" ? <Spinner animation="border" size="sm" /> : state === "saved" ? "Saved" : "Save"}
     </Button>
   );
