@@ -87,6 +87,8 @@ export type InstanceSummary = {
   permissions: string;
   /** Whether the user has flagged the instance as favorite */
   favorite: boolean;
+  /** Whether the user has contributed to the instance */
+  contributed: boolean;
   lastVisited?: string;
   releaseStatus: ReleaseStatus;
   /** The results of the last validation per validation schema of the type */

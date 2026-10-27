@@ -123,7 +123,7 @@ class InstancesTest {
     @Test
     void listMapsTheInstancesOfTheCore() throws Exception {
         when(instancesResource.list(any(InstanceListOptions.class))).thenReturn(page(List.of(
-                instance(RELEASED_ID, DEVICE, Map.of(NAME, "Server-Rack-A1", "_isFavorite", true, "_permissions", List.of("RELEASE", "READ", "WRITE", "DELETE"),
+                instance(RELEASED_ID, DEVICE, Map.of(NAME, "Server-Rack-A1", "_isFavorite", true, "_hasContributed", true, "_permissions", List.of("RELEASE", "READ", "WRITE", "DELETE"),
                         "_releaseStatus", "RELEASED", "_validation", List.of(Map.of("name", "minimal", "valid", true, "compliance", 100.0, "errors", List.of()),
                                 Map.of("name", "complete", "valid", false, "compliance", 62.5, "errors", List.of())))),
                 instance(UNRELEASED_ID, "https://example.org/types/Unknown", Map.of("_permissions", List.of("READ"), "_releaseStatus", "HAS_CHANGED")),
@@ -145,6 +145,7 @@ class InstancesTest {
                 .andExpect(jsonPath("$.instances[0].space").value("myspace"))
                 .andExpect(jsonPath("$.instances[0].permissions").value("View, Edit, Release"))
                 .andExpect(jsonPath("$.instances[0].favorite").value(true))
+                .andExpect(jsonPath("$.instances[0].contributed").value(true))
                 .andExpect(jsonPath("$.instances[0].lastVisited").doesNotExist())
                 .andExpect(jsonPath("$.instances[0].releaseStatus").value("released"))
                 .andExpect(jsonPath("$.instances[0].validation.length()").value(2))
@@ -160,6 +161,7 @@ class InstancesTest {
                 .andExpect(jsonPath("$.instances[1].instanceName").value(UNRELEASED_ID.toString()))
                 .andExpect(jsonPath("$.instances[1].permissions").value("View"))
                 .andExpect(jsonPath("$.instances[1].favorite").value(false))
+                .andExpect(jsonPath("$.instances[1].contributed").value(false))
                 .andExpect(jsonPath("$.instances[1].releaseStatus").value("has changed"))
                 .andExpect(jsonPath("$.instances[1].validation.length()").value(0))
                 .andExpect(jsonPath("$.instances[2].releaseStatus").value("in progress"));
@@ -171,7 +173,9 @@ class InstancesTest {
         assertTrue(options.getValue().responseOptions().returnValidationResults());
         assertTrue(options.getValue().responseOptions().returnReleaseStatus());
         assertTrue(options.getValue().responseOptions().returnFavorite());
+        assertTrue(options.getValue().responseOptions().returnHasContributed());
         assertFalse(options.getValue().favoritesOnly());
+        assertFalse(options.getValue().withContribution());
         assertNull(options.getValue().searchByLabel());
         assertEquals(List.of(), options.getValue().types());
         assertEquals(List.of(), options.getValue().spaces());
@@ -213,6 +217,18 @@ class InstancesTest {
         ArgumentCaptor<InstanceListOptions> options = ArgumentCaptor.forClass(InstanceListOptions.class);
         verify(instancesResource).list(options.capture());
         assertTrue(options.getValue().favoritesOnly());
+    }
+
+    @Test
+    void listForwardsTheContributionFilterToTheCore() throws Exception {
+        when(instancesResource.list(any(InstanceListOptions.class))).thenReturn(page(List.of()));
+
+        mockMvc.perform(get("/instances").param("contributed", "true").header(HttpHeaders.AUTHORIZATION, "Bearer theToken"))
+                .andExpect(status().isOk());
+
+        ArgumentCaptor<InstanceListOptions> options = ArgumentCaptor.forClass(InstanceListOptions.class);
+        verify(instancesResource).list(options.capture());
+        assertTrue(options.getValue().withContribution());
     }
 
     @Test

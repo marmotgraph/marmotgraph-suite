@@ -90,6 +90,8 @@ export interface InstanceQuery {
   spaces?: string[];
   /** Restricts the instances to the favorites of the user */
   favorites?: boolean;
+  /** Restricts the instances to those the user has contributed to */
+  contributed?: boolean;
 }
 
 /** The first page of the instances matching a query - with the total number of matching instances (if known). */
@@ -101,7 +103,7 @@ export interface InstanceList {
 /** Fetches the instances shown in the editor - the restrictions of the query are applied by the backend. */
 export function fetchInstances(
   accessToken: string,
-  { search, types = [], spaces = [], favorites = false }: InstanceQuery = {},
+  { search, types = [], spaces = [], favorites = false, contributed = false }: InstanceQuery = {},
 ): Promise<InstanceList> {
   const params = new URLSearchParams();
   if (search?.trim()) {
@@ -111,6 +113,9 @@ export function fetchInstances(
   spaces.forEach((space) => params.append("space", space));
   if (favorites) {
     params.set("favorites", "true");
+  }
+  if (contributed) {
+    params.set("contributed", "true");
   }
   const query = params.toString() ? `?${params}` : "";
   return getJson(`/api/instances${query}`, "the instances", accessToken);

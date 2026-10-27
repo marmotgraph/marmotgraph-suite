@@ -20,6 +20,7 @@ import {
   faSortDown,
   faSortUp,
   faStar as faStarSolid,
+  faUserPen,
   faXmark,
   IconDefinition
 } from "@fortawesome/free-solid-svg-icons";
@@ -81,6 +82,8 @@ export default function EditorHome() {
     setSpaceFilter,
     favoritesOnly,
     setFavoritesOnly,
+    contributedOnly,
+    setContributedOnly,
     toggleFavorite,
     deleteInstances,
   } = useInstances({ load: true });
@@ -109,7 +112,7 @@ export default function EditorHome() {
     permissions: [],
     releaseStatuses: [],
   });
-  // The type, space and favorites filters are applied by the backend (see InstancesContext) - the others on the client
+  // The type, space, favorites and contribution filters are applied by the backend (see InstancesContext) - the others on the client
   const filters: InstanceFilters = useMemo(
     () => ({ ...localFilters, types: typeFilter, spaces: spaceFilter }),
     [localFilters, typeFilter, spaceFilter],
@@ -121,11 +124,13 @@ export default function EditorHome() {
   };
   const activeFilterCount =
     (favoritesOnly ? 1 : 0) +
+    (contributedOnly ? 1 : 0) +
     filters.types.length +
     filters.spaces.length +
     filters.releaseStatuses.length;
   const clearFilters = () => {
     setFavoritesOnly(false);
+    setContributedOnly(false);
     setFilters({
       types: [],
       spaces: [],
@@ -137,7 +142,7 @@ export default function EditorHome() {
   // Reset items to show when filters or search change
   useEffect(() => {
     setItemsToShow(PAGE_SIZE);
-  }, [searchTerm, filters, favoritesOnly]);
+  }, [searchTerm, filters, favoritesOnly, contributedOnly]);
 
   // Reset the instance breadcrumb trail when the user returns to the editor home so that each new navigation
   // session starts fresh.
@@ -168,7 +173,7 @@ export default function EditorHome() {
   const filteredAndSortedInstances = useMemo(() => {
     let result = [...instances];
 
-    // The search term, type, space and favorites filters are applied by the backend (see InstancesContext)
+    // The search term, type, space, favorites and contribution filters are applied by the backend (see InstancesContext)
 
     // Apply release status filters
     if (filters.releaseStatuses.length > 0) {
@@ -414,6 +419,13 @@ export default function EditorHome() {
                 checked={favoritesOnly}
                 onChange={(e) => setFavoritesOnly(e.target.checked)}
               />
+              <Form.Check
+                type="checkbox"
+                id="contributed-filter-editor"
+                label="Show my contributions only"
+                checked={contributedOnly}
+                onChange={(e) => setContributedOnly(e.target.checked)}
+              />
               <InstanceFilterPanel
                 filters={filters}
                 onFiltersChange={setFilters}
@@ -443,6 +455,14 @@ export default function EditorHome() {
               label="Show favorites only"
               checked={favoritesOnly}
               onChange={(e) => setFavoritesOnly(e.target.checked)}
+              className="mb-2"
+            />
+            <Form.Check
+              type="checkbox"
+              id="contributed-filter-editor"
+              label="Show my contributions only"
+              checked={contributedOnly}
+              onChange={(e) => setContributedOnly(e.target.checked)}
               className="mb-3"
             />
             <InstanceFilterPanel
@@ -891,7 +911,10 @@ const RELEASE_STATUS_TAGS: Record<
   "in progress": { icon: faHourglassHalf },
 };
 
-/** The release status of the instance followed by the compliance of the instance per validation schema. */
+/**
+ * The release status of the instance (and whether the user has contributed to it) followed by the compliance of the
+ * instance per validation schema.
+ */
 function InstanceStatusTags({ instance }: { instance: InstanceSummary }) {
   const { modifier, icon } = RELEASE_STATUS_TAGS[instance.releaseStatus];
   return (
@@ -906,6 +929,12 @@ function InstanceStatusTags({ instance }: { instance: InstanceSummary }) {
         <FontAwesomeIcon icon={icon} className="me-1" />
         {instance.releaseStatus}
       </span>
+      {instance.contributed && (
+        <span className="instance-card-status" title="You have contributed to this instance">
+          <FontAwesomeIcon icon={faUserPen} className="me-1" />
+          my contribution
+        </span>
+      )}
       {instance.validation && instance.validation.length > 0 && (
         <div className="instance-validations">
           {instance.validation.map((validation) => (

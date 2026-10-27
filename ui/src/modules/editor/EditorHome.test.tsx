@@ -27,6 +27,7 @@ const instance: InstanceSummary = {
   space: "default",
   permissions: "View, Edit",
   favorite: false,
+  contributed: false,
   lastVisited: "2026-01-01",
   releaseStatus: "released",
   validation: [
@@ -82,6 +83,8 @@ function renderHome(
     setSpaceFilter: vi.fn(),
     favoritesOnly: false,
     setFavoritesOnly: vi.fn(),
+    contributedOnly: false,
+    setContributedOnly: vi.fn(),
     toggleFavorite: vi.fn().mockResolvedValue(undefined),
     addInstance: vi.fn(),
     updateInstance: vi.fn(),
@@ -367,6 +370,25 @@ describe("EditorHome", () => {
 
     expect(setFavoritesOnly).toHaveBeenCalledWith(true);
     // the total of the backend is still reported since the filter is not applied on the client
+    expect(screen.getByText("1 result")).toBeInTheDocument();
+  });
+
+  it("marks the instances the user has contributed to", () => {
+    renderHome([
+      { ...instance, contributed: true },
+      { ...instance, instanceId: "inst-2", instanceName: "Branch office" },
+    ]);
+
+    expect(screen.getAllByText("my contribution")).toHaveLength(1);
+  });
+
+  it("restricts the list to the contributions of the user by the backend", () => {
+    const setContributedOnly = vi.fn();
+    renderHome([instance], 1, { setContributedOnly });
+
+    fireEvent.click(screen.getByLabelText("Show my contributions only"));
+
+    expect(setContributedOnly).toHaveBeenCalledWith(true);
     expect(screen.getByText("1 result")).toBeInTheDocument();
   });
 

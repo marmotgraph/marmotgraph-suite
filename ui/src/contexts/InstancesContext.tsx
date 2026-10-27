@@ -20,6 +20,9 @@ interface InstancesContextType {
   /** Whether the instances are restricted to the favorites of the user (applied by the backend) */
   favoritesOnly: boolean;
   setFavoritesOnly: (favoritesOnly: boolean) => void;
+  /** Whether the instances are restricted to those the user has contributed to (applied by the backend) */
+  contributedOnly: boolean;
+  setContributedOnly: (contributedOnly: boolean) => void;
   /** Flags the instance as favorite (or removes the flag) - shown right away and reverted if the backend rejects it */
   toggleFavorite: (instanceId: string) => Promise<void>;
   addInstance: (instance: InstanceSummary) => void;
@@ -41,6 +44,7 @@ export function InstancesProvider({ children }: { children: ReactNode }) {
   const [typeFilter, setTypeFilter] = useState<string[]>([]);
   const [spaceFilter, setSpaceFilter] = useState<string[]>([]);
   const [favoritesOnly, setFavoritesOnly] = useState<boolean>(false);
+  const [contributedOnly, setContributedOnly] = useState<boolean>(false);
   const [requested, setRequested] = useState<boolean>(false);
   const requestInstances = useCallback(() => setRequested(true), []);
 
@@ -51,7 +55,7 @@ export function InstancesProvider({ children }: { children: ReactNode }) {
     let cancelled = false;
     setLoading(true);
     getAccessToken()
-      .then((token) => fetchInstances(token, { search: searchTerm, types: typeFilter, spaces: spaceFilter, favorites: favoritesOnly }))
+      .then((token) => fetchInstances(token, { search: searchTerm, types: typeFilter, spaces: spaceFilter, favorites: favoritesOnly, contributed: contributedOnly }))
       .then((loaded) => {
         if (!cancelled) {
           setInstances(loaded.instances);
@@ -63,7 +67,7 @@ export function InstancesProvider({ children }: { children: ReactNode }) {
     return () => {
       cancelled = true;
     };
-  }, [requested, getAccessToken, searchTerm, typeFilter, spaceFilter, favoritesOnly]);
+  }, [requested, getAccessToken, searchTerm, typeFilter, spaceFilter, favoritesOnly, contributedOnly]);
 
   const addInstance = (instance: InstanceSummary) => {
     setInstances(prev => [...prev, instance]);
@@ -102,7 +106,7 @@ export function InstancesProvider({ children }: { children: ReactNode }) {
   };
 
   return (
-    <InstancesContext.Provider value={{ instances, total, loading, searchTerm, setSearchTerm, typeFilter, setTypeFilter, spaceFilter, setSpaceFilter, favoritesOnly, setFavoritesOnly, toggleFavorite, addInstance, updateInstance, deleteInstances, getInstance, requestInstances }}>
+    <InstancesContext.Provider value={{ instances, total, loading, searchTerm, setSearchTerm, typeFilter, setTypeFilter, spaceFilter, setSpaceFilter, favoritesOnly, setFavoritesOnly, contributedOnly, setContributedOnly, toggleFavorite, addInstance, updateInstance, deleteInstances, getInstance, requestInstances }}>
       {children}
     </InstancesContext.Provider>
   );

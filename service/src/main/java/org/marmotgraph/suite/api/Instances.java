@@ -132,7 +132,7 @@ public class Instances {
      */
     @JsonInclude(JsonInclude.Include.NON_NULL)
     public record InstanceSummary(int id, String instanceId, String type, String typeDescription, String typeColor, String instanceName, String space,
-                           String permissions, boolean favorite, String lastVisited, String releaseStatus, List<Validation> validation) {
+                           String permissions, boolean favorite, boolean contributed, String lastVisited, String releaseStatus, List<Validation> validation) {
     }
 
     /**
@@ -238,20 +238,23 @@ public class Instances {
      * @param typeFilter  optional types (IRIs) the instances are restricted to - instances of any of them are returned
      * @param spaceFilter optional spaces the instances are restricted to - instances in any of them are returned
      * @param favorites   whether the instances are restricted to the favorites of the user
+     * @param contributed whether the instances are restricted to those the user has contributed to
      */
     @GetMapping
     public InstanceList list(@AuthenticatedClient MarmotGraphClient client, @RequestParam(required = false) String search,
                                @RequestParam(name = "type", required = false) List<String> typeFilter,
                                @RequestParam(name = "space", required = false) List<String> spaceFilter,
-                               @RequestParam(defaultValue = "false") boolean favorites) {
+                               @RequestParam(defaultValue = "false") boolean favorites,
+                               @RequestParam(defaultValue = "false") boolean contributed) {
         Page<org.marmotgraph.sdk.model.Instance> page = client.instances().list(InstanceListOptions.builder()
                 .stage(Stage.IN_PROGRESS)
                 .types(nonBlank(typeFilter))
                 .spaces(nonBlank(spaceFilter))
                 .searchByLabel(search != null && !search.isBlank() ? search.trim() : null)
                 .favoritesOnly(favorites)
+                .withContribution(contributed)
                 .responseOptions(ResponseOptions.builder().returnPermissions(true).returnValidationResults(true).returnReleaseStatus(true)
-                        .returnFavorite(true).build())
+                        .returnFavorite(true).returnHasContributed(true).build())
                 .build());
         List<org.marmotgraph.sdk.model.Instance> instances = page.items();
         if (instances.isEmpty()) {
@@ -267,7 +270,8 @@ public class Instances {
             TypeDefinition type = typeName != null ? types.get(typeName) : null;
             result.add(new InstanceSummary(result.size() + 1, instanceId, typeLabel(typeName, type), type != null ? type.description() : null, type != null ? type.color() : null,
                     instanceName(instance, type, instanceId), instance.getSpace(),
-                    permissions(instance.getPermissions()), Boolean.TRUE.equals(instance.isFavorite()), null,
+                    permissions(instance.getPermissions()), Boolean.TRUE.equals(instance.isFavorite()),
+                    Boolean.TRUE.equals(instance.hasContributed()), null,
                     releaseStatus(instance.getReleaseStatus()),
                     instance.getValidation().stream().map(Validation::of).toList()));
         }
