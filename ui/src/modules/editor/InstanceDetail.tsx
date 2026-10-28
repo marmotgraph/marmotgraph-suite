@@ -707,8 +707,29 @@ function InstanceDetailView({ instanceId }: { instanceId: string }) {
             }
           >
             <div className="instance-header">
-              <div className="d-flex align-items-start justify-content-between">
-                <div className="flex-grow-1">
+              <div className="instance-header-layout">
+                {!isNewInstance && (
+                  <div
+                    className="instance-header-modes"
+                    role="group"
+                    aria-label="Mode"
+                  >
+                    {INSTANCE_MODES.map(({ mode: target, icon }) => (
+                      <Button
+                        key={target}
+                        variant="link"
+                        className={`edit-icon-btn${mode === target ? " edit-icon-btn--active" : ""}`}
+                        onClick={() => switchMode(target)}
+                        aria-label={modeTitles[target]}
+                        aria-pressed={mode === target}
+                        title={modeTitles[target]}
+                      >
+                        <FontAwesomeIcon icon={icon} />
+                      </Button>
+                    ))}
+                  </div>
+                )}
+                <div className="instance-header-identity">
                   <div className="instance-type-label">
                     <FontAwesomeIcon
                       icon={faCircle}
@@ -717,7 +738,14 @@ function InstanceDetailView({ instanceId }: { instanceId: string }) {
                     />
                     {instance.type}
                   </div>
-                  <h2 className="instance-name">{instanceName}</h2>
+                  <img
+                    src={getLinkStatusIcon()}
+                    alt="Link status"
+                    className="link-status-icon"
+                  />
+                </div>
+                <h2 className="instance-name">{instanceName}</h2>
+                <div className="instance-header-main">
                   {hasUnsavedChanges && (
                     <div className="instance-unsaved-summary" role="status">
                       Unsaved changes
@@ -751,34 +779,6 @@ function InstanceDetailView({ instanceId }: { instanceId: string }) {
                       fieldLabels={fieldLabels}
                     />
                   )}
-                </div>
-                <div className="d-flex flex-column align-items-end gap-2">
-                  {!isNewInstance && (
-                    <div
-                      className="d-flex gap-1"
-                      role="group"
-                      aria-label="Mode"
-                    >
-                      {INSTANCE_MODES.map(({ mode: target, icon }) => (
-                        <Button
-                          key={target}
-                          variant="link"
-                          className={`edit-icon-btn${mode === target ? " edit-icon-btn--active" : ""}`}
-                          onClick={() => switchMode(target)}
-                          aria-label={modeTitles[target]}
-                          aria-pressed={mode === target}
-                          title={modeTitles[target]}
-                        >
-                          <FontAwesomeIcon icon={icon} />
-                        </Button>
-                      ))}
-                    </div>
-                  )}
-                  <img
-                    src={getLinkStatusIcon()}
-                    alt="Link status"
-                    className="link-status-icon"
-                  />
                 </div>
               </div>
             </div>
