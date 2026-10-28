@@ -63,6 +63,87 @@
     grid-column: span 2;
 }
 
+/* List status: validations start on their own row. The name stays whole until it is very long. */
+.instance-validation-badges {
+    display: flex;
+    flex: 1 0 100%;
+    flex-wrap: wrap;
+    align-items: flex-start;
+    gap: 8px 12px;
+}
+
+.instance-validation-result {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 4px;
+    max-width: 100%;
+    font-size: 0.75rem;
+    line-height: 1.2;
+    color: #1e7a42;
+}
+
+.instance-validation-result--invalid {
+    color: #c27c0e;
+}
+
+.instance-validation-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    max-width: 100%;
+    border-radius: 999px;
+    padding: 2px 8px;
+    background-color: #e8f6ee;
+}
+
+.instance-validation-result--invalid .instance-validation-badge {
+    background-color: #fff4e5;
+}
+
+.instance-validation-badge-name {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    max-width: 36ch;
+}
+
+.instance-validation-measure {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding-left: 8px;
+}
+
+.instance-validation-badge-bar {
+    display: block;
+    width: 36px;
+    height: 4px;
+    flex: 0 0 36px;
+    border-radius: 999px;
+    background-color: rgba(30, 122, 66, 0.22);
+    overflow: hidden;
+}
+
+.instance-validation-result--invalid .instance-validation-badge-bar {
+    background-color: rgba(194, 124, 14, 0.28);
+}
+
+.instance-validation-badge-bar-fill {
+    display: block;
+    height: 100%;
+    border-radius: 999px;
+    background-color: currentColor;
+}
+
+.instance-validation-badge-value {
+    flex: 0 0 auto;
+    min-width: 2.5em;
+    font-variant-numeric: tabular-nums;
+    font-weight: 600;
+    text-align: right;
+}
+
 /* The validation of the open instance - in its header */
 .instance-validation-summary {
     margin-top: 16px;

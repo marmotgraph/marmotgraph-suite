@@ -14,17 +14,56 @@ function formatCompliance(compliance: number) {
   return `${Math.floor(compliance)}%`;
 }
 
-/** One validation schema: an icon telling whether the instance is valid, the name and a bar with its compliance. */
-export function ValidationStatus({ validation }: { validation: InstanceValidation }) {
+/** One validation schema: an icon telling whether the instance is valid, the name and its compliance. */
+export function ValidationStatus({
+  validation,
+  variant = "bar",
+}: {
+  validation: InstanceValidation;
+  /** A list badge names the schema. The bar and percent sit beside it. The full bar is for the instance page. */
+  variant?: "bar" | "badge";
+}) {
   const state = validation.valid ? "valid" : "invalid";
   const compliance =
     validation.compliance != null
       ? Math.min(100, Math.max(0, validation.compliance))
       : null;
+  const description = `Validation "${validation.name}": ${state}${compliance != null ? ` (${formatCompliance(compliance)} compliant)` : ""}`;
+  if (variant === "badge") {
+    return (
+      <span
+        className={`instance-validation-result instance-validation-result--${state}`}
+        title={description}
+      >
+        <span className="instance-validation-badge">
+          <FontAwesomeIcon
+            icon={validation.valid ? faCircleCheck : faTriangleExclamation}
+            aria-hidden="true"
+          />
+          <span className="instance-validation-badge-name">
+            {validation.name}
+          </span>
+        </span>
+        {compliance != null && (
+          <span className="instance-validation-measure">
+            <span className="instance-validation-badge-bar" aria-hidden="true">
+              <span
+                className="instance-validation-badge-bar-fill"
+                style={{ width: `${compliance}%` }}
+              />
+            </span>
+            <span className="instance-validation-badge-value">
+              {formatCompliance(compliance)}
+            </span>
+          </span>
+        )}
+      </span>
+    );
+  }
   return (
     <div
       className={`instance-validation instance-validation--${state}`}
-      title={`Validation "${validation.name}": ${state}${compliance != null ? ` (${formatCompliance(compliance)} compliant)` : ""}`}
+      title={description}
     >
       <FontAwesomeIcon
         icon={validation.valid ? faCircleCheck : faTriangleExclamation}

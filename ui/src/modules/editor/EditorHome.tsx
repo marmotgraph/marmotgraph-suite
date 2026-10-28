@@ -314,6 +314,10 @@ export default function EditorHome() {
     navigate(`/editor/instances/${instanceId}`);
   };
 
+  const openInstance = (instanceId: string, search = "") => {
+    navigate(`/editor/instances/${instanceId}${search}`);
+  };
+
   const previewInstance = instances.find(
     (instance) => instance.instanceId === previewInstanceId,
   );
@@ -562,6 +566,7 @@ export default function EditorHome() {
               onOpenDetail={handleRowDoubleClick}
               onToggleSelected={handleSelectInstance}
               onToggleFavorite={handleToggleFavorite}
+              onOpenPermission={openInstance}
               onToggleDetails={(instanceId) =>
                 setExpandedCardIds((prev) => {
                   const next = new Set(prev);
@@ -608,7 +613,6 @@ export default function EditorHome() {
                   >
                     Instance Name {getSortIcon("NAME")}
                   </th>
-                  <th>Permissions</th>
                   <th
                     onClick={() => handleSort("LAST_MODIFICATION")}
                     aria-sort={getAriaSort("LAST_MODIFICATION")}
@@ -617,6 +621,7 @@ export default function EditorHome() {
                     Last modified {getSortIcon("LAST_MODIFICATION")}
                   </th>
                   <th>Status</th>
+                  <th aria-label="Permissions" />
                 </tr>
               </thead>
               <tbody>
@@ -719,39 +724,16 @@ export default function EditorHome() {
                           </div>
                         </td>
                         <td>
-                          {instance.permissions.includes("View") && (
-                            <FontAwesomeIcon
-                              icon={faGlasses}
-                              className="me-2"
-                              aria-label="View"
-                            />
-                          )}
-                          {instance.permissions.includes("Edit") && (
-                            <FontAwesomeIcon
-                              icon={faPen}
-                              className="me-2"
-                              aria-label="Edit"
-                            />
-                          )}
-                          {instance.permissions.includes("Review") && (
-                            <FontAwesomeIcon
-                              icon={faClipboardCheck}
-                              className="me-2"
-                              aria-label="Review"
-                            />
-                          )}
-                          {instance.permissions.includes("Release") && (
-                            <FontAwesomeIcon
-                              icon={faRocket}
-                              aria-label="Release"
-                            />
-                          )}
-                        </td>
-                        <td>
                           <Timestamp value={instance.lastModified} fallback="" />
                         </td>
                         <td>
                           <InstanceStatusTags instance={instance} />
+                        </td>
+                        <td>
+                          <InstancePermissionButtons
+                            instance={instance}
+                            onOpen={openInstance}
+                          />
                         </td>
                       </tr>
                     ))}
@@ -881,19 +863,23 @@ function InstanceStatusTags({ instance }: { instance: InstanceSummary }) {
             : "instance-card-status"
         }
       >
-        <FontAwesomeIcon icon={icon} className="me-1" />
+        <FontAwesomeIcon icon={icon} />
         {instance.releaseStatus}
       </span>
       {instance.contributed && (
         <span className="instance-card-status" title="You have contributed to this instance">
-          <FontAwesomeIcon icon={faUserPen} className="me-1" />
+          <FontAwesomeIcon icon={faUserPen} />
           my contribution
         </span>
       )}
       {instance.validation && instance.validation.length > 0 && (
-        <div className="instance-validations">
+        <div className="instance-validation-badges">
           {instance.validation.map((validation) => (
-            <ValidationStatus key={validation.name} validation={validation} />
+            <ValidationStatus
+              key={validation.name}
+              validation={validation}
+              variant="badge"
+            />
           ))}
         </div>
       )}
@@ -934,12 +920,59 @@ function FavoriteToggle({
   );
 }
 
+/**
+ * Permissions shown as icons, in display order, and the instance-page mode each one opens.
+ * Review is the right to invite reviewers; the instance page has no review mode, so it opens in view.
+ */
 const permissionItems = [
-  { key: "View", icon: faGlasses },
-  { key: "Edit", icon: faPen },
-  { key: "Review", icon: faClipboardCheck },
-  { key: "Release", icon: faRocket },
+  { key: "View", icon: faGlasses, search: "" },
+  { key: "Edit", icon: faPen, search: "?edit=1" },
+  { key: "Review", icon: faClipboardCheck, search: "" },
+  { key: "Release", icon: faRocket, search: "?release=1" },
 ] as const;
+
+function InstancePermissionButtons({
+  instance,
+  labeled = false,
+  onOpen,
+}: {
+  instance: InstanceSummary;
+  /** Shows the permission name beside the icon (the narrow-screen card). */
+  labeled?: boolean;
+  onOpen: (instanceId: string, search: string) => void;
+}) {
+  const items = permissionItems.filter((item) =>
+    instance.permissions.includes(item.key),
+  );
+  if (items.length === 0) {
+    return null;
+  }
+  return (
+    <div className="instance-permissions">
+      {items.map((item) => (
+        <button
+          key={item.key}
+          type="button"
+          className={
+            labeled
+              ? "instance-permission-btn instance-permission-btn--labeled"
+              : "instance-permission-btn"
+          }
+          aria-label={`Open ${instance.instanceName} in ${item.key.toLowerCase()} mode`}
+          title={`Open in ${item.key.toLowerCase()} mode`}
+          onClick={(event) => {
+            event.stopPropagation();
+            onOpen(instance.instanceId, item.search);
+          }}
+          onDoubleClick={(event) => event.stopPropagation()}
+        >
+          <FontAwesomeIcon icon={item.icon} />
+          {labeled && item.key}
+        </button>
+      ))}
+    </div>
+  );
+}
 
 function InstanceCardList({
   instances,
@@ -952,6 +985,7 @@ function InstanceCardList({
   onOpenDetail,
   onToggleSelected,
   onToggleFavorite,
+  onOpenPermission,
   onToggleDetails,
   onCopyId,
 }: {
@@ -965,6 +999,7 @@ function InstanceCardList({
   onOpenDetail: (event: React.MouseEvent, instanceId: string) => void;
   onToggleSelected: (instanceId: string) => void;
   onToggleFavorite: (instanceId: string) => void;
+  onOpenPermission: (instanceId: string, search: string) => void;
   onToggleDetails: (instanceId: string) => void;
   onCopyId: (instanceId: string) => void;
 }) {
@@ -983,9 +1018,6 @@ function InstanceCardList({
         const typeColor =
           instance.typeColor || typeColors[instance.type] || "#999";
         const detailsOpen = expandedIds.has(instance.instanceId);
-        const permissions = permissionItems.filter((item) =>
-          instance.permissions.includes(item.key),
-        );
         return (
           <article
             key={instance.instanceId}
@@ -1078,16 +1110,11 @@ function InstanceCardList({
                   <span className="instance-preview-meta-label">Space</span>
                   {instance.space}
                 </div>
-                {permissions.length > 0 && (
-                  <div className="instance-card-permissions">
-                    {permissions.map((item) => (
-                      <span key={item.key}>
-                        <FontAwesomeIcon icon={item.icon} />
-                        {item.key}
-                      </span>
-                    ))}
-                  </div>
-                )}
+                <InstancePermissionButtons
+                  instance={instance}
+                  labeled
+                  onOpen={onOpenPermission}
+                />
                 <div>
                   <span className="instance-preview-meta-label">
                     Last modified

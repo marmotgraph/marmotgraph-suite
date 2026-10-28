@@ -1,5 +1,5 @@
 import React from "react";
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { MemoryRouter, Route, Routes, useLocation } from "react-router-dom";
 import EditorHome from "./EditorHome";
 import { useInstances } from "../../contexts/InstancesContext";
@@ -120,6 +120,9 @@ describe("EditorHome", () => {
     renderHome();
 
     expect(screen.getByRole("columnheader", { name: "Status" })).toBeInTheDocument();
+    const headers = screen.getAllByRole("columnheader");
+    expect(headers.at(-1)).toHaveAccessibleName("Permissions");
+    expect(headers.at(-1)).toHaveTextContent("");
     expect(screen.getByText("released")).toBeInTheDocument();
     expect(screen.getByTitle('Validation "minimal": valid (100% compliant)')).toHaveTextContent("minimal100%");
     expect(screen.getByTitle('Validation "complete": invalid (62% compliant)')).toHaveTextContent("complete62%");
@@ -220,6 +223,56 @@ describe("EditorHome", () => {
     expect(screen.getByText("instance detail")).toBeInTheDocument();
     expect(screen.getByTestId("location")).toHaveTextContent(
       "/editor/instances/inst-1",
+    );
+  });
+
+  it("opens the instance in the mode of a permission icon", () => {
+    renderHome([
+      {
+        ...instance,
+        permissions: "View, Edit, Review, Release",
+      },
+    ]);
+
+    fireEvent.click(
+      screen.getByRole("button", { name: "Open Headquarters in view mode" }),
+    );
+    expect(screen.getByTestId("location")).toHaveTextContent(
+      "/editor/instances/inst-1",
+    );
+    expect(screen.getByTestId("location")).not.toHaveTextContent("?");
+    expect(
+      screen.queryByRole("complementary", { name: "Preview of Headquarters" }),
+    ).not.toBeInTheDocument();
+
+    cleanup();
+    renderHome([
+      {
+        ...instance,
+        permissions: "View, Edit, Review, Release",
+      },
+    ]);
+    fireEvent.click(
+      screen.getByRole("button", { name: "Open Headquarters in edit mode" }),
+    );
+    expect(screen.getByTestId("location")).toHaveTextContent(
+      "/editor/instances/inst-1?edit=1",
+    );
+
+    cleanup();
+    renderHome([
+      {
+        ...instance,
+        permissions: "View, Edit, Review, Release",
+      },
+    ]);
+    fireEvent.click(
+      screen.getByRole("button", {
+        name: "Open Headquarters in release mode",
+      }),
+    );
+    expect(screen.getByTestId("location")).toHaveTextContent(
+      "/editor/instances/inst-1?release=1",
     );
   });
 
