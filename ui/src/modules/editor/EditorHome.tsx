@@ -87,6 +87,8 @@ export default function EditorHome() {
     setFavoritesOnly,
     contributedOnly,
     setContributedOnly,
+    releaseStatusFilter,
+    setReleaseStatusFilter,
     sort,
     setSort,
     toggleFavorite,
@@ -109,20 +111,31 @@ export default function EditorHome() {
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [showMobileFilters, setShowMobileFilters] = useState(false);
   const [localFilters, setLocalFilters] = useState<
-    Pick<InstanceFilters, "permissions" | "releaseStatuses">
+    Pick<InstanceFilters, "permissions">
   >({
     permissions: [],
-    releaseStatuses: [],
   });
-  // The type, space, favorites and contribution filters are applied by the backend (see InstancesContext) - the others on the client
+  // The type, space, release status, favorites and contribution filters are applied by the backend (see
+  // InstancesContext) - the others on the client
   const filters: InstanceFilters = useMemo(
-    () => ({ ...localFilters, types: typeFilter, spaces: spaceFilter }),
-    [localFilters, typeFilter, spaceFilter],
+    () => ({
+      ...localFilters,
+      types: typeFilter,
+      spaces: spaceFilter,
+      releaseStatuses: releaseStatusFilter,
+    }),
+    [localFilters, typeFilter, spaceFilter, releaseStatusFilter],
   );
-  const setFilters = ({ types, spaces, ...rest }: InstanceFilters) => {
+  const setFilters = ({
+    types,
+    spaces,
+    releaseStatuses,
+    ...rest
+  }: InstanceFilters) => {
     setLocalFilters(rest);
     setTypeFilter(types);
     setSpaceFilter(spaces);
+    setReleaseStatusFilter(releaseStatuses as ReleaseStatus[]);
   };
   const activeFilterCount =
     (favoritesOnly ? 1 : 0) +
@@ -166,25 +179,9 @@ export default function EditorHome() {
     return Array.from(new Set(spaces.map((space) => space.identifier))).sort();
   }, [spaces]);
 
-  // The search term, type, space, favorites and contribution filters as well as the sorting are applied by the
-  // backend (see InstancesContext) - only the release status is filtered on the client
-  const filteredAndSortedInstances = useMemo(() => {
-    if (filters.releaseStatuses.length === 0) {
-      return instances;
-    }
-    return instances.filter((instance) =>
-      filters.releaseStatuses.includes(instance.releaseStatus),
-    );
-  }, [instances, filters]);
-
-  // The total is reported by the service (the instances are paginated) - it doesn't reflect the filters applied on the
-  // client, so only the loaded matches can be counted while any of them is active
-  const clientFiltered = filters.releaseStatuses.length > 0;
-  const resultCount = clientFiltered ? filteredAndSortedInstances.length : total;
-
   // Infinite scrolling: load the following page once the sentinel below the table becomes visible. The observer is
   // recreated after each page so it fires again if the sentinel is still visible (e.g. the rows don't fill the
-  // container yet or the release status filter hides all of the page).
+  // container yet).
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const loadMoreRef = useRef<HTMLDivElement>(null);
   const showLoadMore = !loading && hasMore;
@@ -245,12 +242,12 @@ export default function EditorHome() {
   const handleSelectAll = () => {
     if (
       selectedInstances.size ===
-      filteredAndSortedInstances.length
+      instances.length
     ) {
       setSelectedInstances(new Set());
     } else {
       const allIds = new Set(
-        filteredAndSortedInstances.map((inst) => inst.instanceId),
+        instances.map((inst) => inst.instanceId),
       );
       setSelectedInstances(allIds);
     }
@@ -324,13 +321,13 @@ export default function EditorHome() {
   useEffect(() => {
     if (
       previewInstanceId &&
-      !filteredAndSortedInstances.some(
+      !instances.some(
         (instance) => instance.instanceId === previewInstanceId,
       )
     ) {
       setPreviewInstanceId(null);
     }
-  }, [filteredAndSortedInstances, previewInstanceId]);
+  }, [instances, previewInstanceId]);
 
   return (
     <div className="editor-home">
@@ -512,11 +509,11 @@ export default function EditorHome() {
             label="Select all"
             checked={
               selectedInstances.size ===
-                filteredAndSortedInstances.length &&
+                instances.length &&
               selectedInstances.size > 0
             }
             onChange={handleSelectAll}
-            disabled={loading || filteredAndSortedInstances.length === 0}
+            disabled={loading || instances.length === 0}
           />
           <div
             className="instance-card-sort"
@@ -547,7 +544,7 @@ export default function EditorHome() {
 
       <div className="instances-result-count text-muted small">
         {!loading &&
-          `${resultCount} result${resultCount !== 1 ? "s" : ""}`}
+          `${total} result${total !== 1 ? "s" : ""}`}
       </div>
 
       {/* The table takes the remaining height of the page and only scrolls its body (the header is sticky) */}
@@ -555,7 +552,7 @@ export default function EditorHome() {
         <div className="table-scroll-container" ref={scrollContainerRef}>
           {isMobile ? (
             <InstanceCardList
-              instances={filteredAndSortedInstances}
+              instances={instances}
               loading={loading}
               selectedInstances={selectedInstances}
               previewInstanceId={previewInstance?.instanceId}
@@ -591,7 +588,7 @@ export default function EditorHome() {
                       type="checkbox"
                       checked={
                         selectedInstances.size ===
-                          filteredAndSortedInstances.length && selectedInstances.size > 0
+                          instances.length && selectedInstances.size > 0
                       }
                       onChange={handleSelectAll}
                     />
@@ -637,7 +634,7 @@ export default function EditorHome() {
                   </tr>
                 )}
                 {!loading &&
-                  filteredAndSortedInstances.map((instance) => (
+                  instances.map((instance) => (
                       <tr
                         key={instance.instanceId}
                         className={

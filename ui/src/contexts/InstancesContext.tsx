@@ -1,5 +1,5 @@
 import React, { createContext, useCallback, useContext, useEffect, useRef, useState, ReactNode } from 'react';
-import { InstanceSummary } from '../modules/editor/editorMockData';
+import { InstanceSummary, ReleaseStatus } from '../modules/editor/editorMockData';
 import { useAuth } from './AuthContext';
 import { fetchInstances, InstanceQuery, InstanceSortBy, InstanceSortDirection, setFavorite } from '../services/instances';
 
@@ -29,6 +29,9 @@ interface InstancesContextType {
   /** Whether the instances are restricted to those the user has contributed to (applied by the backend) */
   contributedOnly: boolean;
   setContributedOnly: (contributedOnly: boolean) => void;
+  /** The release statuses the instances are restricted to (applied by the backend) */
+  releaseStatusFilter: ReleaseStatus[];
+  setReleaseStatusFilter: (releaseStatuses: ReleaseStatus[]) => void;
   /** The sorting of the instances (applied by the backend) - none sorts them by name */
   sort: InstanceSort | null;
   setSort: (sort: InstanceSort | null) => void;
@@ -63,6 +66,7 @@ export function InstancesProvider({ children }: { children: ReactNode }) {
   const [spaceFilter, setSpaceFilter] = useState<string[]>([]);
   const [favoritesOnly, setFavoritesOnly] = useState<boolean>(false);
   const [contributedOnly, setContributedOnly] = useState<boolean>(false);
+  const [releaseStatusFilter, setReleaseStatusFilter] = useState<ReleaseStatus[]>([]);
   const [sort, setSort] = useState<InstanceSort | null>({ by: 'LAST_MODIFICATION', direction: 'DESC' });
   const [requested, setRequested] = useState<boolean>(false);
   const requestInstances = useCallback(() => setRequested(true), []);
@@ -72,7 +76,7 @@ export function InstancesProvider({ children }: { children: ReactNode }) {
       return;
     }
     let cancelled = false;
-    const query: InstanceQuery = { search: searchTerm, types: typeFilter, spaces: spaceFilter, favorites: favoritesOnly, contributed: contributedOnly, sortBy: sort?.by, sortDirection: sort?.direction };
+    const query: InstanceQuery = { search: searchTerm, types: typeFilter, spaces: spaceFilter, favorites: favoritesOnly, contributed: contributedOnly, releaseStatuses: releaseStatusFilter, sortBy: sort?.by, sortDirection: sort?.direction };
     queryRef.current = query;
     setLoading(true);
     setLoadingMore(false);
@@ -90,7 +94,7 @@ export function InstancesProvider({ children }: { children: ReactNode }) {
     return () => {
       cancelled = true;
     };
-  }, [requested, getAccessToken, searchTerm, typeFilter, spaceFilter, favoritesOnly, contributedOnly, sort]);
+  }, [requested, getAccessToken, searchTerm, typeFilter, spaceFilter, favoritesOnly, contributedOnly, releaseStatusFilter, sort]);
 
   const loadMore = useCallback(() => {
     const query = queryRef.current;
@@ -156,7 +160,7 @@ export function InstancesProvider({ children }: { children: ReactNode }) {
   };
 
   return (
-    <InstancesContext.Provider value={{ instances, total, loading, hasMore: !!nextMarker, loadingMore, loadMore, searchTerm, setSearchTerm, typeFilter, setTypeFilter, spaceFilter, setSpaceFilter, favoritesOnly, setFavoritesOnly, contributedOnly, setContributedOnly, sort, setSort, toggleFavorite, addInstance, updateInstance, deleteInstances, getInstance, requestInstances }}>
+    <InstancesContext.Provider value={{ instances, total, loading, hasMore: !!nextMarker, loadingMore, loadMore, searchTerm, setSearchTerm, typeFilter, setTypeFilter, spaceFilter, setSpaceFilter, favoritesOnly, setFavoritesOnly, contributedOnly, setContributedOnly, releaseStatusFilter, setReleaseStatusFilter, sort, setSort, toggleFavorite, addInstance, updateInstance, deleteInstances, getInstance, requestInstances }}>
       {children}
     </InstancesContext.Provider>
   );

@@ -96,6 +96,8 @@ export interface InstanceQuery {
   favorites?: boolean;
   /** Restricts the instances to those the user has contributed to */
   contributed?: boolean;
+  /** Restricts the instances to those with any of the given release statuses */
+  releaseStatuses?: ReleaseStatus[];
   /** The attribute the instances are sorted by - by name if not specified */
   sortBy?: InstanceSortBy;
   /** The direction of the sorting - ascending if not specified */
@@ -115,7 +117,7 @@ export interface InstanceList {
 /** Fetches the instances shown in the editor - the restrictions of the query are applied by the backend. */
 export function fetchInstances(
   accessToken: string,
-  { search, types = [], spaces = [], favorites = false, contributed = false, sortBy, sortDirection, marker }: InstanceQuery = {},
+  { search, types = [], spaces = [], favorites = false, contributed = false, releaseStatuses = [], sortBy, sortDirection, marker }: InstanceQuery = {},
 ): Promise<InstanceList> {
   const params = new URLSearchParams();
   if (search?.trim()) {
@@ -129,6 +131,7 @@ export function fetchInstances(
   if (contributed) {
     params.set("contributed", "true");
   }
+  releaseStatuses.forEach((releaseStatus) => params.append("releaseStatus", releaseStatus));
   if (sortBy) {
     params.set("sortBy", sortBy);
   }

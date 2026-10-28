@@ -258,6 +258,8 @@ public class Instances {
      * @param spaceFilter optional spaces the instances are restricted to - instances in any of them are returned
      * @param favorites   whether the instances are restricted to the favorites of the user
      * @param contributed whether the instances are restricted to those the user has contributed to
+     * @param releaseStatusFilter optional release statuses as shown in the editor ("released", "has changed", "in progress")
+     *                            the instances are restricted to - instances with any of them are returned
      * @param sortBy        the attribute the instances are sorted by (by name if not specified)
      * @param sortDirection the direction of the sorting (ascending if not specified)
      * @param marker        the nextMarker of the previous page - the first page is returned if not specified
@@ -268,6 +270,7 @@ public class Instances {
                                @RequestParam(name = "space", required = false) List<String> spaceFilter,
                                @RequestParam(defaultValue = "false") boolean favorites,
                                @RequestParam(defaultValue = "false") boolean contributed,
+                               @RequestParam(name = "releaseStatus", required = false) List<String> releaseStatusFilter,
                                @RequestParam(required = false) InstanceSortBy sortBy,
                                @RequestParam(required = false) SortDirection sortDirection,
                                @RequestParam(required = false) String marker) {
@@ -278,6 +281,7 @@ public class Instances {
                 .searchByLabel(search != null && !search.isBlank() ? search.trim() : null)
                 .favoritesOnly(favorites)
                 .withContribution(contributed)
+                .releaseStatuses(releaseStatuses(nonBlank(releaseStatusFilter)))
                 .sortBy(sortBy)
                 .sortDirection(sortDirection)
                 .marker(marker != null && !marker.isBlank() ? marker : null)
@@ -443,6 +447,18 @@ public class Instances {
             return RELEASED;
         }
         return releaseStatus == ReleaseStatus.HAS_CHANGED ? HAS_CHANGED : IN_PROGRESS;
+    }
+
+    /**
+     * The release statuses of the core the instances are filtered by - the inverse of {@link #releaseStatus(ReleaseStatus)}.
+     */
+    private static List<ReleaseStatus> releaseStatuses(List<String> releaseStatuses) {
+        return releaseStatuses.stream().map(releaseStatus -> switch (releaseStatus) {
+            case RELEASED -> ReleaseStatus.RELEASED;
+            case HAS_CHANGED -> ReleaseStatus.HAS_CHANGED;
+            case IN_PROGRESS -> ReleaseStatus.UNRELEASED;
+            default -> throw new ResponseStatusException(HttpStatus.BAD_REQUEST, String.format("Unknown release status \"%s\"", releaseStatus));
+        }).toList();
     }
 
     /**

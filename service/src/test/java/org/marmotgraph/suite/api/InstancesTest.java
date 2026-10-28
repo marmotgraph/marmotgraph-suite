@@ -182,6 +182,7 @@ class InstancesTest {
         assertNull(options.getValue().sortBy());
         assertNull(options.getValue().sortDirection());
         assertFalse(options.getValue().withContribution());
+        assertEquals(List.of(), options.getValue().releaseStatuses());
         assertNull(options.getValue().searchByLabel());
         assertEquals(List.of(), options.getValue().types());
         assertEquals(List.of(), options.getValue().spaces());
@@ -235,6 +236,27 @@ class InstancesTest {
         ArgumentCaptor<InstanceListOptions> options = ArgumentCaptor.forClass(InstanceListOptions.class);
         verify(instancesResource).list(options.capture());
         assertTrue(options.getValue().withContribution());
+    }
+
+    @Test
+    void listForwardsTheReleaseStatusFilterToTheCore() throws Exception {
+        when(instancesResource.list(any(InstanceListOptions.class))).thenReturn(page(List.of()));
+
+        mockMvc.perform(get("/instances").param("releaseStatus", "released", "has changed", "in progress", " ")
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer theToken"))
+                .andExpect(status().isOk());
+
+        ArgumentCaptor<InstanceListOptions> options = ArgumentCaptor.forClass(InstanceListOptions.class);
+        verify(instancesResource).list(options.capture());
+        assertEquals(List.of(ReleaseStatus.RELEASED, ReleaseStatus.HAS_CHANGED, ReleaseStatus.UNRELEASED), options.getValue().releaseStatuses());
+    }
+
+    @Test
+    void listRejectsAnUnknownReleaseStatus() throws Exception {
+        mockMvc.perform(get("/instances").param("releaseStatus", "archived").header(HttpHeaders.AUTHORIZATION, "Bearer theToken"))
+                .andExpect(status().isBadRequest());
+
+        verify(instancesResource, never()).list(any(InstanceListOptions.class));
     }
 
     @Test

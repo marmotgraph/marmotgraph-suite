@@ -88,6 +88,8 @@ function renderHome(
     setFavoritesOnly: vi.fn(),
     contributedOnly: false,
     setContributedOnly: vi.fn(),
+    releaseStatusFilter: [],
+    setReleaseStatusFilter: vi.fn(),
     sort: { by: "LAST_MODIFICATION", direction: "DESC" },
     setSort: vi.fn(),
     toggleFavorite: vi.fn().mockResolvedValue(undefined),
@@ -123,20 +125,28 @@ describe("EditorHome", () => {
     expect(screen.getByTitle('Validation "complete": invalid (62% compliant)')).toHaveTextContent("complete62%");
   });
 
-  it("filters by the release status - including instances which have changed since their release", () => {
-    renderHome([
-      instance,
-      { ...instance, id: 2, instanceId: "inst-2", instanceName: "Warehouse", releaseStatus: "has changed" },
-      { ...instance, id: 3, instanceId: "inst-3", instanceName: "Garage", releaseStatus: "in progress" },
-    ]);
+  it("filters by the release status on the backend - including instances which have changed since their release", () => {
+    const setReleaseStatusFilter = vi.fn();
+    renderHome(
+      [instance, { ...instance, id: 2, instanceId: "inst-2", instanceName: "Warehouse", releaseStatus: "has changed" }],
+      2,
+      { releaseStatusFilter: ["released"], setReleaseStatusFilter },
+    );
 
     expect(screen.getByText("has changed")).toHaveClass("instance-card-status--changed");
 
     fireEvent.click(screen.getByLabelText("Has Changed"));
 
-    expect(screen.getByText("Warehouse")).toBeInTheDocument();
-    expect(screen.queryByText("Headquarters")).not.toBeInTheDocument();
-    expect(screen.queryByText("Garage")).not.toBeInTheDocument();
+    expect(setReleaseStatusFilter).toHaveBeenCalledWith(["released", "has changed"]);
+  });
+
+  it("shows the release status filter as a removable pill", () => {
+    const setReleaseStatusFilter = vi.fn();
+    renderHome([instance], 1, { releaseStatusFilter: ["in progress"], setReleaseStatusFilter });
+
+    fireEvent.click(screen.getByRole("button", { name: "Remove Status filter" }));
+
+    expect(setReleaseStatusFilter).toHaveBeenCalledWith([]);
   });
 
   it("shows the total number of instances reported by the service - not only the loaded ones", () => {
@@ -171,17 +181,6 @@ describe("EditorHome", () => {
     renderHome([instance], 1);
 
     expect(screen.queryByText("Loading more instances...")).not.toBeInTheDocument();
-  });
-
-  it("counts the loaded matches while a filter applied on the client is active", () => {
-    renderHome(
-      [instance, { ...instance, id: 2, instanceId: "inst-2", instanceName: "Warehouse", releaseStatus: "has changed" }],
-      1234,
-    );
-
-    fireEvent.click(screen.getByLabelText("Has Changed"));
-
-    expect(screen.getByText("1 result")).toBeInTheDocument();
   });
 
   it("opens the instance page when a row is double clicked", async () => {
@@ -343,7 +342,8 @@ describe("EditorHome", () => {
     })) as unknown as typeof window.matchMedia;
 
     try {
-      renderHome();
+      const setReleaseStatusFilter = vi.fn();
+      renderHome([instance], 1, { releaseStatusFilter: ["released"], setReleaseStatusFilter });
 
       expect(
         screen.queryByLabelText("Show favorites only"),
@@ -352,13 +352,11 @@ describe("EditorHome", () => {
         screen.queryByRole("button", { name: "Type (0)" }),
       ).not.toBeInTheDocument();
 
-      fireEvent.click(screen.getByRole("button", { name: "Filters" }));
+      fireEvent.click(screen.getByRole("button", { name: "Filters (1)" }));
 
-      fireEvent.click(screen.getByLabelText("Released"));
+      fireEvent.click(screen.getByLabelText("In Progress"));
 
-      expect(
-        screen.getByRole("button", { name: "Filters (1)" }),
-      ).toBeInTheDocument();
+      expect(setReleaseStatusFilter).toHaveBeenCalledWith(["released", "in progress"]);
       expect(screen.getByRole("heading", { name: "Type" })).toBeInTheDocument();
       expect(screen.getByRole("heading", { name: "Space" })).toBeInTheDocument();
     } finally {
