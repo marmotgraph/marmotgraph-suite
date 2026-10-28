@@ -26,7 +26,8 @@ interface LayoutProps {
         show: boolean;
         title: string;
         body: React.ReactNode;
-        onClose: () => void;
+        onClose?: () => void;
+        createHref?: (typeIdentifier: string) => string;
       };
     }[];
   };

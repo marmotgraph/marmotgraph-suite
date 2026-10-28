@@ -1,293 +1,207 @@
-import React, { useState } from "react";
-import { Button, Modal, Table } from "react-bootstrap";
+import React, { useEffect, useMemo, useState } from "react";
+import { Alert, Button, Form, Spinner, Table } from "react-bootstrap";
 import { useNavigate } from "react-router-dom";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import {
-  faBookmark as faBookmarkSolid,
-  faGlasses,
-  faPen,
-} from "@fortawesome/free-solid-svg-icons";
-import { faBookmark as faBookmarkRegular } from "@fortawesome/free-regular-svg-icons";
-import "./QueryHome.css";
+import { faCircle, faGlasses, faPen } from "@fortawesome/free-solid-svg-icons";
+import { useAuth } from "../../contexts/AuthContext";
+import { SearchBar } from "../../components/SearchBar";
+import { fetchQueries, QuerySummary } from "../../services/queries";
+import { simpleName, typeName } from "./queryModel";
+import { findSpace, spaceLabel, useQuerySpaces, useQueryTypes } from "./useQueryBuilderData";
+import "../editor/EditorHome.css";
 import "./SharedQueries.css";
+import "./QueryBuilder.css";
 
-type EntityType = {
-  name: string;
-  url: string;
-};
+type Scope = "all" | "private" | "shared";
 
-const mockTypes: EntityType[] = [
-  { name: "Appliance", url: "https://kg.svc.cscs.ch/types/Appliance" },
-  { name: "Asset Tag", url: "https://kg.svc.cscs.ch/types/AssetTag" },
-  { name: "Blade", url: "https://kg.svc.cscs.ch/types/Blade" },
-  { name: "Building", url: "https://kg.svc.cscs.ch/types/Building" },
-  { name: "Cabinet", url: "https://kg.svc.cscs.ch/types/Cabinet" },
-  { name: "Canton", url: "https://kg.svc.cscs.ch/types/Canton" },
-];
-
-const mockQueries = [
-  {
-    id: 1,
-    queryId: "47b94e45-5435-49a8-aba3-3d482fabced3",
-    type: "Graph",
-    title: "Network Traffic Analysis",
-    description: "Query to analyze network traffic patterns and anomalies",
-    space: "private-25ae0198-753b-497d-9163-67488442f64",
-    permissions: "View, Edit",
-    bookmarked: true,
-  },
-  {
-    id: 2,
-    queryId: "a1b2c3d4-e5f6-4a5b-9c8d-7e6f5a4b3c2d",
-    type: "Table",
-    title: "User Login Activity",
-    description: "Track user authentication events and failed login attempts",
-    space: "shared-workspace-a1b2c3d4",
-    permissions: "View",
-    bookmarked: false,
-  },
-  {
-    id: 3,
-    queryId: "302a3695-722c-4e29-9543-8f6a7b8c9d0e",
-    type: "Graph",
-    title: "Asset Relationships",
-    description: "Visualize connections between assets and dependencies",
-    space: "private-302a3695-722c-4e29-9543-8f6a",
-    permissions: "View, Edit, Share",
-    bookmarked: true,
-  },
-  {
-    id: 4,
-    queryId: "b2c3d4e5-f6a7-4b5c-8d9e-0f1a2b3c4d5e",
-    type: "Table",
-    title: "Security Alerts Dashboard",
-    description: "Comprehensive view of all security alerts and incidents",
-    space: "team-security-ops",
-    permissions: "View, Edit",
-    bookmarked: false,
-  },
-  {
-    id: 5,
-    queryId: "c3d4e5f6-a7b8-4c5d-9e0f-1a2b3c4d5e6f",
-    type: "Graph",
-    title: "Service Dependencies",
-    description: "",
-    space: "private-25ae0198-753b-497d-9163-67488442f64",
-    permissions: "View",
-    bookmarked: true,
-  },
-  {
-    id: 6,
-    queryId: "d4e5f6a7-b8c9-4d5e-0f1a-2b3c4d5e6f7a",
-    type: "Table",
-    title: "Compliance Report Q1",
-    description: "Quarterly compliance metrics and audit results",
-    space: "shared-compliance-workspace",
-    permissions: "View, Edit, Delete",
-    bookmarked: false,
-  },
-  {
-    id: 7,
-    queryId: "7f8e9d0a-1b2c-3d4e-5f6a-7b8c9d0e1f2a",
-    type: "Graph",
-    title: "Data Flow Mapping",
-    description: "Map data flows across systems and applications",
-    space: "private-7f8e9d0a-1b2c-3d4e-5f6a-7b8c9d0e1f2a",
-    permissions: "View, Edit",
-    bookmarked: true,
-  },
-  {
-    id: 8,
-    queryId: "e5f6a7b8-c9d0-4e5f-1a2b-3c4d5e6f7a8b",
-    type: "Table",
-    title: "Vulnerability Scan Results",
-    description:
-      "Latest vulnerability assessment findings and remediation status",
-    space: "team-security-ops",
-    permissions: "View",
-    bookmarked: false,
-  },
-];
-
-function TypeListFilter({
-  types,
-  onTypeSelect,
-}: {
-  types: EntityType[];
-  onTypeSelect: (typeName: string) => void;
-}) {
-  const [filter, setFilter] = useState("");
-  const [selectedType, setSelectedType] = useState<EntityType | null>(null);
-
-  const filteredTypes = types.filter((t) =>
-    t.name.toLowerCase().includes(filter.toLowerCase()),
-  );
-
-  const handleSelectType = (type: EntityType) => {
-    setSelectedType(type);
-    onTypeSelect(type.name);
-  };
-
-  return (
-    <div>
-      <input
-        type="text"
-        className="form-control mb-3"
-        placeholder="Filter types..."
-        value={filter}
-        onChange={(e) => setFilter(e.target.value)}
-      />
-      <ul className="list-group">
-        {filteredTypes.length > 0 ? (
-          filteredTypes.map((type) => (
-            <li
-              key={type.name}
-              className={`list-group-item d-flex justify-content-between align-items-center ${
-                selectedType?.name === type.name ? "active" : ""
-              }`}
-              style={{ cursor: "pointer" }}
-              onClick={() => handleSelectType(type)}
-            >
-              <span className="fw-semibold">{type.name}</span>
-              <a
-                href={type.url}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="btn btn-sm btn-outline-secondary"
-                onClick={(e) => e.stopPropagation()}
-              >
-                View
-              </a>
-            </li>
-          ))
-        ) : (
-          <li className="list-group-item text-muted">
-            No types found matching "{filter}"
-          </li>
-        )}
-      </ul>
-      {selectedType && (
-        <div className="mt-3 p-2 bg-light border rounded">
-          <small className="text-muted">Selected: </small>
-          <strong>{selectedType.name}</strong>
-        </div>
-      )}
-    </div>
-  );
+function matches(query: QuerySummary, search: string): boolean {
+  return [query.label, query.description, query.id].some((value) => value?.toLowerCase().includes(search));
 }
 
+/** Lists the stored queries the user can read - to open one, filtered by text, type and private / shared. */
 export function QueryHome() {
   const navigate = useNavigate();
-  const [showModal, setShowModal] = useState(false);
-  const [selectedType, setSelectedType] = useState<string | null>(null);
+  const { getAccessToken } = useAuth();
+  const { data: types } = useQueryTypes();
+  const { data: spaces } = useQuerySpaces();
+  const [queries, setQueries] = useState<QuerySummary[]>();
+  const [error, setError] = useState<string>();
+  const [searchInput, setSearchInput] = useState("");
+  const [search, setSearch] = useState("");
+  const [type, setType] = useState("");
+  const [scope, setScope] = useState<Scope>("all");
+  const [reload, setReload] = useState(0);
 
-  // Filter bookmarked queries
-  const bookmarkedQueries = mockQueries.filter((query) => query.bookmarked);
+  useEffect(() => {
+    let cancelled = false;
+    setError(undefined);
+    getAccessToken()
+      .then((token) => fetchQueries(token))
+      .then((loaded) => !cancelled && setQueries(loaded))
+      .catch((e: unknown) => !cancelled && setError(e instanceof Error ? e.message : String(e)));
+    return () => {
+      cancelled = true;
+    };
+  }, [getAccessToken, reload]);
 
-  const handleCloseModal = () => {
-    setShowModal(false);
-    setSelectedType(null);
-  };
+  const label = (identifier: string) => (types ? typeName(types, identifier) : simpleName(identifier));
 
-  const handleTypeSelection = (typeName: string) => {
-    setSelectedType(typeName);
-  };
+  const queryTypes = useMemo(
+    () =>
+      Array.from(new Set((queries ?? []).map((q) => q.type).filter((t): t is string => !!t))).sort((a, b) =>
+        label(a).localeCompare(label(b)),
+      ),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [queries, types],
+  );
 
-  const handleCreateQuery = () => {
-    if (selectedType) {
-      // Generate a new query ID
-      // TO DO: change with backend call
-      const newQueryId = crypto.randomUUID();
-      navigate(`/queries/${newQueryId}`);
-      handleCloseModal();
-    }
-  };
+  const visible = useMemo(() => {
+    const text = search.trim().toLowerCase();
+    return (queries ?? [])
+      .filter((q) => !text || matches(q, text))
+      .filter((q) => !type || q.type === type)
+      .filter((q) => {
+        if (scope === "all") {
+          return true;
+        }
+        const isPrivate = !!findSpace(spaces, q.space)?.isPrivate;
+        return scope === "private" ? isPrivate : !isPrivate;
+      })
+      .sort((a, b) => (a.label || a.id).localeCompare(b.label || b.id));
+  }, [queries, search, type, scope, spaces]);
 
-  const handleRowClick = (queryId: string) => {
-    navigate(`/queries/${queryId}`);
-  };
+  const open = (query: QuerySummary) => navigate(`/queries/${query.id}`);
 
   return (
-    <div>
-      <div className="mb-4">
-        <h2>My Queries</h2>
+    <div className="editor-home query-home">
+      <div className="mb-3">
+        <h2>Queries</h2>
       </div>
-
-      <div className="row">
-        <div className="layout-content-bordless">
-          <Table className="shared-queries-table" responsive="sm">
-            <thead>
-              <tr>
-                <th>Fav</th>
-                <th>Type</th>
-                <th>Title</th>
-                <th>Description</th>
-                <th>Saved in space</th>
-                <th>Permissions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {bookmarkedQueries.map((query) => (
-                <tr
-                  key={query.id}
-                  onClick={() => handleRowClick(query.queryId)}
-                  style={{ cursor: "pointer" }}
-                >
-                  <td>
-                    <FontAwesomeIcon
-                      icon={
-                        query.bookmarked ? faBookmarkSolid : faBookmarkRegular
-                      }
-                    />
-                  </td>
-                  <td>{query.type}</td>
-                  <td>{query.title}</td>
-                  <td>{query.description}</td>
-                  <td>{query.space}</td>
-                  <td>
-                    {query.permissions.includes("View") && (
-                      <FontAwesomeIcon icon={faGlasses} className="me-2" title="View" />
-                    )}
-                    {query.permissions.includes("Edit") && (
-                      <FontAwesomeIcon icon={faPen} title="Edit" />
-                    )}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </Table>
+      <div className="query-home-search mb-3">
+        <SearchBar
+          value={searchInput}
+          onChange={setSearchInput}
+          onSearch={() => setSearch(searchInput)}
+          placeholder="Search queries by title, description or id"
+          ariaLabel="Search queries"
+        />
+      </div>
+      <div className="query-home-filters mb-2">
+        <Form.Select
+          size="sm"
+          value={type}
+          onChange={(e) => setType(e.target.value)}
+          aria-label="Filter by type"
+          className="query-home-type-filter"
+        >
+          <option value="">All types</option>
+          {queryTypes.map((t) => (
+            <option key={t} value={t}>
+              {label(t)}
+            </option>
+          ))}
+        </Form.Select>
+        <div role="radiogroup" aria-label="Filter by space" className="query-home-scope">
+          {(
+            [
+              ["all", "All queries"],
+              ["private", "My private queries"],
+              ["shared", "Shared queries"],
+            ] as [Scope, string][]
+          ).map(([value, text]) => (
+            <Form.Check
+              key={value}
+              inline
+              type="radio"
+              id={`query-scope-${value}`}
+              name="query-scope"
+              label={text}
+              checked={scope === value}
+              onChange={() => setScope(value)}
+            />
+          ))}
         </div>
       </div>
 
-      {/* Modal for type selection */}
-      <Modal show={showModal} onHide={handleCloseModal} centered>
-        <Modal.Header closeButton>
-          <Modal.Title>Create New Query</Modal.Title>
-        </Modal.Header>
-        <Modal.Body>
-          <div className="mb-3">
-            <label htmlFor="type-filter" className="form-label fw-bold">
-              Select type
-            </label>
+      {error ? (
+        <Alert variant="danger" className="d-flex align-items-center justify-content-between">
+          <span>{error}</span>
+          <Button variant="outline-dark" size="sm" onClick={() => setReload((r) => r + 1)}>
+            Retry
+          </Button>
+        </Alert>
+      ) : (
+        <>
+          <div className="instances-result-count text-muted small">
+            {queries ? `${visible.length} of ${queries.length} queries` : " "}
           </div>
-          <TypeListFilter
-            types={mockTypes}
-            onTypeSelect={handleTypeSelection}
-          />
-        </Modal.Body>
-        <Modal.Footer>
-          <Button variant="secondary" onClick={handleCloseModal}>
-            Cancel
-          </Button>
-          <Button
-            variant="dark"
-            onClick={handleCreateQuery}
-            disabled={!selectedType}
-          >
-            Create Query
-          </Button>
-        </Modal.Footer>
-      </Modal>
+          <div className="editor-home-body">
+          <div className="table-scroll-container">
+            <Table className="shared-queries-table instances-table">
+              <thead>
+                <tr>
+                  <th>Type</th>
+                  <th>Title</th>
+                  <th>Description</th>
+                  <th>Saved in space</th>
+                  <th>Permissions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {!queries && (
+                  <tr>
+                    <td colSpan={5} className="text-center text-muted">
+                      <Spinner animation="border" size="sm" role="status" className="me-2" />
+                      Loading queries...
+                    </td>
+                  </tr>
+                )}
+                {queries && visible.length === 0 && (
+                  <tr>
+                    <td colSpan={5} className="links-empty-state">
+                      {queries.length === 0
+                        ? "No saved queries yet. Create a new query to get started."
+                        : "No queries match the filters."}
+                    </td>
+                  </tr>
+                )}
+                {visible.map((query) => {
+                  const space = findSpace(spaces, query.space);
+                  const color = (query.type && types?.get(query.type)?.color) || "#6c757d";
+                  return (
+                    <tr
+                      key={query.id}
+                      tabIndex={0}
+                      onClick={() => open(query)}
+                      onKeyDown={(e) => e.key === "Enter" && open(query)}
+                      aria-label={`Open query ${query.label || query.id}`}
+                    >
+                      <td className="text-nowrap">
+                        <FontAwesomeIcon icon={faCircle} className="query-type-dot me-2" style={{ color }} />
+                        {query.type ? label(query.type) : "Unknown type"}
+                      </td>
+                      <td className="query-home-title">{query.label || <span className="text-muted">Untitled</span>}</td>
+                      <td>{query.description}</td>
+                      <td>{spaceLabel(space, query.space)}</td>
+                      <td className="text-nowrap">
+                        <FontAwesomeIcon icon={faGlasses} className="me-2" title="Can view" />
+                        <span className="visually-hidden">Can view</span>
+                        {space?.canWrite && (
+                          <>
+                            <FontAwesomeIcon icon={faPen} title="Can edit" />
+                            <span className="visually-hidden">Can edit</span>
+                          </>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </Table>
+          </div>
+          </div>
+        </>
+      )}
     </div>
   );
 }

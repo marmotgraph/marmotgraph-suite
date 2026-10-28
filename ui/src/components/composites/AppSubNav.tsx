@@ -1,6 +1,7 @@
 // src/components/composites/AppSubNav.tsx
 import React, { useState } from "react";
 import { Button, Col, Container, Modal, Row } from "react-bootstrap";
+import { useNavigate } from "react-router-dom";
 import { useRegisteredSubNavActions } from "../../contexts/SubNavActionsContext";
 
 type CtaButton = {
@@ -21,7 +22,9 @@ type CtaButton = {
     body:
       | React.ReactNode
       | ((onTypeSelect: (typeIdentifier: string) => void) => React.ReactNode);
-    onClose: () => void;
+    onClose?: () => void;
+    /** Where "Create" leads for the selected type - a new instance of it in the editor if not given */
+    createHref?: (typeIdentifier: string) => string;
   };
 };
 
@@ -31,6 +34,7 @@ type AppSubNavProps = {
 };
 
 export default function AppSubNav({ title, ctas }: AppSubNavProps) {
+  const navigate = useNavigate();
   const [openModalIndex, setOpenModalIndex] = useState<number | null>(null);
   const [selectedType, setSelectedType] = useState<string | null>(null);
   // The page actions of the current view (e.g. only available with the permissions to use them)
@@ -50,7 +54,12 @@ export default function AppSubNav({ title, ctas }: AppSubNavProps) {
     setSelectedType(typeIdentifier);
   };
 
-  const handleCreate = () => {
+  const handleCreate = (createHref?: (typeIdentifier: string) => string) => {
+    if (createHref) {
+      navigate(createHref(selectedType || ""));
+      handleCloseModal();
+      return;
+    }
     // The id of the new instance is generated on the client - it is marked as new since it is not known to the core yet
     const instanceId = crypto.randomUUID();
     // Navigate to the instance form with the type as query param - the name is given by the label field of the type
@@ -132,7 +141,7 @@ export default function AppSubNav({ title, ctas }: AppSubNavProps) {
               </Button>
               <Button
                 variant="dark"
-                onClick={handleCreate}
+                onClick={() => handleCreate(cta.modal?.createHref)}
                 disabled={!isCreateEnabled}
               >
                 Create
