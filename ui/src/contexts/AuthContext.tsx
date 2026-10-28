@@ -33,8 +33,10 @@ function initialize(config: AppConfig): Promise<Keycloak> {
         end_session_endpoint: config.authLogoutUrl,
       },
     });
+    // If the refresh token is rejected, keycloak clears the tokens and redirects to the login (due to "login-required").
+    // Other failures (e.g. network issues) are retried with the next request - see getAccessToken.
     keycloak.onTokenExpired = () => {
-      keycloak.updateToken(MIN_TOKEN_VALIDITY_S).catch(() => keycloak.login());
+      keycloak.updateToken(MIN_TOKEN_VALIDITY_S).catch(() => undefined);
     };
     initialization = keycloak
       .init({
@@ -78,7 +80,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       await keycloak.updateToken(MIN_TOKEN_VALIDITY_S);
     } catch (e) {
-      await keycloak.login();
+      // A rejected refresh token already triggered the login (and cleared the authentication) - only a session for which
+      // the provider didn't issue a refresh token needs a new one. Other failures are retried with the next request.
+      if (keycloak.authenticated && !keycloak.refreshToken) {
+        await keycloak.login();
+      }
       throw e;
     }
     return keycloak.token!;
