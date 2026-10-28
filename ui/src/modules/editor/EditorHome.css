@@ -188,7 +188,9 @@
 }
 
 .instance-card-status {
-    display: inline-block;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
     font-size: 0.75rem;
     line-height: 1.2;
     border-radius: 999px;
@@ -209,9 +211,9 @@
 
 .instance-status {
     display: flex;
-    flex-direction: column;
+    flex-wrap: wrap;
     align-items: flex-start;
-    gap: 6px;
+    gap: 4px 6px;
 }
 
 .instance-card-details-toggle {
@@ -257,15 +259,53 @@
     white-space: nowrap;
 }
 
-.instance-card-permissions {
+.instance-permissions {
     display: flex;
     flex-wrap: wrap;
-    gap: 8px 12px;
-    color: #495057;
+    align-items: center;
+    gap: 4px;
 }
 
-.instance-card-permissions svg {
-    margin-right: 4px;
+.instance-permission-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    border: 1px solid #dee2e6;
+    border-radius: 6px;
+    background: #fff;
+    color: #212529;
+    line-height: 1;
+    cursor: pointer;
+    padding: 0;
+    transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+
+.instances-table .instance-permission-btn {
+    margin: -6px 0;
+}
+
+.instance-permission-btn--labeled {
+    width: auto;
+    padding: 0 8px;
+    gap: 6px;
+}
+
+.instance-permission-btn:hover {
+    background-color: #e9ecef;
+    color: #212529;
+}
+
+.instance-permission-btn:focus-visible {
+    outline: 2px solid #5b5fc7;
+    outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .instance-permission-btn {
+        transition: none;
+    }
 }
 
 @media (max-width: 768px) {
