@@ -23,7 +23,7 @@
 }
 
 .instance-validation--invalid {
-    --validation-color: #c27c0e;
+    --validation-color: #a3410a;
 }
 
 .instance-validation-icon,
@@ -74,9 +74,6 @@
 
 .instance-validation-result {
     display: flex;
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 4px;
     max-width: 100%;
     font-size: 0.75rem;
     line-height: 1.2;
@@ -84,17 +81,20 @@
 }
 
 .instance-validation-result--invalid {
-    color: #c27c0e;
+    color: #a3410a;
 }
 
 .instance-validation-badge {
     display: inline-flex;
     align-items: center;
-    gap: 4px;
     max-width: 100%;
     border-radius: 999px;
     padding: 2px 8px;
     background-color: #e8f6ee;
+}
+
+.instance-validation-badge > svg {
+    margin-right: 4px;
 }
 
 .instance-validation-result--invalid .instance-validation-badge {
@@ -105,48 +105,36 @@
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+    min-width: 0;
     max-width: 36ch;
-}
-
-.instance-validation-measure {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    padding-left: 8px;
-}
-
-.instance-validation-badge-bar {
-    display: block;
-    width: 36px;
-    height: 4px;
-    flex: 0 0 36px;
-    border-radius: 999px;
-    background-color: rgba(30, 122, 66, 0.22);
-    overflow: hidden;
-}
-
-.instance-validation-result--invalid .instance-validation-badge-bar {
-    background-color: rgba(194, 124, 14, 0.28);
-}
-
-.instance-validation-badge-bar-fill {
-    display: block;
-    height: 100%;
-    border-radius: 999px;
-    background-color: currentColor;
 }
 
 .instance-validation-badge-value {
     flex: 0 0 auto;
-    min-width: 2.5em;
     font-variant-numeric: tabular-nums;
     font-weight: 600;
-    text-align: right;
+    white-space: nowrap;
 }
 
-/* The validation of the open instance - in its header */
+/* Failed-schema messages sit under the header. The pills sit under the link-status icon. */
+.instance-validation-block {
+    margin: 0 0 20px;
+    min-width: 0;
+}
+
 .instance-validation-summary {
-    margin-top: 16px;
+    margin: 0;
+}
+
+.instance-validation-errors-panel {
+    margin: 12px 0 0;
+}
+
+.instance-validation-error-schema {
+    margin-top: 8px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: #495057;
 }
 
 .instance-validation-summary-title {
@@ -172,22 +160,14 @@
     padding: 2px 8px;
 }
 
-.instance-validations--detail {
-    grid-template-columns: auto minmax(0, max-content) 120px auto;
-    column-gap: 8px;
-    row-gap: 6px;
-    font-size: 0.85rem;
-}
-
-.instance-validations--detail .instance-validation-name {
-    max-width: 280px;
+.instance-validation-summary .instance-validation-badges {
+    flex: none;
 }
 
 .instance-validation-errors {
-    grid-column: 1 / -1;
     list-style: none;
-    margin: 0 0 4px;
-    padding: 0 0 0 22px;
+    margin: 2px 0 0;
+    padding: 0;
     font-size: 0.8rem;
     line-height: 1.4;
     color: #495057;
@@ -209,7 +189,7 @@
 
 /* A field the validation reports errors for */
 .instance-field-validation-icon {
-    color: #c27c0e;
+    color: #a3410a;
     font-size: 0.85em;
     margin-left: 6px;
 }

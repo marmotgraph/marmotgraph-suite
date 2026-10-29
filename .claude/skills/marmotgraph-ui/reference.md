@@ -19,6 +19,7 @@ Source of truth: the CSS below. Use these values when the stylesheet does not al
 | Connectors | `InstanceDetail.css` (`.instance-link-edge`) | existing connector layer |
 | Breadcrumbs | `ui/src/components/Breadcrumbs/Breadcrumbs.css` | `breadcrumbs` |
 | Release | `ui/src/components/InstanceRelease.css` | `release-status` |
+| List and detail status pills | `ui/src/components/InstanceStatusTags.css` (`InstanceStatusTags.tsx`) | `instance-card-status`, `instance-status` |
 | Validation | `ui/src/components/InstanceValidation.css` (`InstanceValidation.tsx`) | `ValidationStatus`, `instance-validation-summary`, `instance-field-validation-*` |
 | Unsaved | `ui/src/components/UnsavedInstancesPanel.css` | `unsaved-instances-panel` |
 | Footer | `ui/src/views/PoweredBy.tsx` | leave the credit line as it is |
@@ -41,10 +42,12 @@ Source of truth: the CSS below. Use these values when the stylesheet does not al
 | Link | `#2563EB`, hover `#1D4ED8` | breadcrumbs, text links |
 | Selection | hover `#e8e9f3`, selected `#eef0fb`, bar `#5b5fc7` | instance rows and cards |
 | Field focus | `#6c8ebf`, ring `rgba(108, 142, 191, 0.25)` | inputs, highlighted link cards |
+| Checked checkbox | `#495057` | `.form-check-input:checked` in `App.css`. The white check clears 3:1 |
 | Type fallback | `#6c757d` | missing `typeColor` |
 | Released | text `#1e7a42`, fill `#e8f6ee`, bar `#2f9e5c` | status pill, validation |
 | Changed / unsaved | text `#856404` or `#9a5b00`, fill `#fff4e5` / `#fff8e6` / `#fff3cd`, border `#ffe08a` | banner, badge, pill |
-| Incomplete | `#c27c0e`, bar `#f0a33a` | validation under 100% |
+| Incomplete | text `#a3410a`, fill `#fff4e5`, bar `#f0a33a` | validation under 100%. `#a3410a` clears 4.5:1 on the fill and on white |
+| Contribution | text `#1D4ED8`, fill `#e7f3ff` | "my contribution" pill. `#1D4ED8` clears 4.5:1 on the fill |
 | Bulk selection | fill `#e7f3ff`, border `#b3d9ff` | `bulk-actions-bar` |
 | Sidebar hover / active | `#f3f4f6` | `sidebar-nav-link` |
 | Nav icon | `#6b7280` | sidebar only |
@@ -98,15 +101,15 @@ The page action is a subnav CTA, `btn btn-dark btn-sm`, label in sentence case. 
 
 `editor-home` is a column that fills the canvas. Only the table scrolls. Header cells stick (`instances-table thead th`) with a 1px `#dee2e6` shadow as the rule. Rows use `shared-queries-table`: pointer, transparent until hover, 4px left bar, cell padding `1.25rem 1rem`. Selected rows keep `#eef0fb` even without hover.
 
-A row shows bookmark, type dot and name, instance name, id, "Saved in space …", permission icons, last visited, and status. Status is the release word plus the validation name, icon, bar, and percent.
+A row shows bookmark, type dot and name, instance name, id, "Saved in space …", permission icons, last visited, and status. Status is the release word plus a validation pill: icon, name, and percent (`name - percentage`).
 
 The result count (`.instances-result-count`) sits just above the table.
 
 ### Detail
 
-`instance-focus-panel` holds the open instance. Header order: kicker with type dot, name, id with copy, link-status icon, space. Then a divider (`#dee2e6`) and the fields. View mode uses `view-label` and `view-value` (value underlined by `#f1f3f5`). Linked values are `view-badge` / `tag-badge` with a type dot. Plain values (dates, notes) stay text. "Unsupported fields (n)" is a disclosure under a `#e9ecef` rule.
+`instance-focus-panel` holds the open instance. Header rows: type kicker on the left and the mode icons on the right; then two columns. The title column (at least 66%) holds the instance name, the id with copy, and the space. The status column holds the link-status icon, the validation pills, then the same release and contribution pills as the list (`InstanceStatusTags`). Then a divider (`#dee2e6`) and the fields. View mode uses `view-label` and `view-value` (value underlined by `#f1f3f5`). Linked values are `view-badge` / `tag-badge` with a type dot. Plain values (dates, notes) stay text. "Unsupported fields (n)" is a disclosure under a `#e9ecef` rule.
 
-The mode switch is the icon row: read (eye), edit (pencil), raw (code), release. The current mode uses `edit-icon-btn--active`.
+The mode switch is the icon row on the type line: read (eye), edit (pencil), raw (code), release. The current mode uses `edit-icon-btn--active`.
 
 ### Links and connectors
 
@@ -131,7 +134,7 @@ Fixed to the right edge, `z-index: 1040`, gray shell `#f1f3f5`, left corners rad
 | Empty | `.links-empty-state`: centered, 0.875rem, padding `24px 12px` |
 | Loading | keep the same slots; do not swap the page for a blank spinner |
 | Error on a field | Bootstrap invalid border and ring, as in `.json-field.form-control.is-invalid` |
-| Validation error on a field | `#c27c0e` warning icon in the label, the message in `#9a5b00` below the field with the schema in `#868e96` (`FieldValidationIndicator`, `FieldValidationErrors`) |
+| Validation error on a field | `#a3410a` warning icon in the label, the message in `#9a5b00` below the field with the schema in `#868e96` (`FieldValidationIndicator`, `FieldValidationErrors`) |
 | Copy | existing tooltip: `#212529` background, white text, 4px radius |
 
 ## Motion and breakpoints

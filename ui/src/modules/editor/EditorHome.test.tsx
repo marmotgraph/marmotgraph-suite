@@ -124,8 +124,12 @@ describe("EditorHome", () => {
     expect(headers.at(-1)).toHaveAccessibleName("Permissions");
     expect(headers.at(-1)).toHaveTextContent("");
     expect(screen.getByText("released")).toBeInTheDocument();
-    expect(screen.getByTitle('Validation "minimal": valid (100% compliant)')).toHaveTextContent("minimal100%");
-    expect(screen.getByTitle('Validation "complete": invalid (62% compliant)')).toHaveTextContent("complete62%");
+    const minimal = screen.getByTitle('Validation "minimal": valid (100% compliant)');
+    const complete = screen.getByTitle('Validation "complete": invalid (62% compliant)');
+    expect(minimal.querySelector(".instance-validation-badge")).toHaveTextContent("minimal - 100%");
+    expect(complete.querySelector(".instance-validation-badge")).toHaveTextContent("complete - 62%");
+    expect(minimal.querySelector(".instance-validation-badge-bar")).toBeNull();
+    expect(complete.querySelector(".instance-validation-badge-bar")).toBeNull();
   });
 
   it("filters by the release status on the backend - including instances which have changed since their release", () => {

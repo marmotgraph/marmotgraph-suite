@@ -182,7 +182,7 @@ export default function LinkedInstancesField({
           <Button
             variant="link"
             size="sm"
-            className="linked-instances-see-all-btn p-0 mb-2"
+            className="linked-instances-see-all-btn p-0"
             onClick={() => setShowEditModal(true)}
           >
             Manage ({displayInstances.length})
@@ -192,7 +192,7 @@ export default function LinkedInstancesField({
             <Button
               variant="link"
               size="sm"
-              className="linked-instances-see-all-btn p-0 mb-2"
+              className="linked-instances-see-all-btn p-0"
               onClick={() => setShowViewModal(true)}
             >
               See all ({displayInstances.length})

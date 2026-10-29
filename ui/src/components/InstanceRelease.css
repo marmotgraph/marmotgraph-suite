@@ -24,6 +24,11 @@
     color: #9a5b00;
 }
 
+.release-status--progress {
+    background-color: #fff3cd;
+    color: #856404;
+}
+
 /* Stats */
 .release-stats {
     display: grid;
@@ -205,7 +210,7 @@
 }
 
 .release-node-action {
-    color: #6c757d !important;
+    color: #495057 !important;
     border-radius: 999px !important;
     padding: 2px 9px !important;
     text-decoration: none !important;
@@ -218,12 +223,12 @@
 
 .release-node-action--active.release-node-action--release {
     color: #fff !important;
-    background-color: #2f9e5c !important;
+    background-color: #1e7a42 !important;
 }
 
 .release-node-action--active.release-node-action--none {
     color: #fff !important;
-    background-color: #868e96 !important;
+    background-color: #495057 !important;
 }
 
 .release-node-action--active.release-node-action--unrelease {

@@ -11,18 +11,13 @@ import {
   faCopy,
   faEye,
   faFilter,
-  faGlasses,
-  faHourglassHalf,
   faPen,
-  faPenToSquare,
   faRocket,
   faSort,
   faSortDown,
   faSortUp,
   faStar as faStarSolid,
-  faUserPen,
   faXmark,
-  IconDefinition
 } from "@fortawesome/free-solid-svg-icons";
 import { faStar as faStarRegular } from "@fortawesome/free-regular-svg-icons";
 import { useAuth } from "../../contexts/AuthContext";
@@ -42,8 +37,8 @@ import {
   InstanceSortBy,
 } from "../../services/instances";
 import { Timestamp } from "../../components/Timestamp";
+import { InstanceStatusTags } from "../../components/InstanceStatusTags";
 import { InstanceSummary, ReleaseStatus } from "./editorMockData";
-import { ValidationStatus } from "../../components/InstanceValidation";
 import { EDITOR_BREADCRUMB_TRAIL_KEY } from "./editorConstants";
 import "../query-builder/SharedQueries.css";
 import "./EditorHome.css";
@@ -727,7 +722,11 @@ export default function EditorHome() {
                           <Timestamp value={instance.lastModified} fallback="" />
                         </td>
                         <td>
-                          <InstanceStatusTags instance={instance} />
+                          <InstanceStatusTags
+                            releaseStatus={instance.releaseStatus}
+                            contributed={instance.contributed}
+                            validation={instance.validation}
+                          />
                         </td>
                         <td>
                           <InstancePermissionButtons
@@ -839,54 +838,6 @@ export default function EditorHome() {
   );
 }
 
-const RELEASE_STATUS_TAGS: Record<
-  ReleaseStatus,
-  { modifier?: string; icon: IconDefinition }
-> = {
-  released: { modifier: "released", icon: faRocket },
-  "has changed": { modifier: "changed", icon: faPenToSquare },
-  "in progress": { icon: faHourglassHalf },
-};
-
-/**
- * The release status of the instance (and whether the user has contributed to it) followed by the compliance of the
- * instance per validation schema.
- */
-function InstanceStatusTags({ instance }: { instance: InstanceSummary }) {
-  const { modifier, icon } = RELEASE_STATUS_TAGS[instance.releaseStatus];
-  return (
-    <div className="instance-status">
-      <span
-        className={
-          modifier
-            ? `instance-card-status instance-card-status--${modifier}`
-            : "instance-card-status"
-        }
-      >
-        <FontAwesomeIcon icon={icon} />
-        {instance.releaseStatus}
-      </span>
-      {instance.contributed && (
-        <span className="instance-card-status" title="You have contributed to this instance">
-          <FontAwesomeIcon icon={faUserPen} />
-          my contribution
-        </span>
-      )}
-      {instance.validation && instance.validation.length > 0 && (
-        <div className="instance-validation-badges">
-          {instance.validation.map((validation) => (
-            <ValidationStatus
-              key={validation.name}
-              validation={validation}
-              variant="badge"
-            />
-          ))}
-        </div>
-      )}
-    </div>
-  );
-}
-
 /** The star flagging an instance as favorite of the user - toggles the flag without opening the instance. */
 function FavoriteToggle({
   instance,
@@ -925,7 +876,7 @@ function FavoriteToggle({
  * Review is the right to invite reviewers; the instance page has no review mode, so it opens in view.
  */
 const permissionItems = [
-  { key: "View", icon: faGlasses, search: "" },
+  { key: "View", icon: faEye, search: "" },
   { key: "Edit", icon: faPen, search: "?edit=1" },
   { key: "Review", icon: faClipboardCheck, search: "" },
   { key: "Release", icon: faRocket, search: "?release=1" },
@@ -966,7 +917,7 @@ function InstancePermissionButtons({
           }}
           onDoubleClick={(event) => event.stopPropagation()}
         >
-          <FontAwesomeIcon icon={item.icon} />
+          <FontAwesomeIcon icon={item.icon} aria-hidden="true" />
           {labeled && item.key}
         </button>
       ))}
@@ -1104,7 +1055,11 @@ function InstanceCardList({
               <div className="instance-card-details">
                 <div>
                   <span className="instance-preview-meta-label">Status</span>
-                  <InstanceStatusTags instance={instance} />
+                  <InstanceStatusTags
+                    releaseStatus={instance.releaseStatus}
+                    contributed={instance.contributed}
+                    validation={instance.validation}
+                  />
                 </div>
                 <div>
                   <span className="instance-preview-meta-label">Space</span>
@@ -1259,7 +1214,7 @@ function InstancePreview({
             onClick={onOpen}
             aria-label="Open instance"
           >
-            <FontAwesomeIcon icon={faEye} />
+            <FontAwesomeIcon icon={faEye} aria-hidden="true" />
             Open
           </Button>
           <Button
@@ -1268,7 +1223,7 @@ function InstancePreview({
             onClick={onEdit}
             aria-label="Edit instance"
           >
-            <FontAwesomeIcon icon={faPen} />
+            <FontAwesomeIcon icon={faPen} aria-hidden="true" />
             Edit
           </Button>
           <Button
@@ -1277,7 +1232,7 @@ function InstancePreview({
             onClick={onRaw}
             aria-label="Open instance in raw mode"
           >
-            <FontAwesomeIcon icon={faCode} />
+            <FontAwesomeIcon icon={faCode} aria-hidden="true" />
             Raw
           </Button>
         </div>

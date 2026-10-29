@@ -49,11 +49,13 @@ import UnsavedInstancesPanel from "../../components/UnsavedInstancesPanel";
 import RawInstanceEditor from "../../components/RawInstanceEditor";
 import InstanceRelease from "../../components/InstanceRelease";
 import InstanceInfo from "../../components/InstanceInfo";
+import { InstanceStatusTags } from "../../components/InstanceStatusTags";
 import {
   FieldValidationError,
   FieldValidationErrors,
   FieldValidationIndicator,
-  InstanceValidationSummary,
+  InstanceValidationErrors,
+  InstanceValidationStatus,
   validationErrorsByField,
 } from "../../components/InstanceValidation";
 import DirLinkIcon from "../../assets/icons/DirLink.svg";
@@ -180,7 +182,7 @@ function InstanceDetailView({ instanceId }: { instanceId: string }) {
         ? {
             instanceId,
             type: newInstanceType,
-            instanceName: instanceId,
+            instanceName: "New instance",
             space: "",
             permissions: "",
             releaseStatus: "in progress",
@@ -340,8 +342,8 @@ function InstanceDetailView({ instanceId }: { instanceId: string }) {
   const typeColor =
     instance?.typeColor || (instance && typeColors[instance.type]) || "#6c757d";
 
-  // A new instance is named by the value of the label field of its type as it is filled in - by its id if there is none
-  // (as the instances provided by the backend)
+  // A new instance is named by the value of the label field of its type as it is filled in.
+  // Until then the title is "New instance". A stored instance with no label keeps its id.
   const newInstanceLabel = newInstanceLabelProperty
     ? currentFieldValues[newInstanceLabelProperty]
     : undefined;
@@ -349,7 +351,7 @@ function InstanceDetailView({ instanceId }: { instanceId: string }) {
     isNewInstance && instance
       ? typeof newInstanceLabel === "string" && newInstanceLabel.trim()
         ? newInstanceLabel.trim()
-        : instanceId
+        : "New instance"
       : instance?.instanceName;
 
   const breadcrumbTrail = useBreadcrumbTrail(
@@ -454,6 +456,10 @@ function InstanceDetailView({ instanceId }: { instanceId: string }) {
   );
 
   const rawDraft = getDraft(instanceId)?.rawJson;
+  const validationResults =
+    !isNewInstance && instance?.validation && instance.validation.length > 0
+      ? instance.validation
+      : undefined;
   const hasUnsavedChanges =
     (isEditMode && changedFieldKeys.size > 0) || rawDraft !== undefined;
   const unsavedChangeLabels =
@@ -709,28 +715,7 @@ function InstanceDetailView({ instanceId }: { instanceId: string }) {
           >
             <div className="instance-header">
               <div className="instance-header-layout">
-                {!isNewInstance && (
-                  <div
-                    className="instance-header-modes"
-                    role="group"
-                    aria-label="Mode"
-                  >
-                    {INSTANCE_MODES.map(({ mode: target, icon }) => (
-                      <Button
-                        key={target}
-                        variant="link"
-                        className={`edit-icon-btn${mode === target ? " edit-icon-btn--active" : ""}`}
-                        onClick={() => switchMode(target)}
-                        aria-label={modeTitles[target]}
-                        aria-pressed={mode === target}
-                        title={modeTitles[target]}
-                      >
-                        <FontAwesomeIcon icon={icon} />
-                      </Button>
-                    ))}
-                  </div>
-                )}
-                <div className="instance-header-identity">
+                <div className="instance-header-type-row">
                   <div className="instance-type-label">
                     <FontAwesomeIcon
                       icon={faCircle}
@@ -739,50 +724,89 @@ function InstanceDetailView({ instanceId }: { instanceId: string }) {
                     />
                     {instance.type}
                   </div>
-                  <img
-                    src={getLinkStatusIcon()}
-                    alt="Link status"
-                    className="link-status-icon"
-                  />
-                </div>
-                <h2 className="instance-name">{instanceName}</h2>
-                <div className="instance-header-main">
-                  {hasUnsavedChanges && (
-                    <div className="instance-unsaved-summary" role="status">
-                      Unsaved changes
-                      {unsavedChangeLabels.length > 0 && (
-                        <span className="instance-unsaved-summary-fields">
-                          {" "}
-                          · {unsavedChangeLabels.join(", ")}
-                        </span>
-                      )}
+                  {!isNewInstance && (
+                    <div
+                      className="instance-header-modes"
+                      role="group"
+                      aria-label="Mode"
+                    >
+                      {INSTANCE_MODES.map(({ mode: target, icon }) => (
+                        <Button
+                          key={target}
+                          variant="link"
+                          className={`edit-icon-btn${mode === target ? " edit-icon-btn--active" : ""}`}
+                          onClick={() => switchMode(target)}
+                          aria-label={modeTitles[target]}
+                          aria-pressed={mode === target}
+                          title={modeTitles[target]}
+                        >
+                          <FontAwesomeIcon icon={icon} />
+                        </Button>
+                      ))}
                     </div>
                   )}
-                  <div className="instance-meta">
-                    <div className="mb-1">
-                      <strong>ID:</strong> {instanceId}
-                      <Button
-                        variant="link"
-                        size="sm"
-                        className="p-0 ms-2"
-                        onClick={handleCopyId}
-                      >
-                        <FontAwesomeIcon icon={faCopy} />
-                      </Button>
-                    </div>
-                    <div>
-                      <strong>Space:</strong> {instance.space}
+                </div>
+                <div className="instance-header-title-row">
+                  <div className="instance-header-title-column">
+                    <h2 className="instance-name">{instanceName}</h2>
+                    <div className="instance-meta">
+                      <div className="mb-1">
+                        <strong>ID:</strong> {instanceId}
+                        <Button
+                          variant="link"
+                          size="sm"
+                          className="p-0 ms-2"
+                          onClick={handleCopyId}
+                          aria-label="Copy id"
+                          title="Copy id"
+                        >
+                          <FontAwesomeIcon icon={faCopy} />
+                        </Button>
+                      </div>
+                      <div>
+                        <strong>Space:</strong> {instance.space}
+                      </div>
                     </div>
                   </div>
-                  {!isNewInstance && instance.validation && instance.validation.length > 0 && (
-                    <InstanceValidationSummary
-                      validation={instance.validation}
-                      fieldLabels={fieldLabels}
+                  <div className="instance-header-status">
+                    <img
+                      src={getLinkStatusIcon()}
+                      alt="Link status"
+                      className="link-status-icon"
                     />
-                  )}
+                    {validationResults && (
+                      <InstanceValidationStatus validation={validationResults} />
+                    )}
+                    <InstanceStatusTags
+                      releaseStatus={instance.releaseStatus}
+                      contributed={instance.contributed}
+                    />
+                  </div>
                 </div>
               </div>
             </div>
+
+            {hasUnsavedChanges && (
+              <div className="instance-unsaved-summary" role="status">
+                <span className="instance-unsaved-summary-title">Unsaved changes</span>
+                {unsavedChangeLabels.length > 0 && (
+                  <ul className="instance-unsaved-summary-fields">
+                    {unsavedChangeLabels.map((label, index) => (
+                      <li key={`${label}-${index}`}>{label}</li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            )}
+
+            {validationResults && validationResults.some((result) => (result.errors?.length ?? 0) > 0) && (
+              <div className="instance-validation-block">
+                <InstanceValidationErrors
+                  validation={validationResults}
+                  fieldLabels={fieldLabels}
+                />
+              </div>
+            )}
 
             {isInfoMode ? (
               <InstanceInfo instanceId={instanceId} />

@@ -335,7 +335,7 @@ class InstancesTest {
     @Test
     void getMapsTheInstanceOfTheCore() throws Exception {
         when(instancesResource.get(any(UUID.class), any(), any())).thenReturn(
-                instance(RELEASED_ID, DEVICE, Map.of(NAME, "Server-Rack-A1", "_permissions", List.of("READ", "WRITE"))));
+                instance(RELEASED_ID, DEVICE, Map.of(NAME, "Server-Rack-A1", "_permissions", List.of("READ", "WRITE"), "_hasContributed", true)));
         when(typesResource.getByNames(List.of(DEVICE), Stage.IN_PROGRESS, null, false, false))
                 .thenReturn(Map.of(DEVICE, new TypeInformation(DEVICE, "A device in the data center", "Device", "#ff9800", NAME, null, null, List.of(), List.of(), List.of())));
         when(instancesResource.releaseStatus(RELEASED_ID, ReleaseTreeScope.TOP_INSTANCE_ONLY)).thenReturn(ReleaseStatus.RELEASED);
@@ -349,11 +349,13 @@ class InstancesTest {
                 .andExpect(jsonPath("$.instanceName").value("Server-Rack-A1"))
                 .andExpect(jsonPath("$.space").value("myspace"))
                 .andExpect(jsonPath("$.permissions").value("View, Edit"))
-                .andExpect(jsonPath("$.releaseStatus").value("released"));
+                .andExpect(jsonPath("$.releaseStatus").value("released"))
+                .andExpect(jsonPath("$.contributed").value(true));
 
         ArgumentCaptor<ResponseOptions> options = ArgumentCaptor.forClass(ResponseOptions.class);
         verify(instancesResource).get(Mockito.eq(RELEASED_ID), Mockito.eq(Stage.IN_PROGRESS), options.capture());
         assertTrue(options.getValue().returnPermissions());
+        assertTrue(options.getValue().returnHasContributed());
     }
 
     @Test

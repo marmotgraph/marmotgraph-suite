@@ -499,13 +499,15 @@ export function LinkItem({
           <Button
             variant="link"
             size="sm"
-            className="p-0 ms-2"
+            className="link-id-copy"
+            aria-label="Copy ID"
+            title="Copy ID"
             onClick={(e) => {
               e.stopPropagation();
               navigator.clipboard.writeText(link.instanceId);
             }}
           >
-            <FontAwesomeIcon icon={faCopy} />
+            <FontAwesomeIcon icon={faCopy} aria-hidden="true" />
           </Button>
         </div>
         {link.space && <div className="link-space">Space: {link.space}</div>}
