@@ -41,6 +41,7 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -48,7 +49,9 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
+import java.util.function.Function;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 /**
  * Provides the instances shown in the editor by listing / fetching them from the MarmotGraph core - on behalf of the user who
@@ -149,11 +152,29 @@ public class Instances {
 
     /**
      * A field of an instance as shown in the editor - the value is provided in the shape required by the kind of the
-     * field (see {@link #fieldValue(FieldKind, Object, Map)}).
+     * field (see {@link #fieldValue(FieldDefinition, Object, Definitions)}).
      */
     @JsonInclude(JsonInclude.Include.NON_NULL)
     public record Field(String identifier, String label, FieldKind kind, Object value, boolean required, boolean readOnly,
                         String tooltip, List<String> targetTypes) {
+    }
+
+    /**
+     * An instance embedded in another one (the value of a nested field) - with the fields defined by its type (in the
+     * order they are to be shown). The type is its identifier, the typeLabel its name.
+     */
+    @JsonInclude(JsonInclude.Include.NON_NULL)
+    public record EmbeddedInstance(String type, String typeLabel, String typeColor, List<Field> fields) {
+    }
+
+    /**
+     * Looks up the definitions needed to translate the values of the fields: the types (of linked and embedded
+     * instances) and the fields of the embedded instances by the identifier of their type.
+     */
+    record Definitions(Function<String, TypeDefinition> type, Function<String, List<FieldDefinition>> fields) {
+
+        /** For empty values - nothing has to be looked up */
+        static final Definitions NONE = new Definitions(t -> null, t -> List.of());
     }
 
     /**
@@ -343,7 +364,7 @@ public class Instances {
 
     /**
      * Updates the given fields of the instance (as edited in the editor) - the other properties are kept as they are.
-     * The values are expected in the shape of the kind of their field (see {@link #fieldValue(FieldKind, Object, Map)})
+     * The values are expected in the shape of the kind of their field (see {@link #fieldValue(FieldDefinition, Object, Definitions)})
      * and are translated back to JSON-LD. The core rejects the request if the user is not allowed to edit the instance.
      *
      * @param id      the uuid of the instance as known by the core
@@ -399,35 +420,80 @@ public class Instances {
      * into the JSON-LD values of their properties - rejects fields which are unknown or can't be edited.
      */
     private Map<String, Object> jsonLdPayload(MarmotGraphClient client, String typeName, Map<String, Object> values) {
-        Map<String, FieldDefinition> definitions = (typeName != null ? fieldCache.get(client, typeName) : List.<FieldDefinition>of())
+        return jsonLdPayload(typeName, values, false, type -> fieldCache.get(client, type));
+    }
+
+    /**
+     * @param embedded whether the values are those of an embedded instance - it is replaced as a whole, which is why
+     *                 its read only fields are accepted (they are sent back as they were provided)
+     * @param fieldsOf the fields of a type by its identifier
+     */
+    static Map<String, Object> jsonLdPayload(String typeName, Map<String, ?> values, boolean embedded,
+                                             Function<String, List<FieldDefinition>> fieldsOf) {
+        Map<String, FieldDefinition> definitions = (typeName != null ? fieldsOf.apply(typeName) : List.<FieldDefinition>of())
                 .stream().collect(Collectors.toMap(FieldDefinition::identifier, d -> d, (a, b) -> a));
         Map<String, Object> payload = new LinkedHashMap<>();
         values.forEach((identifier, value) -> {
             FieldDefinition definition = definitions.get(identifier);
-            if (definition == null || definition.readOnly()) {
+            if (definition == null || definition.readOnly() && !embedded) {
                 throw new ResponseStatusException(HttpStatus.BAD_REQUEST, String.format("The field \"%s\" can't be edited", identifier));
             }
-            payload.put(identifier, jsonLdValue(definition.kind(), value));
+            payload.put(identifier, jsonLdValue(definition, value, fieldsOf));
         });
         return payload;
     }
 
     /**
      * Translates the value of a field (in the shape required by its kind) back into JSON-LD - the linked instances are
-     * referenced by their id. Empty values are sent as null so they are removed.
+     * referenced by their id, the embedded instances are translated with the fields of their type. Empty values are
+     * sent as null so they are removed.
      */
-    static Object jsonLdValue(FieldKind kind, Object value) {
+    static Object jsonLdValue(FieldDefinition definition, Object value, Function<String, List<FieldDefinition>> fieldsOf) {
         if (value == null || value instanceof String s && s.isBlank()) {
             return null;
         }
-        return switch (kind) {
+        return switch (definition.kind()) {
             case LINK -> reference(value);
             case LINKS -> {
                 List<Map<String, Object>> references = values(value).stream().map(Instances::reference).filter(Objects::nonNull).toList();
                 yield references.isEmpty() ? null : references;
             }
+            case SINGLE_NESTED -> embeddedInstance(definition, value, fieldsOf);
+            case NESTED -> {
+                List<Map<String, Object>> instances = values(value).stream().map(v -> embeddedInstance(definition, v, fieldsOf)).filter(Objects::nonNull).toList();
+                yield instances.isEmpty() ? null : instances;
+            }
             default -> value;
         };
+    }
+
+    /**
+     * Translates an embedded instance (in the shape of {@link EmbeddedInstance} - only the type and the identifiers and
+     * values of the fields are considered) back into JSON-LD - its empty fields are left out. Null if the value is no
+     * embedded instance. Rejects types the field doesn't allow.
+     */
+    private static Map<String, Object> embeddedInstance(FieldDefinition definition, Object value, Function<String, List<FieldDefinition>> fieldsOf) {
+        if (!(value instanceof Map<?, ?> instance)) {
+            return null;
+        }
+        String type = firstString(instance.get("type"));
+        if (type == null || type.isBlank() || !definition.targetTypes().isEmpty() && !definition.targetTypes().contains(type)) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, String.format("The type of the instance embedded in the field \"%s\" is not allowed", definition.identifier()));
+        }
+        Map<String, Object> values = new LinkedHashMap<>();
+        values(instance.get("fields")).forEach(f -> {
+            if (f instanceof Map<?, ?> field && field.get("identifier") instanceof String identifier) {
+                values.put(identifier, field.get("value"));
+            }
+        });
+        Map<String, Object> payload = new LinkedHashMap<>();
+        payload.put("@type", List.of(type));
+        jsonLdPayload(type, values, true, fieldsOf).forEach((identifier, v) -> {
+            if (v != null) {
+                payload.put(identifier, v);
+            }
+        });
+        return payload;
     }
 
     /**
@@ -656,52 +722,128 @@ public class Instances {
     }
 
     /**
-     * The instances linked by the given fields - labeled with the field they are linked by.
+     * The instances linked by the given fields (including those linked by the embedded instances) - labeled with the
+     * (top level) field they are linked by.
      */
     static List<LinkedInstance> directLinks(List<Field> fields) {
-        return fields.stream().filter(f -> f.kind().isLink())
-                .flatMap(f -> values(f.value()).stream().map(l -> ((LinkedInstance) l).withFieldLabel(f.label()))).toList();
+        return fields.stream().flatMap(f -> linkedInstances(f).map(l -> l.withFieldLabel(f.label()))).toList();
+    }
+
+    private static Stream<LinkedInstance> linkedInstances(Field field) {
+        if (field.kind().isLink()) {
+            return values(field.value()).stream().map(l -> (LinkedInstance) l);
+        }
+        if (field.kind().isNested()) {
+            return values(field.value()).stream().flatMap(e -> ((EmbeddedInstance) e).fields().stream().flatMap(Instances::linkedInstances));
+        }
+        return Stream.empty();
     }
 
     /**
      * The fields of the instance as defined by its type (in the order to be shown) - the linked instances are described
-     * by the summary of the outgoing links provided by the core (only their types are looked up).
+     * by the summary of the outgoing links provided by the core (only their types are looked up), the embedded
+     * instances by the fields of their types.
      */
     private List<Field> fields(MarmotGraphClient client, org.marmotgraph.sdk.model.Instance instance, String typeName) {
         List<FieldDefinition> definitions = typeName != null ? fieldCache.get(client, typeName) : List.of();
-        List<String> linkedTypeNames = definitions.stream().filter(d -> d.kind().isLink())
-                .flatMap(d -> values(instance.get(d.identifier())).stream())
-                .map(l -> l instanceof Map<?, ?> link ? firstString(link.get("@type")) : null).filter(Objects::nonNull).distinct().toList();
-        Map<String, TypeDefinition> linkedTypes = linkedTypeNames.isEmpty() ? Map.of() : typeCache.get(client, linkedTypeNames);
-        return definitions.stream().map(d -> field(d, instance.get(d.identifier()), linkedTypes)).toList();
+        if (definitions.isEmpty()) {
+            return List.of();
+        }
+        Set<String> linkedTypeNames = new LinkedHashSet<>();
+        Set<String> embeddedTypeNames = new LinkedHashSet<>();
+        definitions.forEach(d -> collectTypes(instance.get(d.identifier()), linkedTypeNames, embeddedTypeNames));
+        Definitions lookup = definitions(client, linkedTypeNames, embeddedTypeNames);
+        return definitions.stream().map(d -> field(d, instance.get(d.identifier()), lookup)).toList();
+    }
+
+    /**
+     * Collects the types of the linked instances (the links summarized by the core) and of the embedded instances
+     * (objects with a type which are neither links nor JSON-LD values) found in the given JSON-LD value.
+     */
+    static void collectTypes(Object value, Set<String> linkedTypeNames, Set<String> embeddedTypeNames) {
+        if (value instanceof List<?> list) {
+            list.forEach(v -> collectTypes(v, linkedTypeNames, embeddedTypeNames));
+        } else if (value instanceof Map<?, ?> map && !map.containsKey("@value")) {
+            String type = firstString(map.get("@type"));
+            if (map.containsKey(LINK_STATUS)) {
+                if (type != null) {
+                    linkedTypeNames.add(type);
+                }
+                return;
+            }
+            if (type != null) {
+                embeddedTypeNames.add(type);
+            }
+            map.forEach((key, v) -> {
+                if (key instanceof String property && !property.startsWith("@") && !property.startsWith("_")) {
+                    collectTypes(v, linkedTypeNames, embeddedTypeNames);
+                }
+            });
+        }
+    }
+
+    /**
+     * The definitions of the given types (and the fields of the embedded ones) fetched at once - those which are
+     * needed in addition (e.g. for embedded instances without a type) are looked up on demand.
+     */
+    private Definitions definitions(MarmotGraphClient client, Set<String> linkedTypeNames, Set<String> embeddedTypeNames) {
+        Set<String> typeNames = new LinkedHashSet<>(linkedTypeNames);
+        typeNames.addAll(embeddedTypeNames);
+        Map<String, TypeDefinition> types = new HashMap<>(typeNames.isEmpty() ? Map.of() : typeCache.get(client, List.copyOf(typeNames)));
+        Map<String, List<FieldDefinition>> fields = new HashMap<>(embeddedTypeNames.isEmpty() ? Map.of() : fieldCache.get(client, List.copyOf(embeddedTypeNames)));
+        return new Definitions(
+                type -> types.computeIfAbsent(type, t -> typeCache.get(client, List.of(t)).get(t)),
+                type -> fields.computeIfAbsent(type, t -> fieldCache.get(client, t)));
     }
 
     /**
      * The field of the given definition with the JSON-LD value of its property (null for an empty field) translated
      * into the shape required by its kind.
      */
-    static Field field(FieldDefinition definition, Object value, Map<String, TypeDefinition> linkedTypes) {
-        return new Field(definition.identifier(), definition.label(), definition.kind(), fieldValue(definition.kind(), value, linkedTypes),
+    static Field field(FieldDefinition definition, Object value, Definitions definitions) {
+        return new Field(definition.identifier(), definition.label(), definition.kind(), fieldValue(definition, value, definitions),
                 definition.required(), definition.readOnly(), definition.tooltip(), definition.targetTypes().isEmpty() ? null : definition.targetTypes());
     }
 
     /**
      * Translates the JSON-LD value of a property into the shape required by the kind of the field: a string for the
-     * textual ones, a number, a boolean, a linked instance (or a list of them) - and the value as is for the
-     * unsupported ones.
+     * textual ones, a number, a boolean, a linked instance (or a list of them), an embedded instance (or a list of
+     * them) - and the value as is for the unsupported ones.
      */
-    static Object fieldValue(FieldKind kind, Object value, Map<String, TypeDefinition> linkedTypes) {
-        return switch (kind) {
+    static Object fieldValue(FieldDefinition definition, Object value, Definitions definitions) {
+        return switch (definition.kind()) {
             case TEXT, TEXTAREA, DATE, DATETIME, TIME, COLOR -> firstString(value);
             case NUMBER -> toNumber(firstString(value));
             case CHECKBOX -> {
                 String s = firstString(value);
                 yield s != null ? Boolean.parseBoolean(s) : null;
             }
-            case LINK -> values(value).stream().map(l -> linkedInstance(l, linkedTypes)).filter(Objects::nonNull).findFirst().orElse(null);
-            case LINKS -> values(value).stream().map(l -> linkedInstance(l, linkedTypes)).filter(Objects::nonNull).toList();
+            case LINK -> values(value).stream().map(l -> linkedInstance(l, definitions)).filter(Objects::nonNull).findFirst().orElse(null);
+            case LINKS -> values(value).stream().map(l -> linkedInstance(l, definitions)).filter(Objects::nonNull).toList();
+            case SINGLE_NESTED -> values(value).stream().map(e -> embeddedInstance(definition, e, definitions)).filter(Objects::nonNull).findFirst().orElse(null);
+            case NESTED -> values(value).stream().map(e -> embeddedInstance(definition, e, definitions)).filter(Objects::nonNull).toList();
             case UNSUPPORTED -> value;
         };
+    }
+
+    /**
+     * Translates an embedded instance into the fields of its type - the type falls back to the one the field allows if
+     * the instance doesn't state it. Null if the value is no embedded instance or its type is unknown.
+     */
+    private static EmbeddedInstance embeddedInstance(FieldDefinition definition, Object value, Definitions definitions) {
+        if (!(value instanceof Map<?, ?> instance)) {
+            return null;
+        }
+        String typeName = firstString(instance.get("@type"));
+        if (typeName == null && definition.targetTypes().size() == 1) {
+            typeName = definition.targetTypes().getFirst();
+        }
+        if (typeName == null) {
+            return null;
+        }
+        TypeDefinition type = definitions.type().apply(typeName);
+        List<Field> fields = definitions.fields().apply(typeName).stream().map(d -> field(d, instance.get(d.identifier()), definitions)).toList();
+        return new EmbeddedInstance(typeName, typeLabel(typeName, type), type != null ? type.color() : null, fields);
     }
 
     private static Number toNumber(String value) {
@@ -723,7 +865,7 @@ public class Instances {
      * Translates a link (as summarized by the core) into a linked instance - null if the value is no link. Links without
      * a summary are treated as unresolved.
      */
-    private static LinkedInstance linkedInstance(Object reference, Map<String, TypeDefinition> linkedTypes) {
+    private static LinkedInstance linkedInstance(Object reference, Definitions definitions) {
         if (!(reference instanceof Map<?, ?> link)) {
             return null;
         }
@@ -738,7 +880,7 @@ public class Instances {
             return new LinkedInstance(identifier, identifier, "", null, "", null, null, null, status);
         }
         String typeName = firstString(link.get("@type"));
-        TypeDefinition type = typeName != null ? linkedTypes.get(typeName) : null;
+        TypeDefinition type = typeName != null ? definitions.type().apply(typeName) : null;
         String label = status == LinkStatus.RESOLVED ? firstString(link.get(LINK_LABEL)) : null;
         String space = status == LinkStatus.RESOLVED ? firstString(link.get(LINK_SPACE)) : null;
         // the target is linked by the instance itself, so it has incoming links in any case

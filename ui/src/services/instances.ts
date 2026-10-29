@@ -13,9 +13,14 @@ export type FieldKind =
   | "CHECKBOX"
   | "LINK"
   | "LINKS"
+  | "NESTED"
+  | "SINGLE_NESTED"
   | "UNSUPPORTED";
 
-/** A field of an instance - the value is in the shape required by its kind (e.g. LinkedInstance[] for LINKS). */
+/**
+ * A field of an instance - the value is in the shape required by its kind (e.g. LinkedInstance[] for LINKS,
+ * EmbeddedInstance[] for NESTED, an EmbeddedInstance for SINGLE_NESTED).
+ */
 export interface InstanceField {
   identifier: string;
   label: string;
@@ -24,8 +29,21 @@ export interface InstanceField {
   required: boolean;
   readOnly: boolean;
   tooltip?: string;
-  /** The types (identifiers) the field can link to */
+  /** The types (identifiers) the field can link to - or embed (for the nested fields) */
   targetTypes?: string[];
+}
+
+/**
+ * An instance embedded in another one (the value of a nested field) - with the fields of its type, which hold its
+ * values. It is sent back as is when saved (only the type and the identifiers and values of the fields are considered).
+ */
+export interface EmbeddedInstance {
+  /** The identifier of the type */
+  type: string;
+  /** The name of the type */
+  typeLabel: string;
+  typeColor?: string;
+  fields: InstanceField[];
 }
 
 /** A single instance as shown in its detail view. */

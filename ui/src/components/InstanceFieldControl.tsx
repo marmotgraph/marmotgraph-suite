@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { Form } from "react-bootstrap";
 import CodeMirror from "@uiw/react-codemirror";
 import LinkedInstancesField from "./LinkedInstancesField";
+import NestedInstancesField from "./NestedInstancesField";
 import { jsonEditorSetup, jsonExtensions } from "./jsonEditor";
 import "./InstanceFieldControl.css";
 import { LinkedInstance } from "../modules/editor/editorMockData";
@@ -122,6 +123,19 @@ function linkedInstances(single: boolean) {
   };
 }
 
+/** Embedded instances - a single one (SINGLE_NESTED) is handled as a list of at most one. */
+function nestedInstances(single: boolean) {
+  return function NestedInstances(props: InstanceFieldControlProps) {
+    return (
+      <NestedInstancesField
+        {...props}
+        single={single}
+        FieldControl={InstanceFieldControl}
+      />
+    );
+  };
+}
+
 function toJsonText(value: unknown): string {
   return value === null || value === undefined ? "" : JSON.stringify(value, null, 2);
 }
@@ -201,6 +215,8 @@ const fieldControls: Record<FieldKind, React.ComponentType<InstanceFieldControlP
   CHECKBOX: CheckBox,
   LINK: linkedInstances(true),
   LINKS: linkedInstances(false),
+  NESTED: nestedInstances(false),
+  SINGLE_NESTED: nestedInstances(true),
   UNSUPPORTED: UnsupportedField,
 };
 

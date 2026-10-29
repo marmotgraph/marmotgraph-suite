@@ -14,6 +14,7 @@ import org.marmotgraph.sdk.model.ReleaseTreeScope;
 import org.marmotgraph.sdk.model.Scope;
 import org.marmotgraph.sdk.model.SortDirection;
 import org.marmotgraph.sdk.model.Stage;
+import org.marmotgraph.sdk.model.TargetType;
 import org.marmotgraph.sdk.model.TypeInformation;
 import org.marmotgraph.sdk.pagination.Page;
 import org.marmotgraph.sdk.resources.InstanceListOptions;
@@ -440,6 +441,69 @@ class InstancesTest {
     }
 
     @Test
+    void getProvidesTheEmbeddedInstancesWithTheFieldsOfTheirTypes() throws Exception {
+        String chassis = "https://example.org/types/Chassis";
+        String slot = "https://example.org/types/Slot";
+        String board = "https://example.org/types/Board";
+        String blade = "https://example.org/types/ChassisBlade";
+        String linkedId = "11111111-2222-4333-8444-666666666666";
+        when(instancesResource.get(any(UUID.class), any(), any())).thenReturn(instance(RELEASED_ID, chassis, Map.of(
+                NAME, "Chassis-1",
+                "https://example.org/slots", List.of(
+                        Map.of("@type", List.of(slot), "https://example.org/position", 1,
+                                "https://example.org/blade", link("https://example.org/blades/7", "resolved", linkedId, blade, "Blade-7", "otherspace", false)),
+                        // without a type - the one allowed by the field is assumed
+                        Map.of("https://example.org/position", 2)),
+                "https://example.org/mainboard", Map.of("@type", board, "https://example.org/vendor", "ACME"))));
+        when(typesResource.getByNames(List.of(chassis), Stage.IN_PROGRESS, null, false, false))
+                .thenReturn(Map.of(chassis, new TypeInformation(chassis, null, "Chassis", "#4caf50", NAME, null, null, List.of(), List.of(), List.of())));
+        when(typesResource.getByNames(List.of(chassis), Stage.IN_PROGRESS, null, true, false))
+                .thenReturn(Map.of(chassis, new TypeInformation(chassis, null, "Chassis", "#4caf50", NAME, null, null, List.of(), List.of(
+                        new Property(NAME, "name", null, "InputText", null, null, null, 1, null, List.of()),
+                        new Property("https://example.org/slots", "slots", null, "Nested", null, null, null, 2, null, List.of(new TargetType(slot, null, List.of()))),
+                        new Property("https://example.org/mainboard", "mainboard", null, "SingleNested", null, null, null, 3, null, List.of(new TargetType(board, null, List.of())))
+                ), List.of())));
+        when(typesResource.getByNames(List.of(blade, slot, board), Stage.IN_PROGRESS, null, false, false)).thenReturn(Map.of(
+                blade, new TypeInformation(blade, null, "Blade", "#2196f3", NAME, null, null, List.of(), List.of(), List.of()),
+                slot, new TypeInformation(slot, null, "Slot", "#ff9800", null, null, null, List.of(), List.of(), List.of()),
+                board, new TypeInformation(board, null, "Board", null, null, null, null, List.of(), List.of(), List.of())));
+        when(typesResource.getByNames(List.of(slot, board), Stage.IN_PROGRESS, null, true, false)).thenReturn(Map.of(
+                slot, new TypeInformation(slot, null, "Slot", "#ff9800", null, null, null, List.of(), List.of(
+                        new Property("https://example.org/blade", "blade", null, "SimpleDropdown", null, null, null, 2, null, List.of()),
+                        new Property("https://example.org/position", "position", null, "InputNumber", null, null, null, 1, null, List.of())
+                ), List.of()),
+                board, new TypeInformation(board, null, "Board", null, null, null, null, List.of(), List.of(
+                        new Property("https://example.org/vendor", "vendor", null, "InputText", null, null, null, 1, null, List.of())
+                ), List.of())));
+        when(instancesResource.releaseStatus(RELEASED_ID, ReleaseTreeScope.TOP_INSTANCE_ONLY)).thenReturn(ReleaseStatus.RELEASED);
+
+        mockMvc.perform(get("/instances/" + RELEASED_ID).header(HttpHeaders.AUTHORIZATION, "Bearer theToken"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.fields[1].kind").value("NESTED"))
+                .andExpect(jsonPath("$.fields[1].targetTypes[0]").value(slot))
+                .andExpect(jsonPath("$.fields[1].value.length()").value(2))
+                .andExpect(jsonPath("$.fields[1].value[0].type").value(slot))
+                .andExpect(jsonPath("$.fields[1].value[0].typeLabel").value("Slot"))
+                .andExpect(jsonPath("$.fields[1].value[0].typeColor").value("#ff9800"))
+                .andExpect(jsonPath("$.fields[1].value[0].fields[0].identifier").value("https://example.org/position"))
+                .andExpect(jsonPath("$.fields[1].value[0].fields[0].kind").value("NUMBER"))
+                .andExpect(jsonPath("$.fields[1].value[0].fields[0].value").value(1))
+                .andExpect(jsonPath("$.fields[1].value[0].fields[1].kind").value("LINK"))
+                .andExpect(jsonPath("$.fields[1].value[0].fields[1].value.instanceId").value(linkedId))
+                .andExpect(jsonPath("$.fields[1].value[0].fields[1].value.type").value("Blade"))
+                .andExpect(jsonPath("$.fields[1].value[1].type").value(slot))
+                .andExpect(jsonPath("$.fields[1].value[1].fields[0].value").value(2))
+                .andExpect(jsonPath("$.fields[1].value[1].fields[1].value").doesNotExist())
+                .andExpect(jsonPath("$.fields[2].kind").value("SINGLE_NESTED"))
+                .andExpect(jsonPath("$.fields[2].value.type").value(board))
+                .andExpect(jsonPath("$.fields[2].value.typeLabel").value("Board"))
+                .andExpect(jsonPath("$.fields[2].value.fields[0].value").value("ACME"))
+                .andExpect(jsonPath("$.directLinks.length()").value(1))
+                .andExpect(jsonPath("$.directLinks[0].instanceId").value(linkedId))
+                .andExpect(jsonPath("$.directLinks[0].fieldLabel").value("Slots"));
+    }
+
+    @Test
     void getProvidesTheValidationResultsWithTheErrorsAttributedToTheFields() throws Exception {
         String rack = "https://example.org/types/Rack";
         String height = "https://example.org/height";
@@ -655,6 +719,67 @@ class InstancesTest {
         expected.put("https://example.org/height", null);
         expected.put("https://example.org/blades", List.of(Map.of("@id", linkedId)));
         verify(instancesResource).update(RELEASED_ID, expected);
+    }
+
+    @Test
+    void updateSendsTheEmbeddedInstancesAsJsonLdToTheCore() throws Exception {
+        String shelf = "https://example.org/types/Shelf";
+        String tray = "https://example.org/types/Tray";
+        String cover = "https://example.org/types/Cover";
+        String linkedId = "11111111-2222-4333-8444-777777777777";
+        when(instancesResource.get(any(UUID.class), any(), any())).thenReturn(instance(RELEASED_ID, shelf, Map.of(NAME, "Shelf-1")));
+        when(typesResource.getByNames(List.of(shelf), Stage.IN_PROGRESS, null, true, false))
+                .thenReturn(Map.of(shelf, new TypeInformation(shelf, null, "Shelf", null, NAME, null, null, List.of(), List.of(
+                        new Property(NAME, "name", null, "InputText", null, null, null, 1, null, List.of()),
+                        new Property("https://example.org/trays", "trays", null, "Nested", null, null, null, 2, null, List.of(new TargetType(tray, null, List.of()))),
+                        new Property("https://example.org/cover", "cover", null, "SingleNested", null, null, null, 3, null, List.of(new TargetType(cover, null, List.of())))
+                ), List.of())));
+        when(typesResource.getByNames(List.of(tray), Stage.IN_PROGRESS, null, true, false))
+                .thenReturn(Map.of(tray, new TypeInformation(tray, null, "Tray", null, null, null, null, List.of(), List.of(
+                        new Property("https://example.org/position", "position", null, "InputNumber", null, null, null, 1, null, List.of()),
+                        new Property("https://example.org/serial", "serial", null, "InputText", true, null, null, 2, null, List.of()),
+                        new Property("https://example.org/content", "content", null, "SimpleDropdown", null, null, null, 3, null, List.of())
+                ), List.of())));
+        when(typesResource.getByNames(List.of(cover), Stage.IN_PROGRESS, null, true, false))
+                .thenReturn(Map.of(cover, new TypeInformation(cover, null, "Cover", null, null, null, null, List.of(), List.of(
+                        new Property("https://example.org/color", "color", null, "InputColor", null, null, null, 1, null, List.of())
+                ), List.of())));
+        when(instancesResource.releaseStatus(RELEASED_ID, ReleaseTreeScope.TOP_INSTANCE_ONLY)).thenReturn(ReleaseStatus.RELEASED);
+
+        mockMvc.perform(patch("/instances/" + RELEASED_ID).header(HttpHeaders.AUTHORIZATION, "Bearer theToken")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"https://example.org/trays": [{"type": "%s", "typeLabel": "Tray", "fields": [
+                                    {"identifier": "https://example.org/position", "value": 3},
+                                    {"identifier": "https://example.org/serial", "readOnly": true, "value": "S-1"},
+                                    {"identifier": "https://example.org/content", "value": {"instanceId": "%s"}}]}],
+                                 "https://example.org/cover": {"type": "%s", "fields": [{"identifier": "https://example.org/color", "value": ""}]}}
+                                """.formatted(tray, linkedId, cover)))
+                .andExpect(status().isOk());
+
+        Map<String, Object> expected = new HashMap<>();
+        expected.put("https://example.org/trays", List.of(Map.of("@type", List.of(tray), "https://example.org/position", 3,
+                "https://example.org/serial", "S-1", "https://example.org/content", Map.of("@id", linkedId))));
+        expected.put("https://example.org/cover", Map.of("@type", List.of(cover)));
+        verify(instancesResource).update(RELEASED_ID, expected);
+    }
+
+    @Test
+    void updateRejectsEmbeddedInstancesOfTypesTheFieldDoesNotAllow() throws Exception {
+        String crate = "https://example.org/types/Crate";
+        when(instancesResource.get(any(UUID.class), any(), any())).thenReturn(instance(RELEASED_ID, crate, Map.of()));
+        when(typesResource.getByNames(List.of(crate), Stage.IN_PROGRESS, null, true, false))
+                .thenReturn(Map.of(crate, new TypeInformation(crate, null, "Crate", null, NAME, null, null, List.of(), List.of(
+                        new Property("https://example.org/boxes", "boxes", null, "Nested", null, null, null, 1, null,
+                                List.of(new TargetType("https://example.org/types/Box", null, List.of())))
+                ), List.of())));
+
+        mockMvc.perform(patch("/instances/" + RELEASED_ID).header(HttpHeaders.AUTHORIZATION, "Bearer theToken")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"https://example.org/boxes\": [{\"type\": \"https://example.org/types/Other\", \"fields\": []}]}"))
+                .andExpect(status().isBadRequest());
+
+        verify(instancesResource, never()).update(any(), any());
     }
 
     @Test

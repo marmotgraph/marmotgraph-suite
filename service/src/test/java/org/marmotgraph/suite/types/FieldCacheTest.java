@@ -66,7 +66,7 @@ class FieldCacheTest {
 
         assertEquals(List.of(
                 new FieldDefinition("http://schema.org/name", "Name", FieldKind.TEXT, 1, true, true, "The name of the device", List.of(), null),
-                new FieldDefinition("https://example.org/components", "Components", FieldKind.UNSUPPORTED, 2, false, false, null, List.of(), null),
+                new FieldDefinition("https://example.org/components", "Components", FieldKind.NESTED, 2, false, false, null, List.of(), null),
                 new FieldDefinition("https://example.org/blades", "Blades", FieldKind.LINKS, 3, false, false, null, List.of("https://example.org/types/Blade"), "Is blade of"),
                 new FieldDefinition("https://example.org/serialNumber", "SerialNumber", FieldKind.UNSUPPORTED, null, false, false, null, List.of(), null)
         ), fields);
@@ -97,7 +97,8 @@ class FieldCacheTest {
         assertEquals(FieldKind.LINKS, FieldKind.ofWidget("DynamicDropdown"));
         assertEquals(FieldKind.LINK, FieldKind.ofWidget("SimpleDropdown"));
         assertEquals(FieldKind.CHECKBOX, FieldKind.ofWidget("CheckBox"));
-        assertEquals(FieldKind.UNSUPPORTED, FieldKind.ofWidget("SingleNested"));
+        assertEquals(FieldKind.NESTED, FieldKind.ofWidget("Nested"));
+        assertEquals(FieldKind.SINGLE_NESTED, FieldKind.ofWidget("SingleNested"));
         assertEquals(FieldKind.UNSUPPORTED, FieldKind.ofWidget(null));
     }
 

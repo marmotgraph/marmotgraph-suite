@@ -18,13 +18,20 @@ public enum FieldKind {
      */
     LINKS,
     /**
+     * A list of embedded instances - each with the fields of its type
+     */
+    NESTED,
+    /**
+     * A single embedded instance - with the fields of its type
+     */
+    SINGLE_NESTED,
+    /**
      * Widgets which are unknown or not (yet) supported by the UI - the value is provided as is
      */
     UNSUPPORTED;
 
     /**
-     * TODO the nested widgets (Nested, SingleNested) as well as InputTextMultiple, InputNumberMultiple and
-     * AnnotatedInputText are not supported yet
+     * TODO InputTextMultiple, InputNumberMultiple and AnnotatedInputText are not supported yet
      */
     private static final Map<String, FieldKind> BY_WIDGET = Map.ofEntries(
             Map.entry("InputText", TEXT),
@@ -37,7 +44,9 @@ public enum FieldKind {
             Map.entry("CheckBox", CHECKBOX),
             Map.entry("SimpleDropdown", LINK),
             Map.entry("DynamicDropdown", LINKS),
-            Map.entry("DynamicTable", LINKS));
+            Map.entry("DynamicTable", LINKS),
+            Map.entry("Nested", NESTED),
+            Map.entry("SingleNested", SINGLE_NESTED));
 
     public static FieldKind ofWidget(String widget) {
         return widget == null ? UNSUPPORTED : BY_WIDGET.getOrDefault(widget, UNSUPPORTED);
@@ -45,6 +54,10 @@ public enum FieldKind {
 
     public boolean isLink() {
         return this == LINK || this == LINKS;
+    }
+
+    public boolean isNested() {
+        return this == NESTED || this == SINGLE_NESTED;
     }
 
 }

@@ -640,7 +640,8 @@ function InstanceDetailView({ instanceId }: { instanceId: string }) {
 
   /** Highlights a linked instance in a field together with its representation in the outgoing links (and vice versa) when hovered. */
   const linkHoverProps = (field: InstanceField) => {
-    if (field.kind !== "LINK" && field.kind !== "LINKS") {
+    // The instances linked by embedded instances are labeled with the nested field as well
+    if (!["LINK", "LINKS", "NESTED", "SINGLE_NESTED"].includes(field.kind)) {
       return {};
     }
     const fieldLabel = field.label.trim();

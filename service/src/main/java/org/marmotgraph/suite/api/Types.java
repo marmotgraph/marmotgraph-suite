@@ -13,7 +13,6 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
-import java.util.Map;
 
 /**
  * Provides the types the user has access to (e.g. to filter the instances by) from the {@link TypeCache} - and the
@@ -40,7 +39,7 @@ public class Types {
      */
     @GetMapping("/fields")
     public List<Instances.Field> fields(@AuthenticatedClient MarmotGraphClient client, @RequestParam String type) {
-        return fieldCache.get(client, type).stream().map(d -> Instances.field(d, null, Map.of())).toList();
+        return fieldCache.get(client, type).stream().map(d -> Instances.field(d, null, Instances.Definitions.NONE)).toList();
     }
 
 }

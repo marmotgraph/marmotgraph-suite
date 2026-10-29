@@ -280,7 +280,8 @@
 }
 
 .instance-form .instance-field-label--changed + .tag-container,
-.instance-form .instance-field-label--changed + .linked-instances-field {
+.instance-form .instance-field-label--changed + .linked-instances-field,
+.instance-form .instance-field-label--changed + .nested-instances-field {
     outline: 1px solid #ffe08a;
     outline-offset: 4px;
     border-radius: 6px;
