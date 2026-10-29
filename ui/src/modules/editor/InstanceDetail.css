@@ -175,6 +175,72 @@
     margin-bottom: 0;
 }
 
+.instance-header-type-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px 12px;
+    min-width: 0;
+}
+
+.instance-header-type-row .instance-type-label {
+    flex: 1 1 auto;
+    min-width: 0;
+    margin-bottom: 0;
+}
+
+.instance-header-type-row .instance-header-modes {
+    align-self: center;
+}
+
+.instance-header-title-row {
+    display: grid;
+    grid-template-columns: minmax(66%, 1fr) minmax(0, calc(34% - 16px));
+    column-gap: 16px;
+    align-items: start;
+    min-width: 0;
+}
+
+.instance-header-title-column {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    min-width: 0;
+}
+
+.instance-header-title-column .instance-name {
+    margin: 0;
+    min-width: 0;
+}
+
+.instance-header-status .instance-status {
+    width: 100%;
+    justify-content: flex-end;
+}
+
+.instance-header-status {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 8px;
+    min-width: 0;
+    max-width: 100%;
+    justify-self: end;
+}
+
+.instance-header-status .instance-validation-summary,
+.instance-header-status .instance-validation-badges,
+.instance-header-status .instance-validation-result,
+.instance-header-status .instance-validation-badge {
+    max-width: 100%;
+    min-width: 0;
+}
+
+.instance-header-status .instance-validation-badges {
+    justify-content: flex-end;
+}
+
 .instance-header-modes {
     display: flex;
     flex-wrap: wrap;
@@ -229,8 +295,31 @@
     max-width: 100%;
 }
 
+.instance-header:has(+ .instance-unsaved-summary) {
+    margin-bottom: 12px;
+}
+
+.instance-header + .instance-unsaved-summary {
+    margin-bottom: 20px;
+}
+
+.instance-unsaved-summary-title {
+    font-weight: 600;
+}
+
 .instance-unsaved-summary-fields {
+    list-style: disc;
+    margin: 6px 0 0;
+    padding-left: 1.1rem;
     color: #6c5700;
+}
+
+.instance-unsaved-summary-fields li + li {
+    margin-top: 2px;
+}
+
+.instance-unsaved-summary-fields li {
+    overflow-wrap: anywhere;
 }
 
 .instance-meta {

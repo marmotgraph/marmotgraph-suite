@@ -182,10 +182,11 @@ public class Instances {
      * to be shown in. The direct links are the instances linked by its fields (labeled with the field they are linked
      * by, in the order of the fields). The incoming links are provided separately (see {@link #incomingLinks}) since they are paginated.
      * The validation holds the results of the last validation per validation schema of the type - with their errors.
+     * contributed tells whether the current user has contributed to the instance.
      */
     @JsonInclude(JsonInclude.Include.NON_NULL)
     public record InstanceDetail(String instanceId, String type, String typeDescription, String typeColor, String instanceName,
-                                 String space, String permissions, String releaseStatus, List<Field> fields,
+                                 String space, String permissions, String releaseStatus, boolean contributed, List<Field> fields,
                                  List<LinkedInstance> directLinks, List<Validation> validation) {
     }
 
@@ -337,7 +338,8 @@ public class Instances {
     @GetMapping("/{id}")
     public InstanceDetail get(@AuthenticatedClient MarmotGraphClient client, @PathVariable UUID id) {
         org.marmotgraph.sdk.model.Instance instance = client.instances().get(id, Stage.IN_PROGRESS,
-                ResponseOptions.builder().returnPermissions(true).returnSummaryOfOutgoingLinks(true).returnValidationResults(true).build());
+                ResponseOptions.builder().returnPermissions(true).returnSummaryOfOutgoingLinks(true)
+                        .returnValidationResults(true).returnHasContributed(true).build());
         String instanceId = instance.getUuid().map(UUID::toString).orElse(id.toString());
         String typeName = instance.getType();
         TypeDefinition type = typeName != null ? typeCache.get(client, List.of(typeName)).get(typeName) : null;
@@ -345,7 +347,7 @@ public class Instances {
         List<Field> fields = fields(client, instance, typeName);
         return new InstanceDetail(instanceId, typeLabel(typeName, type), type != null ? type.description() : null, type != null ? type.color() : null,
                 instanceName(instance, type, instanceId), instance.getSpace(), permissions(instance.getPermissions()),
-                releaseStatus(releaseStatus), fields, directLinks(fields),
+                releaseStatus(releaseStatus), Boolean.TRUE.equals(instance.hasContributed()), fields, directLinks(fields),
                 instance.getValidation().stream().map(v -> Validation.of(v, fields)).toList());
     }
 

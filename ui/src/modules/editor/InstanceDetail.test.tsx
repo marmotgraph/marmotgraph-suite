@@ -114,8 +114,8 @@ describe("InstanceDetail", () => {
     expect(screen.getByRole("textbox")).toHaveValue("");
     expect(fetchTypeFields).toHaveBeenCalledWith("token", device);
     expect(fetchInstance).not.toHaveBeenCalled();
-    // Named by its id until the label field is filled in
-    expect(screen.getByRole("heading", { level: 2 })).toHaveTextContent(instanceId);
+    // Named "New instance" until the label field is filled in
+    expect(screen.getByRole("heading", { level: 2 })).toHaveTextContent("New instance");
 
     fireEvent.change(screen.getByRole("textbox"), { target: { value: "SN-42" } });
 
@@ -290,8 +290,16 @@ describe("InstanceDetail", () => {
     expect(errors).toHaveTextContent("Height");
     expect(errors).toHaveTextContent("string found, integer expected");
     expect(errors).toHaveTextContent("property 'x' is not defined in the schema");
-    const header = document.querySelector(".instance-header");
-    expect(header).not.toContainElement(status);
+    const header = document.querySelector(".instance-header") as HTMLElement;
+    const titleColumn = header.querySelector(".instance-header-title-column") as HTMLElement;
+    const statusColumn = header.querySelector(".instance-header-status") as HTMLElement;
+    expect(header.querySelector(".instance-header-type-row")).toHaveTextContent("Building");
+    expect(titleColumn.querySelector(".instance-name")).toHaveTextContent("Headquarters");
+    expect(titleColumn).toHaveTextContent("ID:");
+    expect(titleColumn).toHaveTextContent("Space:");
+    expect(statusColumn.querySelector(".link-status-icon")).not.toBeNull();
+    expect(statusColumn).toContainElement(status);
+    expect(statusColumn).toHaveTextContent("released");
     expect(header).not.toContainElement(errors);
 
     // Only the field concerned by an error is flagged - with the error and its schema below it

@@ -4,8 +4,14 @@
   align-items: center;
 }
 
+/* The edit field also has tag-container, which top-aligns its children. */
+.tag-container.linked-instances-field:has(.linked-instances-field-empty) {
+  align-items: center;
+}
+
 .linked-instances-field-empty {
   font-size: 0.9rem;
+  line-height: 1.2;
 }
 
 .linked-instance-badge {
@@ -53,9 +59,16 @@
 }
 
 .linked-instances-see-all-btn {
+  margin-bottom: 8px;
   font-size: 0.875rem;
+  line-height: 1.2;
   text-decoration: none !important;
   white-space: nowrap;
+}
+
+.linked-instances-field-empty + .linked-instances-see-all-btn {
+  margin: 0 0 0 8px;
+  align-self: center;
 }
 
 .linked-instances-see-all-btn:hover {

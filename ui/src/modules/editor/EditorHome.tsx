@@ -11,17 +11,13 @@ import {
   faCopy,
   faEye,
   faFilter,
-  faHourglassHalf,
   faPen,
-  faPenToSquare,
   faRocket,
   faSort,
   faSortDown,
   faSortUp,
   faStar as faStarSolid,
-  faUserPen,
   faXmark,
-  IconDefinition
 } from "@fortawesome/free-solid-svg-icons";
 import { faStar as faStarRegular } from "@fortawesome/free-regular-svg-icons";
 import { useAuth } from "../../contexts/AuthContext";
@@ -41,8 +37,8 @@ import {
   InstanceSortBy,
 } from "../../services/instances";
 import { Timestamp } from "../../components/Timestamp";
+import { InstanceStatusTags } from "../../components/InstanceStatusTags";
 import { InstanceSummary, ReleaseStatus } from "./editorMockData";
-import { ValidationStatus } from "../../components/InstanceValidation";
 import { EDITOR_BREADCRUMB_TRAIL_KEY } from "./editorConstants";
 import "../query-builder/SharedQueries.css";
 import "./EditorHome.css";
@@ -726,7 +722,11 @@ export default function EditorHome() {
                           <Timestamp value={instance.lastModified} fallback="" />
                         </td>
                         <td>
-                          <InstanceStatusTags instance={instance} />
+                          <InstanceStatusTags
+                            releaseStatus={instance.releaseStatus}
+                            contributed={instance.contributed}
+                            validation={instance.validation}
+                          />
                         </td>
                         <td>
                           <InstancePermissionButtons
@@ -834,54 +834,6 @@ export default function EditorHome() {
           </Button>
         </Modal.Footer>
       </Modal>
-    </div>
-  );
-}
-
-const RELEASE_STATUS_TAGS: Record<
-  ReleaseStatus,
-  { modifier?: string; icon: IconDefinition }
-> = {
-  released: { modifier: "released", icon: faRocket },
-  "has changed": { modifier: "changed", icon: faPenToSquare },
-  "in progress": { modifier: "progress", icon: faHourglassHalf },
-};
-
-/**
- * The release status of the instance (and whether the user has contributed to it) followed by the compliance of the
- * instance per validation schema.
- */
-function InstanceStatusTags({ instance }: { instance: InstanceSummary }) {
-  const { modifier, icon } = RELEASE_STATUS_TAGS[instance.releaseStatus];
-  return (
-    <div className="instance-status">
-      <span
-        className={
-          modifier
-            ? `instance-card-status instance-card-status--${modifier}`
-            : "instance-card-status"
-        }
-      >
-        <FontAwesomeIcon icon={icon} />
-        {instance.releaseStatus}
-      </span>
-      {instance.contributed && (
-        <span className="instance-card-status instance-card-status--contribution" title="You have contributed to this instance">
-          <FontAwesomeIcon icon={faUserPen} />
-          my contribution
-        </span>
-      )}
-      {instance.validation && instance.validation.length > 0 && (
-        <div className="instance-validation-badges">
-          {instance.validation.map((validation) => (
-            <ValidationStatus
-              key={validation.name}
-              validation={validation}
-              variant="badge"
-            />
-          ))}
-        </div>
-      )}
     </div>
   );
 }
@@ -1103,7 +1055,11 @@ function InstanceCardList({
               <div className="instance-card-details">
                 <div>
                   <span className="instance-preview-meta-label">Status</span>
-                  <InstanceStatusTags instance={instance} />
+                  <InstanceStatusTags
+                    releaseStatus={instance.releaseStatus}
+                    contributed={instance.contributed}
+                    validation={instance.validation}
+                  />
                 </div>
                 <div>
                   <span className="instance-preview-meta-label">Space</span>

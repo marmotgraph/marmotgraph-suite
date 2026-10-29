@@ -19,6 +19,7 @@ Source of truth: the CSS below. Use these values when the stylesheet does not al
 | Connectors | `InstanceDetail.css` (`.instance-link-edge`) | existing connector layer |
 | Breadcrumbs | `ui/src/components/Breadcrumbs/Breadcrumbs.css` | `breadcrumbs` |
 | Release | `ui/src/components/InstanceRelease.css` | `release-status` |
+| List and detail status pills | `ui/src/components/InstanceStatusTags.css` (`InstanceStatusTags.tsx`) | `instance-card-status`, `instance-status` |
 | Validation | `ui/src/components/InstanceValidation.css` (`InstanceValidation.tsx`) | `ValidationStatus`, `instance-validation-summary`, `instance-field-validation-*` |
 | Unsaved | `ui/src/components/UnsavedInstancesPanel.css` | `unsaved-instances-panel` |
 | Footer | `ui/src/views/PoweredBy.tsx` | leave the credit line as it is |
@@ -100,15 +101,15 @@ The page action is a subnav CTA, `btn btn-dark btn-sm`, label in sentence case. 
 
 `editor-home` is a column that fills the canvas. Only the table scrolls. Header cells stick (`instances-table thead th`) with a 1px `#dee2e6` shadow as the rule. Rows use `shared-queries-table`: pointer, transparent until hover, 4px left bar, cell padding `1.25rem 1rem`. Selected rows keep `#eef0fb` even without hover.
 
-A row shows bookmark, type dot and name, instance name, id, "Saved in space …", permission icons, last visited, and status. Status is the release word plus the validation name, icon, bar, and percent.
+A row shows bookmark, type dot and name, instance name, id, "Saved in space …", permission icons, last visited, and status. Status is the release word plus a validation pill: icon, name, and percent (`name - percentage`).
 
 The result count (`.instances-result-count`) sits just above the table.
 
 ### Detail
 
-`instance-focus-panel` holds the open instance. Header order: kicker with type dot, name, id with copy, link-status icon, space. Then a divider (`#dee2e6`) and the fields. View mode uses `view-label` and `view-value` (value underlined by `#f1f3f5`). Linked values are `view-badge` / `tag-badge` with a type dot. Plain values (dates, notes) stay text. "Unsupported fields (n)" is a disclosure under a `#e9ecef` rule.
+`instance-focus-panel` holds the open instance. Header rows: type kicker on the left and the mode icons on the right; then two columns. The title column (at least 66%) holds the instance name, the id with copy, and the space. The status column holds the link-status icon, the validation pills, then the same release and contribution pills as the list (`InstanceStatusTags`). Then a divider (`#dee2e6`) and the fields. View mode uses `view-label` and `view-value` (value underlined by `#f1f3f5`). Linked values are `view-badge` / `tag-badge` with a type dot. Plain values (dates, notes) stay text. "Unsupported fields (n)" is a disclosure under a `#e9ecef` rule.
 
-The mode switch is the icon row: read (eye), edit (pencil), raw (code), release. The current mode uses `edit-icon-btn--active`.
+The mode switch is the icon row on the type line: read (eye), edit (pencil), raw (code), release. The current mode uses `edit-icon-btn--active`.
 
 ### Links and connectors
 

@@ -74,9 +74,6 @@
 
 .instance-validation-result {
     display: flex;
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 4px;
     max-width: 100%;
     font-size: 0.75rem;
     line-height: 1.2;
@@ -90,11 +87,14 @@
 .instance-validation-badge {
     display: inline-flex;
     align-items: center;
-    gap: 4px;
     max-width: 100%;
     border-radius: 999px;
     padding: 2px 8px;
     background-color: #e8f6ee;
+}
+
+.instance-validation-badge > svg {
+    margin-right: 4px;
 }
 
 .instance-validation-result--invalid .instance-validation-badge {
@@ -105,46 +105,18 @@
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+    min-width: 0;
     max-width: 36ch;
-}
-
-.instance-validation-measure {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    padding-left: 8px;
-}
-
-.instance-validation-badge-bar {
-    display: block;
-    width: 36px;
-    height: 4px;
-    flex: 0 0 36px;
-    border-radius: 999px;
-    background-color: rgba(30, 122, 66, 0.22);
-    overflow: hidden;
-}
-
-.instance-validation-result--invalid .instance-validation-badge-bar {
-    background-color: rgba(194, 124, 14, 0.28);
-}
-
-.instance-validation-badge-bar-fill {
-    display: block;
-    height: 100%;
-    border-radius: 999px;
-    background-color: currentColor;
 }
 
 .instance-validation-badge-value {
     flex: 0 0 auto;
-    min-width: 2.5em;
     font-variant-numeric: tabular-nums;
     font-weight: 600;
-    text-align: right;
+    white-space: nowrap;
 }
 
-/* Below the identity header: schema results, then the messages when something failed. */
+/* Failed-schema messages sit under the header. The pills sit under the link-status icon. */
 .instance-validation-block {
     margin: 0 0 20px;
     min-width: 0;
@@ -190,12 +162,6 @@
 
 .instance-validation-summary .instance-validation-badges {
     flex: none;
-}
-
-.instance-validation-summary .instance-validation-badge-bar {
-    width: 120px;
-    height: 6px;
-    flex-basis: 120px;
 }
 
 .instance-validation-errors {

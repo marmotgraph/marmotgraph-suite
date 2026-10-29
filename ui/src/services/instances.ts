@@ -56,6 +56,8 @@ export interface InstanceDetail {
   space: string;
   permissions: string;
   releaseStatus: ReleaseStatus;
+  /** Whether the current user has contributed to the instance */
+  contributed?: boolean;
   /** The fields in the order they are to be shown - not available for new instances (yet) */
   fields?: InstanceField[];
   /** The instances linked by the fields (labeled with the field they are linked by) */

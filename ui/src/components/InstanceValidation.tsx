@@ -20,7 +20,7 @@ export function ValidationStatus({
   variant = "bar",
 }: {
   validation: InstanceValidation;
-  /** The schema name and its icon share a pill. The bar and percent sit under it. */
+  /** The schema name, its icon, and the percent share a pill: "name - percentage". */
   variant?: "bar" | "badge";
 }) {
   const state = validation.valid ? "valid" : "invalid";
@@ -43,20 +43,12 @@ export function ValidationStatus({
           <span className="instance-validation-badge-name">
             {validation.name}
           </span>
-        </span>
-        {compliance != null && (
-          <span className="instance-validation-measure">
-            <span className="instance-validation-badge-bar" aria-hidden="true">
-              <span
-                className="instance-validation-badge-bar-fill"
-                style={{ width: `${compliance}%` }}
-              />
-            </span>
+          {compliance != null && (
             <span className="instance-validation-badge-value">
-              {formatCompliance(compliance)}
+              {` - ${formatCompliance(compliance)}`}
             </span>
-          </span>
-        )}
+          )}
+        </span>
       </span>
     );
   }
