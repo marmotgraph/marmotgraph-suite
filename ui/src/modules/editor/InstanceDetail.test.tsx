@@ -1,13 +1,15 @@
 import React from "react";
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import InstanceDetail from "./InstanceDetail";
 import {
   createInstance,
+  deleteInstance,
   fetchIncomingLinks,
   fetchInstance,
   fetchRawInstance,
   fetchReleaseTree,
+  IncomingLinks,
   InstanceDetail as InstanceDetailData,
   InstanceField,
   updateInstance,
@@ -20,12 +22,15 @@ vi.mock("../../contexts/AuthContext", () => {
   return { useAuth: () => ({ getAccessToken }) };
 });
 
+const { deleteInstances } = vi.hoisted(() => ({ deleteInstances: vi.fn() }));
+
 vi.mock("../../contexts/InstancesContext", () => ({
-  useInstances: () => ({ addInstance: vi.fn(), instances: [] }),
+  useInstances: () => ({ addInstance: vi.fn(), deleteInstances, instances: [] }),
 }));
 
 vi.mock("../../services/instances", () => ({
   createInstance: vi.fn(),
+  deleteInstance: vi.fn(),
   fetchInstance: vi.fn(),
   fetchIncomingLinks: vi.fn(),
   fetchRawInstance: vi.fn(),
@@ -47,6 +52,7 @@ function renderDetail(
   fields: InstanceField[] = [],
   instanceId = "inst-1",
   details: Partial<InstanceDetailData> = {},
+  incoming: IncomingLinks[] = [],
 ) {
   vi.mocked(fetchInstance).mockResolvedValue({
     instanceId: "inst-1",
@@ -59,7 +65,7 @@ function renderDetail(
     directLinks: [],
     ...details,
   });
-  vi.mocked(fetchIncomingLinks).mockResolvedValue([]);
+  vi.mocked(fetchIncomingLinks).mockResolvedValue(incoming);
   vi.mocked(fetchRawInstance).mockResolvedValue({});
   vi.mocked(fetchReleaseTree).mockResolvedValue({
     instanceId: "inst-1",
@@ -75,6 +81,7 @@ function renderDetail(
     <MemoryRouter initialEntries={[`/editor/instances/${instanceId}${search}`]}>
       <UnsavedInstancesProvider>
         <Routes>
+          <Route path="/editor" element={<div>Instance list</div>} />
           <Route
             path="/editor/instances/:instanceId"
             element={<InstanceDetail />}
@@ -116,6 +123,7 @@ describe("InstanceDetail", () => {
     expect(fetchInstance).not.toHaveBeenCalled();
     // Named "New instance" until the label field is filled in
     expect(screen.getByRole("heading", { level: 2 })).toHaveTextContent("New instance");
+    expect(screen.queryByRole("button", { name: "Delete instance" })).not.toBeInTheDocument();
 
     fireEvent.change(screen.getByRole("textbox"), { target: { value: "SN-42" } });
 
@@ -169,14 +177,21 @@ describe("InstanceDetail", () => {
     expect(
       screen.queryByRole("button", { name: "Save" }),
     ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "Delete instance" }),
+    ).not.toBeInTheDocument();
   });
 
   it("opens in edit mode when requested from the preview", async () => {
     renderDetail("?edit=1");
 
-    expect(
-      await screen.findByRole("button", { name: "Save" }),
-    ).toBeInTheDocument();
+    const save = await screen.findByRole("button", { name: "Save" });
+    const cancel = screen.getByRole("button", { name: "Cancel" });
+    const remove = screen.getByRole("button", { name: "Delete instance" });
+    expect(remove.compareDocumentPosition(cancel) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(cancel.compareDocumentPosition(save) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(save).toBeDisabled();
+    expect(cancel).toBeDisabled();
     expect(screen.getByRole("button", { name: "Edit" })).toHaveAttribute(
       "aria-pressed",
       "true",
@@ -316,5 +331,102 @@ describe("InstanceDetail", () => {
     fireEvent.click(screen.getByRole("button", { name: "Edit" }));
     const editedHeight = document.querySelector('[data-instance-field="Height"]') as HTMLElement;
     expect(editedHeight).toHaveTextContent("string found, integer expected · complete");
+  });
+
+  it("asks before deleting and warns when the instance is released or linked", async () => {
+    renderDetail(
+      "?edit=1",
+      [],
+      "inst-1",
+      {
+        directLinks: [
+          { instanceId: "other", instanceName: "Blade", type: "Blade", space: "default" },
+        ],
+      },
+      [
+        {
+          property: "https://example.org/partOf",
+          label: "Part of",
+          types: [
+            {
+              typeIdentifier: "https://example.org/types/Device",
+              type: "Device",
+              links: [{ instanceId: "rack", instanceName: "Rack", space: "default" }],
+              total: 1,
+            },
+          ],
+        },
+      ],
+    );
+
+    fireEvent.click(await screen.findByRole("button", { name: "Delete instance" }));
+
+    const dialog = await screen.findByRole("dialog", { name: "Delete instance?" });
+    expect(dialog).toHaveTextContent("You are about to permanently delete Headquarters.");
+    expect(within(dialog).getByText("Building")).toBeInTheDocument();
+    expect(within(dialog).getByText("inst-1")).toBeInTheDocument();
+    expect(dialog).toHaveTextContent(
+      "Linked incoming and outgoing relationships will be removed with this instance.",
+    );
+    expect(dialog).toHaveTextContent(
+      "This instance is released. Deleting it will also remove it from search.",
+    );
+    expect(dialog).toHaveTextContent("This action cannot be undone.");
+
+    fireEvent.click(within(dialog).getByRole("button", { name: "Cancel" }));
+    await waitFor(() =>
+      expect(screen.queryByRole("dialog", { name: "Delete instance?" })).not.toBeInTheDocument(),
+    );
+    expect(deleteInstance).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getByRole("button", { name: "Delete instance" }));
+    vi.mocked(deleteInstance).mockResolvedValue(undefined);
+    fireEvent.click(
+      within(await screen.findByRole("dialog", { name: "Delete instance?" })).getByRole("button", {
+        name: "Delete instance",
+      }),
+    );
+
+    await waitFor(() => expect(deleteInstance).toHaveBeenCalledWith("token", "inst-1"));
+    expect(deleteInstances).toHaveBeenCalledWith(["inst-1"]);
+    expect(await screen.findByText("Instance list")).toBeInTheDocument();
+  });
+
+  it("omits the delete warnings when the instance is unreleased and has no links", async () => {
+    renderDetail("?edit=1", [], "inst-1", { releaseStatus: "in progress", directLinks: [] });
+
+    fireEvent.click(await screen.findByRole("button", { name: "Delete instance" }));
+    const dialog = await screen.findByRole("dialog", { name: "Delete instance?" });
+    expect(dialog).not.toHaveTextContent("relationships will be removed");
+    expect(dialog).not.toHaveTextContent("remove it from search");
+    expect(dialog).toHaveTextContent("This action cannot be undone.");
+  });
+
+  it("warns that a changed release is still removed from search", async () => {
+    renderDetail("?edit=1", [], "inst-1", { releaseStatus: "has changed", directLinks: [] });
+
+    fireEvent.click(await screen.findByRole("button", { name: "Delete instance" }));
+    const dialog = await screen.findByRole("dialog", { name: "Delete instance?" });
+    expect(dialog).toHaveTextContent(
+      "This instance is released. Deleting it will also remove it from search.",
+    );
+    expect(dialog).not.toHaveTextContent("relationships will be removed");
+  });
+
+  it("keeps the confirmation open when deletion fails", async () => {
+    deleteInstances.mockClear();
+    vi.mocked(deleteInstance).mockRejectedValue(new Error("Failed to delete the instance (403 Forbidden)"));
+    renderDetail("?edit=1");
+
+    fireEvent.click(await screen.findByRole("button", { name: "Delete instance" }));
+    fireEvent.click(
+      within(await screen.findByRole("dialog", { name: "Delete instance?" })).getByRole("button", {
+        name: "Delete instance",
+      }),
+    );
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("403 Forbidden");
+    expect(screen.getByRole("dialog", { name: "Delete instance?" })).toBeInTheDocument();
+    expect(deleteInstances).not.toHaveBeenCalled();
   });
 });

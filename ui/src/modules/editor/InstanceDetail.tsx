@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
-import { Alert, Button, Collapse, Form, Spinner } from "react-bootstrap";
+import { Alert, Button, Collapse, Form, Modal, Spinner } from "react-bootstrap";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
   faChevronDown,
@@ -12,6 +12,7 @@ import {
   faEye,
   faPencil,
   faRocket,
+  faTriangleExclamation,
   IconDefinition,
 } from "@fortawesome/free-solid-svg-icons";
 import {
@@ -29,6 +30,7 @@ import { EDITOR_BREADCRUMB_TRAIL_KEY } from "./editorConstants";
 import {
   appendIncomingLinks,
   createInstance,
+  deleteInstance,
   fetchIncomingLinks,
   fetchInstance,
   IncomingLinks,
@@ -146,7 +148,7 @@ function useBreadcrumbTrail(
 function InstanceDetailView({ instanceId }: { instanceId: string }) {
   const navigate = useNavigate();
   const { getAccessToken } = useAuth();
-  const { addInstance, instances } = useInstances();
+  const { addInstance, deleteInstances, instances } = useInstances();
   const { getDraft, upsertDraft, removeDraft } = useUnsavedInstances();
   const [searchParams] = useSearchParams();
   const [baseline, setBaseline] = useState<InstanceFieldValues>(
@@ -205,6 +207,7 @@ function InstanceDetailView({ instanceId }: { instanceId: string }) {
     Set<string>
   >(new Set());
   const [saving, setSaving] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
   const [saveError, setSaveError] = useState<string>();
 
   useEffect(() => {
@@ -633,6 +636,14 @@ function InstanceDetailView({ instanceId }: { instanceId: string }) {
       .finally(() => setSaving(false));
   };
 
+  const handleDelete = async () => {
+    const token = await getAccessToken();
+    await deleteInstance(token, instanceId);
+    removeDraft(instanceId);
+    deleteInstances([instanceId]);
+    navigate("/editor");
+  };
+
   /** Reverts the changed fields - stays in the edit mode (like the reset of the raw mode). */
   const handleReset = () => {
     removeDraft(instanceId || "");
@@ -661,10 +672,17 @@ function InstanceDetailView({ instanceId }: { instanceId: string }) {
     };
   };
 
+  const hasOutgoingLinks = (instance.directLinks?.length ?? 0) > 0;
+  const hasIncomingLinks = incomingLinks.some((group) =>
+    group.types.some((entry) => (entry.total ?? entry.links.length) > 0),
+  );
+  const hasLinkedRelationships = hasOutgoingLinks || hasIncomingLinks;
+  const isReleasedInstance =
+    instance.releaseStatus === "released" || instance.releaseStatus === "has changed";
+
   const getLinkStatusIcon = () => {
-    const hasDirectLinks =
-      instance?.directLinks && instance.directLinks.length > 0;
-    const hasReverseLinks = incomingLinks.length > 0;
+    const hasDirectLinks = hasOutgoingLinks;
+    const hasReverseLinks = hasIncomingLinks;
 
     if (hasDirectLinks && hasReverseLinks) {
       return RevDirLinkIcon;
@@ -902,24 +920,42 @@ function InstanceDetailView({ instanceId }: { instanceId: string }) {
                         {saveError}
                       </Alert>
                     )}
-                    <div className="d-flex gap-2 mt-4">
-                      <Button
-                        variant="dark"
-                        onClick={handleSave}
-                        disabled={changedFieldKeys.size === 0 || saving}
+                    <div className="instance-form-actions">
+                      {canEdit && !isNewInstance && (
+                        <Button
+                          type="button"
+                          variant="outline-danger"
+                          className="instance-delete-trigger"
+                          onClick={() => setConfirmDelete(true)}
+                          disabled={saving}
+                        >
+                          Delete instance
+                        </Button>
+                      )}
+                      <div
+                        className={`instance-form-actions-commit${changedFieldKeys.size === 0 ? " instance-form-actions-commit--unchanged" : ""}`}
+                        title={changedFieldKeys.size === 0 ? "Nothing to change" : undefined}
                       >
-                        {saving && (
-                          <Spinner animation="border" size="sm" className="me-2" />
-                        )}
-                        Save
-                      </Button>
-                      <Button
-                        variant="outline-secondary"
-                        onClick={handleReset}
-                        disabled={changedFieldKeys.size === 0 || saving}
-                      >
-                        Reset
-                      </Button>
+                        <Button
+                          type="button"
+                          variant="outline-secondary"
+                          onClick={handleReset}
+                          disabled={changedFieldKeys.size === 0 || saving}
+                        >
+                          Cancel
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="dark"
+                          onClick={handleSave}
+                          disabled={changedFieldKeys.size === 0 || saving}
+                        >
+                          {saving && (
+                            <Spinner animation="border" size="sm" className="me-2" />
+                          )}
+                          Save
+                        </Button>
+                      </div>
                     </div>
                   </div>
                 )}
@@ -954,6 +990,17 @@ function InstanceDetailView({ instanceId }: { instanceId: string }) {
       <UnsavedInstancesPanel
         currentInstanceId={instanceId}
         onDiscardCurrent={resetToSaved}
+      />
+      <DeleteInstanceModal
+        show={confirmDelete && isEditMode}
+        instanceName={instanceName ?? instance.instanceName}
+        type={instance.type}
+        typeColor={typeColor}
+        instanceId={instanceId}
+        released={isReleasedInstance}
+        linked={hasLinkedRelationships}
+        onCancel={() => setConfirmDelete(false)}
+        onDelete={handleDelete}
       />
     </>
   );
@@ -1111,5 +1158,133 @@ function InstanceFieldLabel({
         <span className="instance-field-label-changed-badge">Unsaved</span>
       )}
     </Form.Label>
+  );
+}
+
+/** Confirms deletion of the open instance. Warns when links or a released copy would go with it. */
+function DeleteInstanceModal({
+  show,
+  instanceName,
+  type,
+  typeColor,
+  instanceId,
+  released,
+  linked,
+  onCancel,
+  onDelete,
+}: {
+  show: boolean;
+  instanceName: string;
+  type: string;
+  typeColor: string;
+  instanceId: string;
+  released: boolean;
+  linked: boolean;
+  onCancel: () => void;
+  onDelete: () => Promise<void>;
+}) {
+  const [deleting, setDeleting] = useState(false);
+  const [error, setError] = useState<string>();
+
+  useEffect(() => {
+    if (show) {
+      setError(undefined);
+      setDeleting(false);
+    }
+  }, [show]);
+
+  const submit = () => {
+    setDeleting(true);
+    setError(undefined);
+    onDelete()
+      .catch((e: unknown) => {
+        setError(e instanceof Error ? e.message : String(e));
+        setDeleting(false);
+      });
+  };
+
+  return (
+    <Modal
+      show={show}
+      onHide={() => {
+        if (!deleting) {
+          onCancel();
+        }
+      }}
+      centered
+      animation={false}
+      keyboard={!deleting}
+      backdrop={deleting ? "static" : true}
+      aria-labelledby="delete-instance-title"
+      aria-describedby="delete-instance-description"
+    >
+      <Modal.Header closeButton>
+        <Modal.Title id="delete-instance-title">Delete instance?</Modal.Title>
+      </Modal.Header>
+      <Modal.Body id="delete-instance-description">
+        <p className="instance-delete-lead">
+          You are about to permanently delete <strong>{instanceName}</strong>.
+        </p>
+        <div className="instance-delete-identity">
+          <div className="instance-delete-identity-row">
+            <span className="instance-delete-identity-label">Type:</span>
+            <FontAwesomeIcon
+              icon={faCircle}
+              className="instance-type-color-icon"
+              style={{ color: typeColor }}
+              aria-hidden="true"
+            />
+            <span>{type}</span>
+          </div>
+          <div className="instance-delete-identity-row">
+            <span className="instance-delete-identity-label">ID:</span>
+            <span className="instance-delete-identity-id">{instanceId}</span>
+          </div>
+        </div>
+        {(linked || released) && (
+          <div className="instance-delete-warnings">
+            {linked && (
+              <p className="instance-delete-warning">
+                <FontAwesomeIcon icon={faTriangleExclamation} aria-hidden="true" />
+                <span>
+                  Linked incoming and outgoing relationships will be removed with this instance.
+                </span>
+              </p>
+            )}
+            {released && (
+              <p className="instance-delete-warning">
+                <FontAwesomeIcon icon={faTriangleExclamation} aria-hidden="true" />
+                <span>
+                  This instance is released. Deleting it will also remove it from search.
+                </span>
+              </p>
+            )}
+          </div>
+        )}
+        <p className="instance-delete-irreversible">This action cannot be undone.</p>
+        {error && (
+          <Alert variant="danger" className="mt-3 mb-0">
+            {error}
+          </Alert>
+        )}
+      </Modal.Body>
+      <Modal.Footer>
+        <Button type="button" variant="outline-secondary" onClick={onCancel} disabled={deleting}>
+          Cancel
+        </Button>
+        <Button
+          type="button"
+          variant="danger"
+          onClick={submit}
+          disabled={deleting}
+          aria-busy={deleting}
+        >
+          {deleting && (
+            <Spinner animation="border" size="sm" role="status" className="me-2" />
+          )}
+          {deleting ? "Deleting…" : "Delete instance"}
+        </Button>
+      </Modal.Footer>
+    </Modal>
   );
 }

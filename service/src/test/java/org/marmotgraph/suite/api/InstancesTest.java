@@ -949,6 +949,46 @@ class InstancesTest {
     }
 
     @Test
+    void deleteIsForwardedToTheCore() throws Exception {
+        when(instancesResource.releaseStatus(NEVER_RELEASED_ID, ReleaseTreeScope.TOP_INSTANCE_ONLY))
+                .thenReturn(ReleaseStatus.UNRELEASED);
+
+        mockMvc.perform(delete("/instances/" + NEVER_RELEASED_ID).header(HttpHeaders.AUTHORIZATION, "Bearer theToken"))
+                .andExpect(status().isOk());
+
+        verify(instancesResource).delete(NEVER_RELEASED_ID);
+        verify(instancesResource, never()).forceDelete(any());
+    }
+
+    @Test
+    void deleteOfAReleasedInstanceRemovesItFromSearch() throws Exception {
+        when(instancesResource.releaseStatus(RELEASED_ID, ReleaseTreeScope.TOP_INSTANCE_ONLY))
+                .thenReturn(ReleaseStatus.RELEASED);
+        when(instancesResource.releaseStatus(UNRELEASED_ID, ReleaseTreeScope.TOP_INSTANCE_ONLY))
+                .thenReturn(ReleaseStatus.HAS_CHANGED);
+
+        mockMvc.perform(delete("/instances/" + RELEASED_ID).header(HttpHeaders.AUTHORIZATION, "Bearer theToken"))
+                .andExpect(status().isOk());
+        mockMvc.perform(delete("/instances/" + UNRELEASED_ID).header(HttpHeaders.AUTHORIZATION, "Bearer theToken"))
+                .andExpect(status().isOk());
+
+        verify(instancesResource).forceDelete(RELEASED_ID);
+        verify(instancesResource).forceDelete(UNRELEASED_ID);
+        verify(instancesResource, never()).delete(any());
+    }
+
+    @Test
+    void deleteForwardsAForbiddenOfTheCore() throws Exception {
+        when(instancesResource.releaseStatus(RELEASED_ID, ReleaseTreeScope.TOP_INSTANCE_ONLY))
+                .thenReturn(ReleaseStatus.UNRELEASED);
+        Mockito.doThrow(new MarmotGraphApiException(403, "Forbidden", null, null)).when(instancesResource).delete(RELEASED_ID);
+
+        mockMvc.perform(delete("/instances/" + RELEASED_ID).header(HttpHeaders.AUTHORIZATION, "Bearer theToken"))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.detail").value("Forbidden"));
+    }
+
+    @Test
     void addFavoriteIsForwardedToTheCore() throws Exception {
         mockMvc.perform(put("/instances/" + RELEASED_ID + "/favorite").header(HttpHeaders.AUTHORIZATION, "Bearer theToken"))
                 .andExpect(status().isOk());
