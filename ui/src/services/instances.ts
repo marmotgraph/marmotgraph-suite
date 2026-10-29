@@ -165,6 +165,19 @@ export function fetchInstances(
   return getJson(`/api/instances${query}`, "the instances", accessToken);
 }
 
+/** Deletes an instance. A released instance is also removed from search. */
+export function deleteInstance(
+  accessToken: string,
+  instanceId: string,
+): Promise<void> {
+  return send(
+    "DELETE",
+    `/api/instances/${encodeURIComponent(instanceId)}`,
+    "delete the instance",
+    accessToken,
+  );
+}
+
 /** Fetches a single instance (by its uuid) for the detail view. */
 export function fetchInstance(
   accessToken: string,

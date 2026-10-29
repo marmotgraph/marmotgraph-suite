@@ -154,7 +154,17 @@ export default function RawInstanceEditor({
           {saveError}
         </Alert>
       )}
-      <div className="d-flex gap-2 mt-4">
+      <div
+        className={`instance-form-actions-commit mt-4${!isDirty ? " instance-form-actions-commit--unchanged" : ""}`}
+        title={!isDirty ? "Nothing to change" : undefined}
+      >
+        <Button
+          variant="outline-secondary"
+          onClick={handleReset}
+          disabled={!isDirty || saving}
+        >
+          Cancel
+        </Button>
         <Button
           variant="dark"
           onClick={handleSave}
@@ -162,13 +172,6 @@ export default function RawInstanceEditor({
         >
           {saving && <Spinner animation="border" size="sm" className="me-2" />}
           Save
-        </Button>
-        <Button
-          variant="outline-secondary"
-          onClick={handleReset}
-          disabled={!isDirty || saving}
-        >
-          Reset
         </Button>
       </div>
     </div>

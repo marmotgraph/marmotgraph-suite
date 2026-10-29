@@ -338,6 +338,107 @@
     padding: 4px 0 8px;
 }
 
+.instance-form-actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 12px 16px;
+    margin-top: 24px;
+}
+
+.instance-form-actions:has(.instance-delete-trigger) {
+    justify-content: space-between;
+}
+
+.instance-form-actions-commit {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+}
+
+.instance-form-actions-commit--unchanged .btn:disabled {
+    opacity: 1;
+    color: #6c757d;
+    background-color: #f1f3f5;
+    border-color: #dee2e6;
+    box-shadow: none;
+}
+
+.instance-form-actions:has(.instance-delete-trigger) .instance-form-actions-commit {
+    margin-left: auto;
+}
+
+.instance-delete-lead {
+    margin: 0 0 12px;
+    color: #212529;
+}
+
+.instance-delete-identity {
+    background: #f8f9fa;
+    border: 1px solid #dee2e6;
+    border-radius: 6px;
+    padding: 10px 12px;
+    margin-bottom: 12px;
+}
+
+.instance-delete-identity-row {
+    display: flex;
+    align-items: flex-start;
+    gap: 6px;
+    min-width: 0;
+}
+
+.instance-delete-identity-row + .instance-delete-identity-row {
+    margin-top: 4px;
+}
+
+.instance-delete-identity-label {
+    color: #495057;
+    flex: none;
+}
+
+.instance-delete-identity-row .instance-type-color-icon {
+    margin-top: 0.2em;
+}
+
+.instance-delete-identity-id {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: 0.75rem;
+    color: #6c757d;
+    overflow-wrap: anywhere;
+}
+
+.instance-delete-warnings {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-bottom: 12px;
+}
+
+.instance-delete-warning {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    margin: 0;
+    padding: 10px 12px;
+    color: #856404;
+    background: #fff8e6;
+    border: 1px solid #ffe08a;
+    border-radius: 6px;
+    font-size: 0.9rem;
+}
+
+.instance-delete-warning svg {
+    margin-top: 3px;
+    flex: none;
+}
+
+.instance-delete-irreversible {
+    margin: 0;
+    color: #495057;
+}
+
 .instance-form .form-label {
     font-weight: 500;
     color: #333;

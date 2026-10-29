@@ -630,6 +630,22 @@ public class Instances {
     }
 
     /**
+     * Deletes the instance. A released instance (including one released and then changed) is unreleased first, so it is
+     * also removed from search. The core rejects the request if the user is not allowed to delete it.
+     *
+     * @param id the uuid of the instance as known by the core
+     */
+    @DeleteMapping("/{id}")
+    public void delete(@AuthenticatedClient MarmotGraphClient client, @PathVariable UUID id) {
+        ReleaseStatus status = client.instances().releaseStatus(id, ReleaseTreeScope.TOP_INSTANCE_ONLY);
+        if (status == ReleaseStatus.RELEASED || status == ReleaseStatus.HAS_CHANGED) {
+            client.instances().forceDelete(id);
+        } else {
+            client.instances().delete(id);
+        }
+    }
+
+    /**
      * The instance as provided by the core (the full JSON-LD document without the internal properties) - for the raw
      * view of the editor.
      *

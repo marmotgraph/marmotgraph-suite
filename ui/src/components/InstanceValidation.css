@@ -130,11 +130,59 @@
     margin: 12px 0 0;
 }
 
-.instance-validation-error-schema {
-    margin-top: 8px;
+.instance-validation-schemas {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.instance-validation-schema {
+    min-width: 0;
+    border: 1px solid #e4e7eb;
+    border-radius: 8px;
+    background-color: #fff;
+    overflow: hidden;
+}
+
+.instance-validation-schema-header {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    column-gap: 12px;
+    row-gap: 6px;
+    align-items: center;
+    padding: 8px 10px;
+    background-color: #f8f9fb;
+    border-bottom: 1px solid #f1f3f5;
+}
+
+.instance-validation-schema-name {
     font-size: 0.8rem;
     font-weight: 600;
-    color: #495057;
+    color: #212529;
+    overflow-wrap: anywhere;
+}
+
+.instance-validation-schema-value {
+    font-size: 0.75rem;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+    color: #a3410a;
+}
+
+.instance-validation-schema-bar {
+    grid-column: 1 / -1;
+    display: block;
+    height: 6px;
+    border-radius: 999px;
+    background-color: #e9ecef;
+    overflow: hidden;
+}
+
+.instance-validation-schema-bar-fill {
+    display: block;
+    height: 100%;
+    border-radius: 999px;
+    background-color: #f0a33a;
 }
 
 .instance-validation-summary-title {
@@ -166,21 +214,26 @@
 
 .instance-validation-errors {
     list-style: none;
-    margin: 2px 0 0;
+    margin: 0;
     padding: 0;
     font-size: 0.8rem;
     line-height: 1.4;
     color: #495057;
 }
 
+.instance-validation-error {
+    padding: 8px 10px;
+}
+
 .instance-validation-error + .instance-validation-error {
-    margin-top: 2px;
+    border-top: 1px solid #f1f3f5;
 }
 
 .instance-validation-error-field {
+    display: block;
+    margin: 0 0 2px;
     font-weight: 600;
     color: #212529;
-    margin-right: 6px;
 }
 
 .instance-validation-error-message {
