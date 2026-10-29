@@ -11,7 +11,6 @@ import {
   faCopy,
   faEye,
   faFilter,
-  faGlasses,
   faHourglassHalf,
   faPen,
   faPenToSquare,
@@ -845,7 +844,7 @@ const RELEASE_STATUS_TAGS: Record<
 > = {
   released: { modifier: "released", icon: faRocket },
   "has changed": { modifier: "changed", icon: faPenToSquare },
-  "in progress": { icon: faHourglassHalf },
+  "in progress": { modifier: "progress", icon: faHourglassHalf },
 };
 
 /**
@@ -867,7 +866,7 @@ function InstanceStatusTags({ instance }: { instance: InstanceSummary }) {
         {instance.releaseStatus}
       </span>
       {instance.contributed && (
-        <span className="instance-card-status" title="You have contributed to this instance">
+        <span className="instance-card-status instance-card-status--contribution" title="You have contributed to this instance">
           <FontAwesomeIcon icon={faUserPen} />
           my contribution
         </span>
@@ -925,7 +924,7 @@ function FavoriteToggle({
  * Review is the right to invite reviewers; the instance page has no review mode, so it opens in view.
  */
 const permissionItems = [
-  { key: "View", icon: faGlasses, search: "" },
+  { key: "View", icon: faEye, search: "" },
   { key: "Edit", icon: faPen, search: "?edit=1" },
   { key: "Review", icon: faClipboardCheck, search: "" },
   { key: "Release", icon: faRocket, search: "?release=1" },
@@ -966,7 +965,7 @@ function InstancePermissionButtons({
           }}
           onDoubleClick={(event) => event.stopPropagation()}
         >
-          <FontAwesomeIcon icon={item.icon} />
+          <FontAwesomeIcon icon={item.icon} aria-hidden="true" />
           {labeled && item.key}
         </button>
       ))}
@@ -1259,7 +1258,7 @@ function InstancePreview({
             onClick={onOpen}
             aria-label="Open instance"
           >
-            <FontAwesomeIcon icon={faEye} />
+            <FontAwesomeIcon icon={faEye} aria-hidden="true" />
             Open
           </Button>
           <Button
@@ -1268,7 +1267,7 @@ function InstancePreview({
             onClick={onEdit}
             aria-label="Edit instance"
           >
-            <FontAwesomeIcon icon={faPen} />
+            <FontAwesomeIcon icon={faPen} aria-hidden="true" />
             Edit
           </Button>
           <Button
@@ -1277,7 +1276,7 @@ function InstancePreview({
             onClick={onRaw}
             aria-label="Open instance in raw mode"
           >
-            <FontAwesomeIcon icon={faCode} />
+            <FontAwesomeIcon icon={faCode} aria-hidden="true" />
             Raw
           </Button>
         </div>

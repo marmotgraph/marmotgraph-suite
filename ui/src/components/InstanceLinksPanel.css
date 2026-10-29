@@ -232,6 +232,31 @@
     max-width: 200px;
 }
 
+.link-id-copy.btn {
+    --bs-btn-color: #6c757d;
+    --bs-btn-hover-color: #212529;
+    --bs-btn-active-color: #212529;
+    margin-left: 4px;
+    padding: 2px 4px;
+    color: #6c757d;
+    line-height: 1;
+    text-decoration: none;
+    border-radius: 4px;
+}
+
+.link-id-copy.btn:hover {
+    color: #212529;
+    background-color: #e9ecef;
+    text-decoration: none;
+}
+
+.link-id-copy.btn:focus-visible {
+    color: #212529;
+    outline: 2px solid #6c8ebf;
+    outline-offset: 2px;
+    box-shadow: none;
+}
+
 .link-space {
     font-size: 0.72rem;
     color: #868e96;

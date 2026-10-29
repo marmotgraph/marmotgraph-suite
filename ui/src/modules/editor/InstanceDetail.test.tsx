@@ -279,13 +279,20 @@ describe("InstanceDetail", () => {
       },
     );
 
-    const summary = await screen.findByRole("region", { name: "Validation" });
-    expect(summary).toHaveTextContent("minimal");
-    expect(summary).toHaveTextContent("complete");
-    expect(summary).toHaveTextContent("50%");
-    expect(summary).toHaveTextContent("2 errors");
-    expect(summary).toHaveTextContent("Heightstring found, integer expected");
-    expect(summary).toHaveTextContent("property 'x' is not defined in the schema");
+    const status = await screen.findByRole("region", { name: "Validation" });
+    expect(status).toHaveTextContent("minimal");
+    expect(status).toHaveTextContent("complete");
+    expect(status).toHaveTextContent("50%");
+    expect(status).not.toHaveTextContent("string found");
+
+    const errors = screen.getByRole("region", { name: "Validation errors" });
+    expect(errors).toHaveTextContent("2 errors");
+    expect(errors).toHaveTextContent("Height");
+    expect(errors).toHaveTextContent("string found, integer expected");
+    expect(errors).toHaveTextContent("property 'x' is not defined in the schema");
+    const header = document.querySelector(".instance-header");
+    expect(header).not.toContainElement(status);
+    expect(header).not.toContainElement(errors);
 
     // Only the field concerned by an error is flagged - with the error and its schema below it
     const heightSection = document.querySelector('[data-instance-field="Height"]') as HTMLElement;

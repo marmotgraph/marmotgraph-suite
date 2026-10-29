@@ -17,3 +17,9 @@
     -moz-osx-font-smoothing: grayscale;
     --bs-body-bg: #eee;
 }
+
+.form-check-input:checked[type="checkbox"],
+.form-check-input:indeterminate[type="checkbox"] {
+    background-color: #495057;
+    border-color: #495057;
+}

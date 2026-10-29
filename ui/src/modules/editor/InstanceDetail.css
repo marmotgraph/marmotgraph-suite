@@ -175,10 +175,6 @@
     margin-bottom: 0;
 }
 
-.instance-header-main {
-    min-width: 0;
-}
-
 .instance-header-modes {
     display: flex;
     flex-wrap: wrap;

@@ -53,7 +53,8 @@ import {
   FieldValidationError,
   FieldValidationErrors,
   FieldValidationIndicator,
-  InstanceValidationSummary,
+  InstanceValidationErrors,
+  InstanceValidationStatus,
   validationErrorsByField,
 } from "../../components/InstanceValidation";
 import DirLinkIcon from "../../assets/icons/DirLink.svg";
@@ -454,6 +455,10 @@ function InstanceDetailView({ instanceId }: { instanceId: string }) {
   );
 
   const rawDraft = getDraft(instanceId)?.rawJson;
+  const validationResults =
+    !isNewInstance && instance?.validation && instance.validation.length > 0
+      ? instance.validation
+      : undefined;
   const hasUnsavedChanges =
     (isEditMode && changedFieldKeys.size > 0) || rawDraft !== undefined;
   const unsavedChangeLabels =
@@ -746,43 +751,45 @@ function InstanceDetailView({ instanceId }: { instanceId: string }) {
                   />
                 </div>
                 <h2 className="instance-name">{instanceName}</h2>
-                <div className="instance-header-main">
-                  {hasUnsavedChanges && (
-                    <div className="instance-unsaved-summary" role="status">
-                      Unsaved changes
-                      {unsavedChangeLabels.length > 0 && (
-                        <span className="instance-unsaved-summary-fields">
-                          {" "}
-                          · {unsavedChangeLabels.join(", ")}
-                        </span>
-                      )}
-                    </div>
-                  )}
-                  <div className="instance-meta">
-                    <div className="mb-1">
-                      <strong>ID:</strong> {instanceId}
-                      <Button
-                        variant="link"
-                        size="sm"
-                        className="p-0 ms-2"
-                        onClick={handleCopyId}
-                      >
-                        <FontAwesomeIcon icon={faCopy} />
-                      </Button>
-                    </div>
-                    <div>
-                      <strong>Space:</strong> {instance.space}
-                    </div>
+                {hasUnsavedChanges && (
+                  <div className="instance-unsaved-summary" role="status">
+                    Unsaved changes
+                    {unsavedChangeLabels.length > 0 && (
+                      <span className="instance-unsaved-summary-fields">
+                        {" "}
+                        · {unsavedChangeLabels.join(", ")}
+                      </span>
+                    )}
                   </div>
-                  {!isNewInstance && instance.validation && instance.validation.length > 0 && (
-                    <InstanceValidationSummary
-                      validation={instance.validation}
-                      fieldLabels={fieldLabels}
-                    />
-                  )}
+                )}
+                <div className="instance-meta">
+                  <div className="mb-1">
+                    <strong>ID:</strong> {instanceId}
+                    <Button
+                      variant="link"
+                      size="sm"
+                      className="p-0 ms-2"
+                      onClick={handleCopyId}
+                    >
+                      <FontAwesomeIcon icon={faCopy} />
+                    </Button>
+                  </div>
+                  <div>
+                    <strong>Space:</strong> {instance.space}
+                  </div>
                 </div>
               </div>
             </div>
+
+            {validationResults && (
+              <div className="instance-validation-block">
+                <InstanceValidationStatus validation={validationResults} />
+                <InstanceValidationErrors
+                  validation={validationResults}
+                  fieldLabels={fieldLabels}
+                />
+              </div>
+            )}
 
             {isInfoMode ? (
               <InstanceInfo instanceId={instanceId} />

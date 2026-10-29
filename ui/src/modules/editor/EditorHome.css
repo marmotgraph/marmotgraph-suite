@@ -209,6 +209,16 @@
     color: #9a5b00;
 }
 
+.instance-card-status--progress {
+    background-color: #fff3cd;
+    color: #856404;
+}
+
+.instance-card-status--contribution {
+    background-color: #e7f3ff;
+    color: #1D4ED8;
+}
+
 .instance-status {
     display: flex;
     flex-wrap: wrap;

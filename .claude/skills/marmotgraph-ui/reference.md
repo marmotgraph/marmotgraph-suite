@@ -41,10 +41,12 @@ Source of truth: the CSS below. Use these values when the stylesheet does not al
 | Link | `#2563EB`, hover `#1D4ED8` | breadcrumbs, text links |
 | Selection | hover `#e8e9f3`, selected `#eef0fb`, bar `#5b5fc7` | instance rows and cards |
 | Field focus | `#6c8ebf`, ring `rgba(108, 142, 191, 0.25)` | inputs, highlighted link cards |
+| Checked checkbox | `#495057` | `.form-check-input:checked` in `App.css`. The white check clears 3:1 |
 | Type fallback | `#6c757d` | missing `typeColor` |
 | Released | text `#1e7a42`, fill `#e8f6ee`, bar `#2f9e5c` | status pill, validation |
 | Changed / unsaved | text `#856404` or `#9a5b00`, fill `#fff4e5` / `#fff8e6` / `#fff3cd`, border `#ffe08a` | banner, badge, pill |
-| Incomplete | `#c27c0e`, bar `#f0a33a` | validation under 100% |
+| Incomplete | text `#a3410a`, fill `#fff4e5`, bar `#f0a33a` | validation under 100%. `#a3410a` clears 4.5:1 on the fill and on white |
+| Contribution | text `#1D4ED8`, fill `#e7f3ff` | "my contribution" pill. `#1D4ED8` clears 4.5:1 on the fill |
 | Bulk selection | fill `#e7f3ff`, border `#b3d9ff` | `bulk-actions-bar` |
 | Sidebar hover / active | `#f3f4f6` | `sidebar-nav-link` |
 | Nav icon | `#6b7280` | sidebar only |
@@ -131,7 +133,7 @@ Fixed to the right edge, `z-index: 1040`, gray shell `#f1f3f5`, left corners rad
 | Empty | `.links-empty-state`: centered, 0.875rem, padding `24px 12px` |
 | Loading | keep the same slots; do not swap the page for a blank spinner |
 | Error on a field | Bootstrap invalid border and ring, as in `.json-field.form-control.is-invalid` |
-| Validation error on a field | `#c27c0e` warning icon in the label, the message in `#9a5b00` below the field with the schema in `#868e96` (`FieldValidationIndicator`, `FieldValidationErrors`) |
+| Validation error on a field | `#a3410a` warning icon in the label, the message in `#9a5b00` below the field with the schema in `#868e96` (`FieldValidationIndicator`, `FieldValidationErrors`) |
 | Copy | existing tooltip: `#212529` background, white text, 4px radius |
 
 ## Motion and breakpoints

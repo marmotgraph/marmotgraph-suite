@@ -20,7 +20,7 @@ export function ValidationStatus({
   variant = "bar",
 }: {
   validation: InstanceValidation;
-  /** A list badge names the schema. The bar and percent sit beside it. The full bar is for the instance page. */
+  /** The schema name and its icon share a pill. The bar and percent sit under it. */
   variant?: "bar" | "badge";
 }) {
   const state = validation.valid ? "valid" : "invalid";
@@ -105,11 +105,28 @@ export function validationErrorsByField(
   return byField;
 }
 
+/** The compliance of each schema, shown with the instance name. The messages live with the fields. */
+export function InstanceValidationStatus({
+  validation,
+}: {
+  validation: InstanceValidation[];
+}) {
+  return (
+    <section className="instance-validation-summary" aria-label="Validation">
+      <div className="instance-validation-badges">
+        {validation.map((v) => (
+          <ValidationStatus key={v.name} validation={v} variant="badge" />
+        ))}
+      </div>
+    </section>
+  );
+}
+
 /**
- * The results of the last validation of an instance per validation schema - with the errors of the failed ones,
- * labeled with the field they concern.
+ * The errors of the failed schemas, labeled with the field they concern.
+ * Errors of no field stay here, because they never appear on a field.
  */
-export function InstanceValidationSummary({
+export function InstanceValidationErrors({
   validation,
   fieldLabels,
 }: {
@@ -117,38 +134,36 @@ export function InstanceValidationSummary({
   /** The labels of the fields by their identifier */
   fieldLabels: Map<string, string>;
 }) {
-  const errorCount = validation.reduce((count, v) => count + (v.errors?.length ?? 0), 0);
+  const failed = validation.filter((v) => v.errors && v.errors.length > 0);
+  const errorCount = failed.reduce((count, v) => count + (v.errors?.length ?? 0), 0);
+  if (errorCount === 0) {
+    return null;
+  }
   return (
-    <section className="instance-validation-summary" aria-label="Validation">
+    <section className="instance-validation-errors-panel" aria-label="Validation errors">
       <div className="instance-validation-summary-title">
         Validation
-        {errorCount > 0 && (
-          <span className="instance-validation-summary-count">
-            {errorCount} {errorCount === 1 ? "error" : "errors"}
-          </span>
-        )}
+        <span className="instance-validation-summary-count">
+          {errorCount} {errorCount === 1 ? "error" : "errors"}
+        </span>
       </div>
-      <div className="instance-validations instance-validations--detail">
-        {validation.map((v) => (
-          <React.Fragment key={v.name}>
-            <ValidationStatus validation={v} />
-            {v.errors && v.errors.length > 0 && (
-              <ul className="instance-validation-errors">
-                {v.errors.map((error, index) => (
-                  <li key={index} className="instance-validation-error">
-                    {error.field && (
-                      <span className="instance-validation-error-field">
-                        {fieldLabels.get(error.field) ?? error.field}
-                      </span>
-                    )}
-                    <span className="instance-validation-error-message">{error.message}</span>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </React.Fragment>
-        ))}
-      </div>
+      {failed.map((v) => (
+        <div key={v.name} className="instance-validation-error-group">
+          <div className="instance-validation-error-schema">{v.name}</div>
+          <ul className="instance-validation-errors">
+            {v.errors?.map((error, index) => (
+              <li key={index} className="instance-validation-error">
+                {error.field && (
+                  <span className="instance-validation-error-field">
+                    {fieldLabels.get(error.field) ?? error.field}
+                  </span>
+                )}
+                <span className="instance-validation-error-message">{error.message}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      ))}
     </section>
   );
 }

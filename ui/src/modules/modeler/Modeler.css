@@ -147,11 +147,11 @@
 /* Types and properties without a specification - they are only known from the data */
 .modeler-status--unspecified {
     background-color: #fff4e5;
-    color: #c27c0e;
+    color: #a3410a;
 }
 
 .modeler-unspecified {
-    color: #c27c0e;
+    color: #a3410a;
 }
 
 /* List of the types */
