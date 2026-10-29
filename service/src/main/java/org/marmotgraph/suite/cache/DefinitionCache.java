@@ -105,4 +105,12 @@ public abstract class DefinitionCache<D> {
         listings.clear();
     }
 
+    /**
+     * Drops all definitions and lists (e.g. after a modification which might affect any of them).
+     */
+    public void invalidateAll() {
+        entries.clear();
+        listings.clear();
+    }
+
 }

@@ -8,6 +8,9 @@ import { SubNavActionsProvider } from "../../contexts/SubNavActionsContext";
 import { useGlobalFunctionalities } from "../../hooks/useGlobalFunctionalities";
 import {
   fetchModel,
+  savePropertyDefinition,
+  definePropertyOrder,
+  fetchPropertyDefinitions,
   fetchPropertySources,
   fetchTypeSpecification,
   fetchSpecificationStatus,
@@ -28,6 +31,9 @@ vi.mock("../../services/modeler", async (importOriginal) => ({
   fetchAssignedSpaces: vi.fn().mockResolvedValue([]),
   fetchSpecificationStatus: vi.fn().mockResolvedValue({}),
   fetchPropertySources: vi.fn().mockResolvedValue({}),
+  fetchPropertyDefinitions: vi.fn().mockResolvedValue({ type: null, global: null }),
+  savePropertyDefinition: vi.fn().mockResolvedValue(undefined),
+  definePropertyOrder: vi.fn().mockResolvedValue(undefined),
 }));
 
 const DEVICE = "https://example.org/types/Device";
@@ -91,42 +97,90 @@ describe("ModelerHome", () => {
   it("shows the properties and relations of the selected type", async () => {
     renderAt(`/modeler/types?type=${encodeURIComponent(DEVICE)}`);
     expect(await screen.findByText("https://example.org/locatedIn")).toBeInTheDocument();
-    const row = screen.getByText("https://example.org/locatedIn").closest("tr")!;
+    const row = screen.getByText("https://example.org/locatedIn").closest<HTMLElement>("[data-testid=modeler-field]")!;
     expect(within(row).getByText("Room")).toBeInTheDocument();
+    // The properties are shown as in the form of the editor - with an example of their widget
+    expect(within(row).getByText("Links (dropdown), multiple values")).toBeInTheDocument();
+    expect(within(row).getByText("Room A")).toBeInTheDocument();
     expect(screen.queryByText("Add property")).not.toBeInTheDocument();
+    expect(screen.queryByLabelText(/^Move /)).not.toBeInTheDocument();
   });
 
-  it("highlights the types and properties without a specification", async () => {
-    vi.mocked(fetchSpecificationStatus).mockResolvedValueOnce({
-      [DEVICE]: { specified: false, unspecifiedProperties: 1 },
-      [ROOM]: { specified: true, unspecifiedProperties: 0 },
-    });
-    vi.mocked(fetchPropertySources).mockResolvedValueOnce({
-      "https://schema.org/name": "GLOBAL",
-      "https://example.org/locatedIn": "NONE",
-    });
-    renderAt(`/modeler/types?type=${encodeURIComponent(DEVICE)}`);
-    const row = (await screen.findByText("https://example.org/locatedIn")).closest("tr")!;
-    expect(await within(row).findByText("Not specified")).toBeInTheDocument();
-    const nameRow = screen.getByText("https://schema.org/name").closest("tr")!;
-    expect(within(nameRow).getByText("Global")).toBeInTheDocument();
-    // The type is marked in the list and in its details
-    expect(screen.getByLabelText("Not specified")).toBeInTheDocument();
-    expect(screen.getAllByText("Not specified")).toHaveLength(2);
-    // The number of unspecified properties is shown next to the number of properties
-    expect(screen.getByTitle("Properties without a specification - they are only known from the data").textContent).toBe("1");
+  it("changes the order of the properties", async () => {
+    vi.mocked(definePropertyOrder).mockClear();
+    renderAt(`/modeler/types?type=${encodeURIComponent(DEVICE)}`, ["DEFINE_TYPES_AND_PROPERTIES"]);
+    fireEvent.keyDown(await screen.findByLabelText("Move located in (position 2 of 2)"), { key: "ArrowUp" });
+    // The new order is shown while it is saved
+    const names = screen.getAllByTestId("modeler-field").map((field) => field.querySelector(".modeler-field-label")?.textContent);
+    expect(names).toEqual(["located in", "name *"]);
+    expect(screen.getByText("located in moved to position 1 of 2.")).toBeInTheDocument();
+    await vi.waitFor(() => expect(definePropertyOrder).toHaveBeenCalledTimes(2));
+    expect(definePropertyOrder).toHaveBeenCalledWith("token", DEVICE, "https://example.org/locatedIn", 1);
+    expect(definePropertyOrder).toHaveBeenCalledWith("token", DEVICE, "https://schema.org/name", 2);
   });
 
-  it("shows the incoming relations of a type", async () => {
-    renderAt(`/modeler/types?type=${encodeURIComponent(ROOM)}`);
-    expect(await screen.findByText("Incoming relations (1)")).toBeInTheDocument();
-    expect(screen.getByText("via")).toBeInTheDocument();
+  it("defines a relation by the widget of a property", async () => {
+    vi.mocked(savePropertyDefinition).mockClear();
+    renderAt(`/modeler/types?type=${encodeURIComponent(DEVICE)}`, ["DEFINE_TYPES_AND_PROPERTIES"]);
+    fireEvent.click(await screen.findByText("Add property"));
+    const dialog = screen.getByRole("dialog");
+    fireEvent.change(screen.getByLabelText("Name"), { target: { value: "contains" } });
+    expect(within(dialog).queryByText("Links to")).not.toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText("Widget"), { target: { value: "link" } });
+    // The cardinality decides between the widgets of the kind
+    fireEvent.click(screen.getByLabelText("Multiple"));
+    expect(within(dialog).getByText("Links to")).toBeInTheDocument();
+    expect(screen.getByText("Save")).toBeDisabled();
+    fireEvent.click(within(dialog).getByLabelText("Building"));
+    expect(within(dialog).getByText("Building A")).toBeInTheDocument();
+    fireEvent.click(screen.getByText("Save"));
+    await vi.waitFor(() =>
+      expect(savePropertyDefinition).toHaveBeenCalledWith(
+        "token",
+        DEVICE,
+        "https://schema.org/contains",
+        expect.objectContaining({ widget: "DynamicDropdown", targetTypes: ["https://example.org/types/Building"], orderNumber: 3 }),
+        "type",
+        { type: null, global: null },
+      ),
+    );
+  });
+
+  it("defines a property for the type or for all types", async () => {
+    vi.mocked(savePropertyDefinition).mockClear();
+    // The property is only defined globally (the type only places it) - it is edited globally
+    const definitions = { type: { orderNumber: 1 }, global: { name: "name", widget: "InputText" } };
+    vi.mocked(fetchPropertyDefinitions).mockResolvedValue(definitions);
+    renderAt(`/modeler/types?type=${encodeURIComponent(DEVICE)}`, ["DEFINE_TYPES_AND_PROPERTIES"]);
+    fireEvent.click(await screen.findByLabelText("Edit name"));
+    const dialog = await screen.findByRole("dialog");
+    expect(await within(dialog).findByLabelText("All types")).toBeChecked();
+    fireEvent.change(within(dialog).getByLabelText("Tooltip"), { target: { value: "The name" } });
+    fireEvent.click(within(dialog).getByText("Save"));
+    await vi.waitFor(() =>
+      expect(savePropertyDefinition).toHaveBeenCalledWith(
+        "token",
+        DEVICE,
+        "https://schema.org/name",
+        expect.objectContaining({ labelTooltip: "The name", widget: "InputText" }),
+        "global",
+        definitions,
+      ),
+    );
+
+    // The scope can be changed to the type only
+    fireEvent.click(await screen.findByLabelText("Edit name"));
+    const second = await screen.findByRole("dialog");
+    fireEvent.click(await within(second).findByLabelText("Device only"));
+    expect(within(second).getByText(/Only the values differing from the global definition are stored/)).toBeInTheDocument();
+    fireEvent.click(within(second).getByText("Save"));
+    await vi.waitFor(() => expect(savePropertyDefinition).toHaveBeenLastCalledWith("token", DEVICE, "https://schema.org/name", expect.anything(), "type", definitions));
+    vi.mocked(fetchPropertyDefinitions).mockResolvedValue({ type: null, global: null });
   });
 
   it("allows to modify the model with the rights to define types", async () => {
     renderAt(`/modeler/types?type=${encodeURIComponent(DEVICE)}`, ["DEFINE_TYPES_AND_PROPERTIES"]);
     expect(await screen.findByText("Add property")).toBeInTheDocument();
-    expect(screen.getByText("Add relation")).toBeInTheDocument();
     // Creating a type is the page action in the subnav
     fireEvent.click(screen.getByText("Create new type"));
     expect(await screen.findByText("New type")).toBeInTheDocument();

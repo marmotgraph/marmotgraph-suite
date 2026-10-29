@@ -41,6 +41,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
+import static org.hamcrest.Matchers.nullValue;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
@@ -247,66 +248,84 @@ class ModelerTest {
     }
 
     @Test
-    void missingPropertySpecificationIsEmpty() throws Exception {
+    void missingPropertySpecificationsAreNull() throws Exception {
         when(properties.getForType(LOCATED_IN, DEVICE)).thenReturn(Optional.empty());
+        // An empty specification is provided with null values only
+        when(properties.get(LOCATED_IN)).thenReturn(Optional.of(new PropertySpecification(null, null, null, null, null, null, null, null)));
 
         mockMvc.perform(get("/modeler/types/properties").param("type", DEVICE).param("property", LOCATED_IN)
                         .header(HttpHeaders.AUTHORIZATION, "Bearer theToken"))
                 .andExpect(status().isOk())
-                .andExpect(content().string(""));
+                .andExpect(jsonPath("$.type").value(nullValue()))
+                .andExpect(jsonPath("$.global").value(nullValue()));
     }
 
     @Test
-    void missingPropertySpecificationReportedAsNotFoundIsEmpty() throws Exception {
+    void missingPropertySpecificationsReportedAsNotFoundAreNull() throws Exception {
         when(properties.getForType(LOCATED_IN, DEVICE)).thenThrow(new MarmotGraphApiException(404, "Not found", null, null));
         when(properties.get(LOCATED_IN)).thenThrow(new MarmotGraphApiException(404, "Not found", null, null));
 
         mockMvc.perform(get("/modeler/types/properties").param("type", DEVICE).param("property", LOCATED_IN)
                         .header(HttpHeaders.AUTHORIZATION, "Bearer theToken"))
                 .andExpect(status().isOk())
-                .andExpect(content().string(""));
+                .andExpect(jsonPath("$.type").value(nullValue()))
+                .andExpect(jsonPath("$.global").value(nullValue()));
     }
 
     @Test
-    void propertyValuesNotSpecifiedForTheTypeAreTakenFromTheGlobalSpecification() throws Exception {
+    void propertySpecificationsForTheTypeAndGlobalAreProvided() throws Exception {
         when(properties.getForType(LOCATED_IN, DEVICE)).thenReturn(Optional.of(
-                new PropertySpecification(null, null, null, "DynamicTable", null, null, null, null)));
+                new PropertySpecification(null, null, null, "DynamicTable", null, null, null, 2)));
         when(properties.get(LOCATED_IN)).thenReturn(Optional.of(
                 new PropertySpecification("located in", "Contains", List.of(ROOM), "DynamicDropdown", null, "Where it is", true, 3)));
 
         mockMvc.perform(get("/modeler/types/properties").param("type", DEVICE).param("property", LOCATED_IN)
                         .header(HttpHeaders.AUTHORIZATION, "Bearer theToken"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.name").value("located in"))
-                .andExpect(jsonPath("$.nameForReverseLink").value("Contains"))
-                .andExpect(jsonPath("$.targetTypes[0]").value(ROOM))
-                .andExpect(jsonPath("$.widget").value("DynamicTable"))
-                .andExpect(jsonPath("$.labelTooltip").value("Where it is"))
-                .andExpect(jsonPath("$.required").value(true))
-                .andExpect(jsonPath("$.orderNumber").value(3));
+                .andExpect(jsonPath("$.type.widget").value("DynamicTable"))
+                .andExpect(jsonPath("$.type.name").value(nullValue()))
+                .andExpect(jsonPath("$.type.orderNumber").value(2))
+                .andExpect(jsonPath("$.global.name").value("located in"))
+                .andExpect(jsonPath("$.global.targetTypes[0]").value(ROOM))
+                .andExpect(jsonPath("$.global.widget").value("DynamicDropdown"));
     }
 
     @Test
-    void globalPropertySpecificationIsUsedIfThereIsNoneForTheType() throws Exception {
-        when(properties.getForType(LOCATED_IN, DEVICE)).thenThrow(new MarmotGraphApiException(404, "Not found", null, null));
-        when(properties.get(LOCATED_IN)).thenReturn(Optional.of(
-                new PropertySpecification("located in", null, List.of(ROOM), null, null, null, null, null)));
+    void propertyIsDefinedGlobally() throws Exception {
+        mockMvc.perform(put("/modeler/properties").param("property", LOCATED_IN)
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer theToken")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"name\": \"located in\", \"targetTypes\": [\"" + ROOM + "\"], \"widget\": \"DynamicDropdown\"}"))
+                .andExpect(status().isOk());
 
-        mockMvc.perform(get("/modeler/types/properties").param("type", DEVICE).param("property", LOCATED_IN)
-                        .header(HttpHeaders.AUTHORIZATION, "Bearer theToken"))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.name").value("located in"))
-                .andExpect(jsonPath("$.targetTypes[0]").value(ROOM));
+        ArgumentCaptor<PropertySpecification> specification = ArgumentCaptor.forClass(PropertySpecification.class);
+        verify(properties).define(Mockito.eq(LOCATED_IN), specification.capture());
+        assertEquals(List.of(ROOM), specification.getValue().targetTypes());
+        // Any type might be affected
+        verify(fieldCache).invalidateAll();
+        verify(typeCache).invalidateAll();
+    }
+
+    @Test
+    void blankGlobalPropertyIsRejected() throws Exception {
+        mockMvc.perform(put("/modeler/properties").param("property", " ")
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer theToken")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{}"))
+                .andExpect(status().isBadRequest());
+        verify(properties, never()).define(anyString(), any());
     }
 
     @Test
     void sourcesOfThePropertySpecificationsAreProvided() throws Exception {
         String name = "https://schema.org/name";
         String serial = "https://example.org/properties/serialNumber";
+        String description = "https://schema.org/description";
         TypeInformation device = new TypeInformation(DEVICE, null, "Device", null, null, null, 10, null, List.of(
                 new Property(LOCATED_IN, null, null, null, null, null, null, null, 5, List.of()),
                 new Property(name, null, null, null, null, null, null, null, 5, List.of()),
-                new Property(serial, null, null, null, null, null, null, null, 5, List.of())), List.of());
+                new Property(serial, null, null, null, null, null, null, null, 5, List.of()),
+                new Property(description, null, null, null, null, null, null, null, 5, List.of())), List.of());
         when(types.getByNames(List.of(DEVICE), Stage.IN_PROGRESS, null, true, false)).thenReturn(Map.of(DEVICE, device));
         when(properties.getForType(LOCATED_IN, DEVICE)).thenReturn(Optional.of(
                 new PropertySpecification(null, null, List.of(ROOM), null, null, null, null, null)));
@@ -315,12 +334,17 @@ class ModelerTest {
                 new PropertySpecification(null, null, null, null, null, null, null, null)));
         when(properties.get(name)).thenReturn(Optional.of(new PropertySpecification("name", null, null, null, null, null, null, null)));
         when(properties.getForType(serial, DEVICE)).thenThrow(new MarmotGraphApiException(404, "Not found", null, null));
+        // Only ordering the property in the form of the type leaves its definition to the global specification
+        when(properties.getForType(description, DEVICE)).thenReturn(Optional.of(
+                new PropertySpecification(null, null, null, null, null, null, null, 4)));
+        when(properties.get(description)).thenReturn(Optional.of(new PropertySpecification(null, null, null, "TextArea", null, null, null, null)));
 
         mockMvc.perform(get("/modeler/types/properties/sources").param("type", DEVICE).header(HttpHeaders.AUTHORIZATION, "Bearer theToken"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$['" + LOCATED_IN + "']").value("TYPE"))
                 .andExpect(jsonPath("$['" + name + "']").value("GLOBAL"))
-                .andExpect(jsonPath("$['" + serial + "']").value("NONE"));
+                .andExpect(jsonPath("$['" + serial + "']").value("NONE"))
+                .andExpect(jsonPath("$['" + description + "']").value("GLOBAL"));
     }
 
     @Test

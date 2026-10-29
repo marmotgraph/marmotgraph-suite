@@ -1,16 +1,18 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { Alert, Button, Form, Spinner, Tab, Table, Tabs } from "react-bootstrap";
+import { Alert, Button, Form, Spinner, Tab, Tabs } from "react-bootstrap";
 import { Link } from "react-router-dom";
-import { ArrowRight, CircleDashed, Globe, Network, Pencil, Plus, Trash2 } from "lucide-react";
+import { CircleDashed, Globe, Network, Plus, Trash2 } from "lucide-react";
 import { useAuth } from "../../contexts/AuthContext";
 import SaveButton from "../../components/SaveButton";
 import {
+  definePropertyOrder,
   defineType,
   deleteTypeSpecification,
   fetchPropertySources,
   fetchTypeSpecification,
   incomingRelations,
   ModelProperty,
+  orderChanges,
   ModelType,
   propertyName,
   removeProperty,
@@ -21,6 +23,7 @@ import {
 } from "../../services/modeler";
 import type { ModelerContext } from "./ModelerHome";
 import PropertyModal from "./PropertyModal";
+import PropertyFields from "./PropertyFields";
 import ValidationSchemas from "./ValidationSchemas";
 import TypeSpaces from "./TypeSpaces";
 import TypeIdentifier from "./TypeIdentifier";
@@ -123,11 +126,13 @@ function TypeLink({ identifier, types }: { identifier: string; types: ModelType[
 
 function PropertiesTab({ type, types, reload, canDefineTypes }: Props) {
   const { getAccessToken } = useAuth();
-  const [editing, setEditing] = useState<{ property?: ModelProperty; relation: boolean }>();
+  const [editing, setEditing] = useState<{ property?: ModelProperty }>();
   const [error, setError] = useState<string>();
   const incoming = useMemo(() => incomingRelations(types, type.identifier), [types, type.identifier]);
   // Where the specifications of the properties come from - undefined while they are checked (or if they can't be)
   const [sources, setSources] = useState<Record<string, SpecificationSource>>();
+  // The order of the properties while it is saved - shown before the model is reloaded
+  const [ordered, setOrdered] = useState<ModelProperty[]>();
 
   useEffect(() => {
     let cancelled = false;
@@ -155,6 +160,27 @@ function PropertiesTab({ type, types, reload, canDefineTypes }: Props) {
     }
   };
 
+  const reorder = async (properties: ModelProperty[]) => {
+    setOrdered(properties);
+    setError(undefined);
+    try {
+      const token = await getAccessToken();
+      // Only the properties whose position changed are updated
+      await Promise.all(
+        orderChanges(properties).map(({ property, orderNumber }) =>
+          definePropertyOrder(token, type.identifier, property.identifier, orderNumber),
+        ),
+      );
+    } catch (e) {
+      setError(`The order could not be saved completely: ${(e as Error).message}`);
+    }
+    try {
+      await reload();
+    } finally {
+      setOrdered(undefined);
+    }
+  };
+
   return (
     <>
       {error && (
@@ -163,87 +189,38 @@ function PropertiesTab({ type, types, reload, canDefineTypes }: Props) {
         </Alert>
       )}
       {canDefineTypes && (
-        <div className="d-flex gap-2 mb-3">
-          <Button size="sm" variant="outline-secondary" className="d-flex align-items-center" onClick={() => setEditing({ relation: false })}>
+        <div className="d-flex align-items-center gap-3 mb-3">
+          <Button size="sm" variant="outline-secondary" className="d-flex align-items-center" onClick={() => setEditing({})}>
             <Plus size={16} className="me-1" />
             Add property
           </Button>
-          <Button size="sm" variant="outline-secondary" className="d-flex align-items-center" onClick={() => setEditing({ relation: true })}>
-            <ArrowRight size={16} className="me-1" />
-            Add relation
-          </Button>
+          {type.properties.length > 1 && (
+            <span className="modeler-hint">Drag the properties to change the order they are shown in the editor.</span>
+          )}
         </div>
       )}
       {type.properties.length === 0 ? (
         <p className="modeler-empty">The type has no properties yet.</p>
       ) : (
-        <div className="table-responsive">
-          <Table size="sm" hover className="align-middle modeler-properties">
-            <thead>
-              <tr>
-                <th>Property</th>
-                <th>Widget</th>
-                <th>Links to</th>
-                <th className="text-end">Used</th>
-                {canDefineTypes && <th />}
-              </tr>
-            </thead>
-            <tbody>
-              {type.properties.map((property) => (
-                <tr key={property.identifier} className={sources?.[property.identifier] === "NONE" ? "modeler-unspecified-row" : undefined}>
-                  <td>
-                    <div className="fw-medium d-flex align-items-center flex-wrap gap-1">
-                      <span>
-                        {propertyName(property)}
-                        {property.required && (
-                          <span className="text-danger ms-1" title="Required">
-                            *
-                          </span>
-                        )}
-                      </span>
-                      {sources?.[property.identifier] === "NONE" && <UnspecifiedBadge what="property" />}
-                      {sources?.[property.identifier] === "GLOBAL" && <GlobalBadge />}
-                    </div>
-                    <TypeIdentifier identifier={property.identifier} />
-                  </td>
-                  <td>{property.widget ?? <span className="text-muted">-</span>}</td>
-                  <td>
-                    <div className="d-flex flex-wrap gap-2">
-                      {property.targetTypes.map((target) => (
-                        <TypeLink key={target} identifier={target} types={types} />
-                      ))}
-                    </div>
-                  </td>
-                  <td className="text-end text-muted modeler-num">{property.occurrences ?? 0}</td>
-                  {canDefineTypes && (
-                    <td className="text-end text-nowrap">
-                      <Button
-                        size="sm"
-                        variant="link"
-                        className="edit-icon-btn"
-                        title="Edit"
-                        aria-label={`Edit ${propertyName(property)}`}
-                        onClick={() => setEditing({ property, relation: property.targetTypes.length > 0 })}
-                      >
-                        <Pencil size={16} />
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="link"
-                        className="edit-icon-btn"
-                        title="Remove the definition for this type (properties used by instances remain visible)"
-                        aria-label={`Remove ${propertyName(property)}`}
-                        onClick={() => remove(property)}
-                      >
-                        <Trash2 size={16} />
-                      </Button>
-                    </td>
-                  )}
-                </tr>
-              ))}
-            </tbody>
-          </Table>
-        </div>
+        <PropertyFields
+          properties={ordered ?? type.properties}
+          types={types}
+          sources={sources}
+          canDefine={canDefineTypes}
+          saving={!!ordered}
+          onReorder={reorder}
+          onEdit={(property) => setEditing({ property })}
+          onRemove={remove}
+          renderBadges={(property) => (
+            <>
+              {sources?.[property.identifier] === "NONE" && <UnspecifiedBadge what="property" />}
+              {sources?.[property.identifier] === "GLOBAL" && <GlobalBadge />}
+            </>
+          )}
+          renderLinks={(property) =>
+            property.targetTypes.map((target) => <TypeLink key={target} identifier={target} types={types} />)
+          }
+        />
       )}
       <div className="modeler-kicker mt-4">Incoming relations ({incoming.length})</div>
       {incoming.length === 0 ? (
@@ -266,7 +243,6 @@ function PropertiesTab({ type, types, reload, canDefineTypes }: Props) {
           type={type}
           types={types}
           property={editing.property}
-          relation={editing.relation}
           onHide={() => setEditing(undefined)}
           onSaved={async () => {
             setEditing(undefined);

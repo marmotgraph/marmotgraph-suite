@@ -244,20 +244,220 @@
     border-radius: 2px;
 }
 
-.modeler-properties thead th {
+/* The properties of a type - shown as the editor shows them in its form */
+.modeler-hint {
+    font-size: 0.8rem;
+    color: #6c757d;
+}
+
+.modeler-fields {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.modeler-field {
+    position: relative;
+    display: flex;
+    align-items: flex-start;
+    gap: 4px;
+    padding: 10px 12px 10px 4px;
+    border: 1px solid transparent;
+    border-radius: 8px;
+    background-color: #fff;
+    transition: background-color 0.15s ease, border-color 0.15s ease;
+}
+
+.modeler-field:hover,
+.modeler-field:focus-within {
+    border-color: #e4e7eb;
+    background-color: #f8f9fb;
+}
+
+.modeler-field--sortable {
+    cursor: grab;
+}
+
+.modeler-field--dragged {
+    opacity: 0.4;
+}
+
+/* Where the dragged property is dropped */
+.modeler-field--drop-before::before,
+.modeler-field--drop-after::after {
+    content: "";
+    position: absolute;
+    left: 0;
+    right: 0;
+    height: 2px;
+    border-radius: 1px;
+    background-color: #5b5fc7;
+    pointer-events: none;
+}
+
+.modeler-field--drop-before::before {
+    top: -5px;
+}
+
+.modeler-field--drop-after::after {
+    bottom: -5px;
+}
+
+/* Properties without a specification - they are only known from the data */
+.modeler-field--unspecified {
+    box-shadow: inset 3px 0 0 #f0a33a;
+}
+
+.modeler-field-handle {
+    flex-shrink: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+    min-height: 32px;
+    padding: 0;
+    border: none;
+    border-radius: 6px;
+    background: transparent;
+    color: #adb5bd;
+    cursor: grab;
+}
+
+.modeler-field:hover .modeler-field-handle,
+.modeler-field-handle:hover {
+    color: #6c757d;
+}
+
+.modeler-field-handle:hover {
+    background-color: #e9ecef;
+}
+
+.modeler-field-handle:focus-visible {
+    outline: 2px solid #5b5fc7;
+    outline-offset: 2px;
+    color: #495057;
+}
+
+.modeler-field-handle[aria-disabled="true"] {
+    cursor: progress;
+}
+
+.modeler-field-body {
+    flex: 1;
+    min-width: 0;
+}
+
+.modeler-field-header {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 6px;
+    min-height: 32px;
+    margin-bottom: 6px;
+}
+
+.modeler-fields .modeler-field-label {
+    margin-bottom: 0;
+    overflow-wrap: anywhere;
+}
+
+.modeler-field-tools {
+    display: inline-flex;
+    align-items: center;
+    gap: 2px;
+    margin-left: auto;
+}
+
+.modeler-field-tools .modeler-status {
+    margin-right: 4px;
+}
+
+.modeler-field-meta {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    column-gap: 16px;
+    row-gap: 4px;
+    margin-top: 6px;
+    font-size: 0.8rem;
+    color: #868e96;
+}
+
+.modeler-field-meta .modeler-id {
+    max-width: 100%;
+}
+
+/* The example of a widget - it only gives an impression and can't be changed */
+.modeler-preview {
+    pointer-events: none;
+}
+
+.modeler-preview .form-control {
+    background-color: #fff;
+    border: 1px solid #dee2e6;
+    border-radius: 6px;
+    padding: 10px 14px;
+    font-size: 0.95rem;
+    color: #212529;
+}
+
+.modeler-preview .form-control-color {
+    width: 3.5rem;
+    padding: 4px !important;
+    height: 44px;
+}
+
+.modeler-preview .tag-container {
+    padding-bottom: 4px;
+}
+
+.modeler-preview-json {
+    font-family: SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    font-size: 0.85rem !important;
+    color: #6c757d !important;
+    white-space: pre-wrap;
+}
+
+.modeler-preview-table {
+    font-size: 0.9rem;
+    background-color: #fff;
+}
+
+.modeler-preview-table th {
     font-weight: 500;
     color: #495057;
     white-space: nowrap;
-    border-bottom: 1px solid #dee2e6;
 }
 
-.modeler-properties td {
-    min-width: 6rem;
-    font-size: 0.95rem;
+.modeler-preview-note {
+    margin-top: 4px;
+    font-size: 0.8rem;
+    color: #9a5b00;
 }
 
-.modeler-properties tr.modeler-unspecified-row > td:first-child {
-    box-shadow: inset 3px 0 0 #f0a33a;
+/* The preview in the dialog of a property */
+.modeler-preview-box {
+    padding: 12px;
+    border: 1px solid #e4e7eb;
+    border-radius: 8px;
+    background-color: #f8f9fb;
+}
+
+.modeler-modal .modeler-preview-label {
+    overflow-wrap: anywhere;
+}
+
+.modeler-widget-row {
+    display: flex;
+    align-items: flex-end;
+    flex-wrap: wrap;
+    gap: 12px;
+}
+
+.modeler-cardinality-fixed {
+    font-size: 0.875rem;
+    color: #6c757d;
+    line-height: 31px;
 }
 
 .modeler-checklist {
@@ -405,7 +605,8 @@
 
 @media (prefers-reduced-motion: reduce) {
     .modeler-node,
-    .modeler-type-item {
+    .modeler-type-item,
+    .modeler-field {
         transition: none;
     }
 }

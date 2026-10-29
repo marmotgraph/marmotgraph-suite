@@ -180,18 +180,39 @@ public class Modeler {
     }
 
     /**
-     * The specification of the property for the type - null if there is none (yet). The values not specified for the
-     * type (the core returns null for them - or no specification at all) are taken from the global specification of the
-     * property.
+     * The definitions of a property - for a type and globally (for all types).
+     *
+     * @param type   the specification for the type - null if there is none. The values it doesn't specify (null) are
+     *               taken from the global one.
+     * @param global the specification for all types - null if there is none
+     */
+    public record PropertyDefinitions(PropertySpecification type, PropertySpecification global) {
+    }
+
+    /**
+     * The definitions of the property - for the type and globally.
      */
     @GetMapping("/types/properties")
-    public PropertySpecification getProperty(@AuthenticatedClient MarmotGraphClient client, @RequestParam String type,
-                                             @RequestParam String property) {
+    public PropertyDefinitions getProperty(@AuthenticatedClient MarmotGraphClient client, @RequestParam String type,
+                                           @RequestParam String property) {
         requireType(type);
         requireProperty(property);
         PropertySpecification forType = nullIfNotFound(() -> client.properties().getForType(property, type).orElse(null));
         PropertySpecification global = nullIfNotFound(() -> client.properties().get(property).orElse(null));
-        return merge(forType, global);
+        return new PropertyDefinitions(isSpecified(forType) ? forType : null, isSpecified(global) ? global : null);
+    }
+
+    /**
+     * Creates or replaces the global specification of the property - it applies to all types (as far as they don't
+     * specify the values themselves).
+     */
+    @PutMapping("/properties")
+    public void defineGlobalProperty(@AuthenticatedClient MarmotGraphClient client, @RequestParam String property,
+                                     @RequestBody PropertySpecification specification) {
+        client.properties().define(requireProperty(property), specification);
+        // Any type might use the property
+        typeCache.invalidateAll();
+        fieldCache.invalidateAll();
     }
 
     /**
@@ -221,14 +242,25 @@ public class Modeler {
                 .collect(Collectors.toMap(Function.identity(), property -> source(client, type, property)));
     }
 
+    /**
+     * A specification for the type only defining the order of the property (in the form of the type) still leaves the
+     * definition of the property to the global specification.
+     */
     private static SpecificationSource source(MarmotGraphClient client, String type, String property) {
-        if (isSpecified(nullIfNotFound(() -> client.properties().getForType(property, type).orElse(null)))) {
+        PropertySpecification forType = nullIfNotFound(() -> client.properties().getForType(property, type).orElse(null));
+        if (isSpecified(withoutOrder(forType))) {
             return SpecificationSource.TYPE;
         }
         if (isSpecified(nullIfNotFound(() -> client.properties().get(property).orElse(null)))) {
             return SpecificationSource.GLOBAL;
         }
-        return SpecificationSource.NONE;
+        return isSpecified(forType) ? SpecificationSource.TYPE : SpecificationSource.NONE;
+    }
+
+    private static PropertySpecification withoutOrder(PropertySpecification specification) {
+        return specification == null ? null : new PropertySpecification(specification.name(), specification.nameForReverseLink(),
+                specification.targetTypes(), specification.widget(), specification.readOnly(), specification.labelTooltip(),
+                specification.required(), null);
     }
 
     /**
@@ -239,28 +271,6 @@ public class Modeler {
                 || (specification.targetTypes() != null && !specification.targetTypes().isEmpty()) || specification.widget() != null
                 || specification.readOnly() != null || specification.labelTooltip() != null || specification.required() != null
                 || specification.orderNumber() != null);
-    }
-
-    /**
-     * The specification for the type - with the values it doesn't specify taken from the global one.
-     */
-    static PropertySpecification merge(PropertySpecification forType, PropertySpecification global) {
-        if (forType == null || global == null) {
-            return forType != null ? forType : global;
-        }
-        return new PropertySpecification(
-                firstNonNull(forType.name(), global.name()),
-                firstNonNull(forType.nameForReverseLink(), global.nameForReverseLink()),
-                forType.targetTypes() == null || forType.targetTypes().isEmpty() ? global.targetTypes() : forType.targetTypes(),
-                firstNonNull(forType.widget(), global.widget()),
-                firstNonNull(forType.readOnly(), global.readOnly()),
-                firstNonNull(forType.labelTooltip(), global.labelTooltip()),
-                firstNonNull(forType.required(), global.required()),
-                firstNonNull(forType.orderNumber(), global.orderNumber()));
-    }
-
-    private static <T> T firstNonNull(T value, T fallback) {
-        return value != null ? value : fallback;
     }
 
     /**
