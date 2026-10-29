@@ -29,6 +29,15 @@ function asEmbeddedInstances(value: unknown): EmbeddedInstance[] {
   return value ? [value as EmbeddedInstance] : [];
 }
 
+function RequiredMark() {
+  return (
+    <span className="instance-field-required text-danger" title="Required">
+      <span aria-hidden="true"> *</span>
+      <span className="visually-hidden"> required</span>
+    </span>
+  );
+}
+
 /** Whether the field has no value - such fields are not shown when not editing. */
 function isEmpty(field: InstanceField): boolean {
   const { value } = field;
@@ -212,11 +221,12 @@ export default function NestedInstancesField({
                   {isEditMode ? (
                     <Form.Label title={nestedField.tooltip}>
                       {nestedField.label}
-                      {nestedField.required && " *"}
+                      {nestedField.required && <RequiredMark />}
                     </Form.Label>
                   ) : (
                     <div className="view-label" title={nestedField.tooltip}>
                       {nestedField.label}
+                      {nestedField.required && <RequiredMark />}
                     </div>
                   )}
                   <FieldControl

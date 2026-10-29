@@ -259,7 +259,7 @@ describe("InstanceDetail", () => {
     renderDetail(
       "",
       [
-        { identifier: name, label: "Name", kind: "TEXT", value: "HQ", required: false, readOnly: false },
+        { identifier: name, label: "Name", kind: "TEXT", value: "HQ", required: true, readOnly: false },
         { identifier: height, label: "Height", kind: "TEXT", value: "tall", required: false, readOnly: false },
       ],
       "inst-1",
@@ -307,6 +307,8 @@ describe("InstanceDetail", () => {
     const nameSection = document.querySelector('[data-instance-field="Name"]') as HTMLElement;
     expect(heightSection.querySelector(".instance-field-validation-icon")).not.toBeNull();
     expect(heightSection).toHaveTextContent("string found, integer expected · complete");
+    expect(nameSection.querySelector(".instance-field-required")).not.toBeNull();
+    expect(heightSection.querySelector(".instance-field-required")).toBeNull();
     expect(nameSection.querySelector(".instance-field-validation-icon")).toBeNull();
     expect(nameSection.querySelector(".instance-field-validation-errors")).toBeNull();
 

@@ -838,6 +838,7 @@ function InstanceDetailView({ instanceId }: { instanceId: string }) {
                       <div key={field.identifier} {...fieldSectionProps(field)}>
                         <ViewFieldLabel
                           tooltip={field.tooltip}
+                          required={field.required}
                           validationErrors={fieldErrors.get(field.identifier)}
                         >
                           {field.label}
@@ -863,10 +864,10 @@ function InstanceDetailView({ instanceId }: { instanceId: string }) {
                         <InstanceFieldLabel
                           isChanged={changedFieldKeys.has(field.identifier)}
                           tooltip={field.tooltip}
+                          required={field.required}
                           validationErrors={fieldErrors.get(field.identifier)}
                         >
                           {field.label}
-                          {field.required && " *"}
                         </InstanceFieldLabel>
                         <InstanceFieldControl
                           field={field}
@@ -1015,10 +1016,10 @@ function UnsupportedFieldsSection({
                   <InstanceFieldLabel
                     isChanged={changedFieldKeys.has(field.identifier)}
                     tooltip={field.tooltip}
+                    required={field.required}
                     validationErrors={fieldErrors.get(field.identifier)}
                   >
                     {field.label}
-                    {field.required && " *"}
                   </InstanceFieldLabel>
                   {control}
                   <FieldErrors errors={fieldErrors.get(field.identifier)} />
@@ -1027,6 +1028,7 @@ function UnsupportedFieldsSection({
                 <div key={field.identifier} {...fieldSectionProps(field)}>
                   <ViewFieldLabel
                     tooltip={field.tooltip}
+                    required={field.required}
                     validationErrors={fieldErrors.get(field.identifier)}
                   >
                     {field.label}
@@ -1051,18 +1053,30 @@ function fieldSectionProps(field: InstanceField) {
 }
 
 /** The label of a field in the read mode - flagged if the validation reports errors for the field. */
+function RequiredMark() {
+  return (
+    <span className="instance-field-required text-danger" title="Required">
+      <span aria-hidden="true"> *</span>
+      <span className="visually-hidden"> required</span>
+    </span>
+  );
+}
+
 function ViewFieldLabel({
   children,
   tooltip,
+  required = false,
   validationErrors,
 }: {
   children: React.ReactNode;
   tooltip?: string;
+  required?: boolean;
   validationErrors?: FieldValidationError[];
 }) {
   return (
     <div className="view-label" title={tooltip}>
       {children}
+      {required && <RequiredMark />}
       {validationErrors && <FieldValidationIndicator errors={validationErrors} />}
     </div>
   );
@@ -1076,11 +1090,13 @@ function InstanceFieldLabel({
   children,
   isChanged = false,
   tooltip,
+  required = false,
   validationErrors,
 }: {
   children: React.ReactNode;
   isChanged?: boolean;
   tooltip?: string;
+  required?: boolean;
   validationErrors?: FieldValidationError[];
 }) {
   return (
@@ -1089,6 +1105,7 @@ function InstanceFieldLabel({
       title={tooltip}
     >
       {children}
+      {required && <RequiredMark />}
       {validationErrors && <FieldValidationIndicator errors={validationErrors} />}
       {isChanged && (
         <span className="instance-field-label-changed-badge">Unsaved</span>

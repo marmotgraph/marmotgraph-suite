@@ -139,23 +139,45 @@ export function InstanceValidationErrors({
           {errorCount} {errorCount === 1 ? "error" : "errors"}
         </span>
       </div>
-      {failed.map((v) => (
-        <div key={v.name} className="instance-validation-error-group">
-          <div className="instance-validation-error-schema">{v.name}</div>
-          <ul className="instance-validation-errors">
-            {v.errors?.map((error, index) => (
-              <li key={index} className="instance-validation-error">
-                {error.field && (
-                  <span className="instance-validation-error-field">
-                    {fieldLabels.get(error.field) ?? error.field}
+      <div className="instance-validation-schemas">
+        {failed.map((v) => {
+          const schemaErrors = v.errors ?? [];
+          const compliance =
+            v.compliance != null ? Math.min(100, Math.max(0, v.compliance)) : null;
+          return (
+            <article key={v.name} className="instance-validation-schema">
+              <header className="instance-validation-schema-header">
+                <span className="instance-validation-schema-name">{v.name}</span>
+                {compliance != null && (
+                  <span className="instance-validation-schema-value">
+                    {formatCompliance(compliance)}
                   </span>
                 )}
-                <span className="instance-validation-error-message">{error.message}</span>
-              </li>
-            ))}
-          </ul>
-        </div>
-      ))}
+                {compliance != null && (
+                  <span className="instance-validation-schema-bar" aria-hidden="true">
+                    <span
+                      className="instance-validation-schema-bar-fill"
+                      style={{ width: `${compliance}%` }}
+                    />
+                  </span>
+                )}
+              </header>
+              <ul className="instance-validation-errors">
+                {schemaErrors.map((error, index) => (
+                  <li key={index} className="instance-validation-error">
+                    {error.field && (
+                      <span className="instance-validation-error-field">
+                        {fieldLabels.get(error.field) ?? error.field}
+                      </span>
+                    )}
+                    <span className="instance-validation-error-message">{error.message}</span>
+                  </li>
+                ))}
+              </ul>
+            </article>
+          );
+        })}
+      </div>
     </section>
   );
 }
