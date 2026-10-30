@@ -10,6 +10,7 @@ import { QueryHome } from "./modules/query-builder/QueryHome";
 import { QueryDetail } from "./modules/query-builder/QueryDetail";
 import EditorHome from "./modules/editor/EditorHome";
 import InstanceDetail from "./modules/editor/InstanceDetail";
+import InvitationRedemption from "./modules/editor/InvitationRedemption";
 import VisualizerHome from "./modules/visualizer/VisualizerHome";
 import ModelerHome from "./modules/modeler/ModelerHome";
 import ApiHome from "./modules/api/ApiHome";
@@ -28,6 +29,7 @@ function App() {
           <Route path="queries/:queryId" element={<QueryDetail />} />
           <Route path="editor" element={<EditorHome />} />
           <Route path="editor/instances/:instanceId" element={<InstanceDetail />} />
+          <Route path="invitations/:token" element={<InvitationRedemption />} />
           <Route path="visualizer/*" element={<VisualizerHome />} />
           <Route path="modeler/*" element={<ModelerHome />} />
           <Route path="core-api" element={<ApiHome />} />

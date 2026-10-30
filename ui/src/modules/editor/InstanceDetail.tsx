@@ -13,6 +13,7 @@ import {
   faPencil,
   faRocket,
   faTriangleExclamation,
+  faUserPlus,
   IconDefinition,
 } from "@fortawesome/free-solid-svg-icons";
 import {
@@ -51,6 +52,7 @@ import UnsavedInstancesPanel from "../../components/UnsavedInstancesPanel";
 import RawInstanceEditor from "../../components/RawInstanceEditor";
 import InstanceRelease from "../../components/InstanceRelease";
 import InstanceInfo from "../../components/InstanceInfo";
+import InstanceReview from "../../components/InstanceReview";
 import { InstanceStatusTags } from "../../components/InstanceStatusTags";
 import {
   FieldValidationError,
@@ -76,7 +78,7 @@ const typeColors: Record<string, string> = {
 };
 
 /** The ways an instance can be shown - switched by the icons in the header */
-type InstanceMode = "read" | "edit" | "raw" | "release" | "info";
+type InstanceMode = "read" | "edit" | "raw" | "release" | "info" | "review";
 
 const INSTANCE_MODES: Array<{ mode: InstanceMode; icon: IconDefinition }> = [
   { mode: "read", icon: faEye },
@@ -84,6 +86,7 @@ const INSTANCE_MODES: Array<{ mode: InstanceMode; icon: IconDefinition }> = [
   { mode: "raw", icon: faCode },
   { mode: "release", icon: faRocket },
   { mode: "info", icon: faCircleInfo },
+  { mode: "review", icon: faUserPlus },
 ];
 
 /** Names the change of an instance edited in the raw mode (e.g. in the unsaved instances) */
@@ -173,6 +176,8 @@ function InstanceDetailView({ instanceId }: { instanceId: string }) {
   const [isReleaseMode, setIsReleaseMode] = useState(openInReleaseMode);
   /** Shows the administrative information of the instance (timestamps, contributors) instead of its fields */
   const [isInfoMode, setIsInfoMode] = useState(false);
+  /** Shows who is invited to review the instance - and allows to invite more users */
+  const [isReviewMode, setIsReviewMode] = useState(false);
   const [currentFieldValues, setCurrentFieldValues] =
     useState<InstanceFieldValues>(emptyInstanceFieldValues);
   /** The property of the type of the new instance which names its instances */
@@ -419,6 +424,7 @@ function InstanceDetailView({ instanceId }: { instanceId: string }) {
       setIsRawMode(true);
       setIsReleaseMode(false);
       setIsInfoMode(false);
+      setIsReviewMode(false);
       return;
     }
 
@@ -429,6 +435,7 @@ function InstanceDetailView({ instanceId }: { instanceId: string }) {
       setIsRawMode(false);
       setIsReleaseMode(false);
       setIsInfoMode(false);
+      setIsReviewMode(false);
       return;
     }
 
@@ -440,6 +447,7 @@ function InstanceDetailView({ instanceId }: { instanceId: string }) {
     setIsRawMode(openInRawMode);
     setIsReleaseMode(openInReleaseMode);
     setIsInfoMode(false);
+    setIsReviewMode(false);
     // Only re-initialize when navigating between instances or once the instance is loaded — not when unrelated
     // drafts are added (getDraft identity changes would exit edit mode otherwise).
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -526,6 +534,10 @@ function InstanceDetailView({ instanceId }: { instanceId: string }) {
   const canEdit = instance.permissions
     .split(",")
     .some((permission) => permission.trim() === "Edit");
+  /** Whether the user may invite others to review the instance */
+  const canReview = instance.permissions
+    .split(",")
+    .some((permission) => permission.trim() === "Review");
 
   /** Keeps the JSON edited in the raw mode as a draft - so it is listed with the unsaved instances. */
   const handleRawDraftChange = (rawJson: string | undefined) => {
@@ -549,7 +561,7 @@ function InstanceDetailView({ instanceId }: { instanceId: string }) {
     reloadInstance();
   };
 
-  const mode: InstanceMode = isInfoMode ? "info" : isReleaseMode ? "release" : isRawMode ? "raw" : isEditMode  ? "edit" : "read";
+  const mode: InstanceMode = isReviewMode ? "review" : isInfoMode ? "info" : isReleaseMode ? "release" : isRawMode ? "raw" : isEditMode  ? "edit" : "read";
 
   /** Leaves the current mode - unsaved changes (of the fields or the JSON) are discarded after confirmation. */
   const leaveMode = () => {
@@ -566,6 +578,7 @@ function InstanceDetailView({ instanceId }: { instanceId: string }) {
     setIsRawMode(false);
     setIsReleaseMode(false);
     setIsInfoMode(false);
+    setIsReviewMode(false);
     return true;
   };
 
@@ -582,6 +595,8 @@ function InstanceDetailView({ instanceId }: { instanceId: string }) {
       setIsReleaseMode(true);
     } else if (target === "info") {
       setIsInfoMode(true);
+    } else if (target === "review") {
+      setIsReviewMode(true);
     }
   };
 
@@ -591,6 +606,7 @@ function InstanceDetailView({ instanceId }: { instanceId: string }) {
     raw: canEdit ? "Show and edit the raw JSON" : "Show the raw JSON",
     release: "Release",
     info: "Information",
+    review: "Review",
   };
 
   const handleSave = () => {
@@ -748,7 +764,7 @@ function InstanceDetailView({ instanceId }: { instanceId: string }) {
                       role="group"
                       aria-label="Mode"
                     >
-                      {INSTANCE_MODES.map(({ mode: target, icon }) => (
+                      {INSTANCE_MODES.filter(({ mode: target }) => target !== "review" || canReview).map(({ mode: target, icon }) => (
                         <Button
                           key={target}
                           variant="link"
@@ -826,7 +842,9 @@ function InstanceDetailView({ instanceId }: { instanceId: string }) {
               </div>
             )}
 
-            {isInfoMode ? (
+            {isReviewMode ? (
+              <InstanceReview instanceId={instanceId} />
+            ) : isInfoMode ? (
               <InstanceInfo instanceId={instanceId} />
             ) : isReleaseMode ? (
               <InstanceRelease

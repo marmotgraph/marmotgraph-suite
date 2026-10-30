@@ -1,0 +1,256 @@
+.instance-review {
+    display: flex;
+    flex-direction: column;
+    gap: 28px;
+}
+
+.instance-review-section .view-label {
+    display: flex;
+    align-items: center;
+}
+
+.instance-review-count {
+    margin-left: 8px;
+    color: #adb5bd;
+    font-variant-numeric: tabular-nums;
+}
+
+.instance-review-form {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.instance-review-form .form-label,
+.instance-review-legend {
+    font-weight: 500;
+    font-size: 0.9rem;
+    color: #495057;
+    margin-bottom: 6px;
+}
+
+.instance-review-form .form-control:focus {
+    border-color: #6c8ebf;
+    box-shadow: 0 0 0 0.2rem rgba(108, 142, 191, 0.25);
+}
+
+.instance-review-help {
+    display: block;
+    color: #6c757d;
+    font-size: 0.8rem;
+}
+
+.instance-review-scopes {
+    margin: 0;
+}
+
+.instance-review-legend {
+    display: flex;
+    align-items: center;
+    float: none;
+    width: auto;
+}
+
+.instance-review-scopes .instance-review-help {
+    margin-bottom: 6px;
+}
+
+.instance-review-invalid {
+    margin-top: 4px;
+    font-size: 0.8rem;
+    color: #a3410a;
+}
+
+.instance-review-actions {
+    display: flex;
+    justify-content: flex-end;
+}
+
+/* Search results and listed invitations */
+.instance-review-candidates {
+    margin-top: 8px;
+}
+
+.instance-review-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    border: 1px solid #e4e7eb;
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+.instance-review-list > li + li {
+    border-top: 1px solid #f1f3f5;
+}
+
+.instance-review-row,
+.instance-review-candidate {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-width: 0;
+    padding: 8px 12px;
+}
+
+.instance-review-row--link {
+    align-items: flex-start;
+}
+
+.instance-review-row-main {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    min-width: 0;
+    flex: 1 1 auto;
+}
+
+.instance-review-candidate {
+    width: 100%;
+    border: 0;
+    border-left: 4px solid transparent;
+    background: transparent;
+    text-align: left;
+    color: inherit;
+    transition: background-color 0.15s ease;
+}
+
+.instance-review-candidate:hover {
+    background-color: #e8e9f3;
+    border-left-color: #5b5fc7;
+}
+
+.instance-review-candidate--selected,
+.instance-review-candidate--selected:hover {
+    background-color: #eef0fb;
+    border-left-color: #5b5fc7;
+}
+
+.instance-review-candidate:focus-visible {
+    outline: 2px solid #5b5fc7;
+    outline-offset: -2px;
+}
+
+.instance-review-user-icon {
+    color: #868e96;
+    flex: none;
+}
+
+.instance-review-name {
+    color: #212529;
+    font-size: 0.95rem;
+    overflow-wrap: anywhere;
+}
+
+.instance-review-row > .instance-review-name {
+    flex: 1 1 auto;
+}
+
+.instance-review-username {
+    font-family: var(--bs-font-monospace, monospace);
+    font-size: 0.75rem;
+    color: #6c757d;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.instance-review-check {
+    margin-left: auto;
+    color: #5b5fc7;
+}
+
+.instance-review-meta {
+    color: #868e96;
+    font-size: 0.8rem;
+    font-variant-numeric: tabular-nums;
+}
+
+.instance-review-scope-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
+.instance-review-scope-tag {
+    border: 1px solid #dee2e6;
+    background-color: #f8f9fa;
+    color: #333;
+    border-radius: 4px;
+    padding: 1px 8px;
+    font-size: 0.8rem;
+    overflow-wrap: anywhere;
+}
+
+.instance-review-remove {
+    margin-left: auto;
+    min-width: 32px;
+    min-height: 32px;
+}
+
+.instance-review-remove:focus-visible {
+    outline: 2px solid #6c8ebf;
+    outline-offset: 2px;
+}
+
+.instance-review-empty {
+    text-align: center;
+    color: #6c757d;
+    font-size: 0.875rem;
+    padding: 24px 12px;
+    margin: 0;
+}
+
+/* Feedback after inviting */
+.instance-review-success {
+    margin-top: 16px;
+    padding: 10px 12px;
+    border-radius: 6px;
+    background-color: #e8f6ee;
+    color: #1e7a42;
+    font-size: 0.9rem;
+}
+
+.instance-review-created {
+    margin-top: 16px;
+    padding: 12px;
+    border: 1px solid #e4e7eb;
+    border-radius: 8px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.instance-review-created-title {
+    color: #1e7a42;
+    font-weight: 600;
+    font-size: 0.9rem;
+    overflow-wrap: anywhere;
+}
+
+.instance-review-created-link {
+    display: flex;
+    gap: 8px;
+}
+
+.instance-review-created-link .form-control {
+    font-family: var(--bs-font-monospace, monospace);
+    font-size: 0.8rem;
+    min-width: 0;
+}
+
+.instance-review-created-link .btn {
+    flex: none;
+}
+
+@media (max-width: 767.98px) {
+    .instance-review-created-link {
+        flex-direction: column;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .instance-review-candidate {
+        transition: none;
+    }
+}
