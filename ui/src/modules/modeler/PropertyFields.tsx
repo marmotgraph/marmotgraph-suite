@@ -35,6 +35,7 @@ export default function PropertyFields({
   onRemove,
   renderBadges,
   renderLinks,
+  renderFlags,
 }: {
   properties: ModelProperty[];
   types: ModelType[];
@@ -50,6 +51,8 @@ export default function PropertyFields({
   renderBadges: (property: ModelProperty) => React.ReactNode;
   /** The links to the target types of the property */
   renderLinks: (property: ModelProperty) => React.ReactNode;
+  /** The flags of the property for its type - if it labels the instances and if they can be searched by it */
+  renderFlags: (property: ModelProperty) => React.ReactNode;
 }) {
   const [dragged, setDragged] = useState<string>();
   // The index the dragged property is inserted at (before the property at the index)
@@ -208,6 +211,7 @@ export default function PropertyFields({
                     {renderLinks(property)}
                   </span>
                 )}
+                {renderFlags(property)}
               </div>
             </div>
           </div>

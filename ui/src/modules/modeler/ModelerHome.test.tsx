@@ -10,6 +10,7 @@ import {
   fetchModel,
   savePropertyDefinition,
   definePropertyOrder,
+  defineType,
   fetchPropertyDefinitions,
   fetchPropertySources,
   fetchTypeSpecification,
@@ -34,6 +35,7 @@ vi.mock("../../services/modeler", async (importOriginal) => ({
   fetchPropertyDefinitions: vi.fn().mockResolvedValue({ type: null, global: null }),
   savePropertyDefinition: vi.fn().mockResolvedValue(undefined),
   definePropertyOrder: vi.fn().mockResolvedValue(undefined),
+  defineType: vi.fn().mockResolvedValue(undefined),
 }));
 
 const DEVICE = "https://example.org/types/Device";
@@ -117,6 +119,98 @@ describe("ModelerHome", () => {
     await vi.waitFor(() => expect(definePropertyOrder).toHaveBeenCalledTimes(2));
     expect(definePropertyOrder).toHaveBeenCalledWith("token", DEVICE, "https://example.org/locatedIn", 1);
     expect(definePropertyOrder).toHaveBeenCalledWith("token", DEVICE, "https://schema.org/name", 2);
+  });
+
+  it("flags the label and the searchable properties of the type", async () => {
+    vi.mocked(defineType).mockClear();
+    renderAt(`/modeler/types?type=${encodeURIComponent(DEVICE)}`, ["DEFINE_TYPES_AND_PROPERTIES"]);
+    vi.mocked(fetchTypeSpecification).mockResolvedValue({
+      name: "Device",
+      labelProperty: "https://example.org/locatedIn",
+      searchableProperties: ["https://example.org/locatedIn"],
+      embeddedOnly: false,
+    });
+    const label = await screen.findByLabelText("Label instances with name");
+    await vi.waitFor(() => expect(label).toBeEnabled());
+    expect(screen.getByLabelText("Label instances with located in")).toBeChecked();
+    fireEvent.click(label);
+    await vi.waitFor(() =>
+      expect(defineType).toHaveBeenLastCalledWith(
+        "token",
+        DEVICE,
+        expect.objectContaining({ labelProperty: "https://schema.org/name", searchableProperties: ["https://example.org/locatedIn"] }),
+      ),
+    );
+    await vi.waitFor(() => expect(screen.getByLabelText("Search instances by name")).toBeEnabled());
+    fireEvent.click(screen.getByLabelText("Search instances by name"));
+    await vi.waitFor(() =>
+      expect(defineType).toHaveBeenLastCalledWith(
+        "token",
+        DEVICE,
+        expect.objectContaining({ searchableProperties: ["https://example.org/locatedIn", "https://schema.org/name"] }),
+      ),
+    );
+  });
+
+  it("edits the name and the description of the type in place", async () => {
+    vi.mocked(defineType).mockClear();
+    renderAt(`/modeler/types?type=${encodeURIComponent(DEVICE)}`, ["DEFINE_TYPES_AND_PROPERTIES"]);
+    fireEvent.click(await screen.findByLabelText("Edit type name"));
+    const name = screen.getByLabelText("type name");
+    // Escape discards the change
+    fireEvent.change(name, { target: { value: "Gadget" } });
+    fireEvent.keyDown(name, { key: "Escape" });
+    expect(screen.queryByLabelText("type name")).not.toBeInTheDocument();
+    expect(defineType).not.toHaveBeenCalled();
+    // Enter saves it
+    fireEvent.click(screen.getByLabelText("Edit type name"));
+    fireEvent.change(screen.getByLabelText("type name"), { target: { value: "Gadget" } });
+    fireEvent.keyDown(screen.getByLabelText("type name"), { key: "Enter" });
+    await vi.waitFor(() =>
+      expect(defineType).toHaveBeenLastCalledWith("token", DEVICE, expect.objectContaining({ name: "Gadget" })),
+    );
+    expect(defineType).toHaveBeenCalledTimes(1);
+    await vi.waitFor(() => expect(screen.queryByLabelText("type name")).not.toBeInTheDocument());
+    // The description is saved when the field is left
+    fireEvent.click(screen.getByText("Add a description"));
+    fireEvent.change(screen.getByLabelText("type description"), { target: { value: "A device" } });
+    fireEvent.blur(screen.getByLabelText("type description"));
+    await vi.waitFor(() =>
+      expect(defineType).toHaveBeenLastCalledWith(
+        "token",
+        DEVICE,
+        expect.objectContaining({ name: "Gadget", description: "A device" }),
+      ),
+    );
+  });
+
+  it("changes the color and the embedding of the type in the header", async () => {
+    vi.mocked(defineType).mockClear();
+    renderAt(`/modeler/types?type=${encodeURIComponent(DEVICE)}`, ["DEFINE_TYPES_AND_PROPERTIES"]);
+    const color = await screen.findByLabelText("Type color");
+    // Moving in the picker doesn't save yet - only choosing the color does
+    fireEvent.input(color, { target: { value: "#123456" } });
+    expect(defineType).not.toHaveBeenCalled();
+    fireEvent.change(color, { target: { value: "#123456" } });
+    await vi.waitFor(() =>
+      expect(defineType).toHaveBeenLastCalledWith("token", DEVICE, expect.objectContaining({ color: "#123456" })),
+    );
+    fireEvent.click(screen.getByLabelText("Embedded only"));
+    await vi.waitFor(() =>
+      expect(defineType).toHaveBeenLastCalledWith(
+        "token",
+        DEVICE,
+        expect.objectContaining({ color: "#123456", embeddedOnly: true }),
+      ),
+    );
+    expect(screen.queryByRole("tab", { name: "Definition" })).not.toBeInTheDocument();
+  });
+
+  it("shows the name of the type read-only without the permission to define types", async () => {
+    renderAt(`/modeler/types?type=${encodeURIComponent(DEVICE)}`);
+    expect(await screen.findByRole("heading", { name: "Device" })).toBeInTheDocument();
+    expect(screen.queryByLabelText("Edit type name")).not.toBeInTheDocument();
+    expect(screen.queryByText("Add a description")).not.toBeInTheDocument();
   });
 
   it("defines a relation by the widget of a property", async () => {

@@ -74,8 +74,31 @@
     padding: 0.15rem;
 }
 
-.modeler-color-text {
-    max-width: 10rem;
+/* The color of the type in the header - opens a color picker */
+.modeler-color-swatch {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+    height: 24px;
+    margin-left: -6px;
+    border-radius: 6px;
+    cursor: pointer;
+}
+
+.modeler-color-swatch:hover {
+    background-color: #f1f3f5;
+}
+
+.modeler-color-swatch:focus-within {
+    outline: 2px solid #5b5fc7;
+    outline-offset: 1px;
+}
+
+.modeler-header-switch {
+    margin-bottom: 0;
+    min-height: 0;
+    color: #495057;
 }
 
 /* Identifiers (IRIs) - one line, monospace, with a copy control */
@@ -225,6 +248,79 @@
 
 .modeler-type-details .instance-name {
     margin-bottom: 6px;
+}
+
+/* Texts of the header edited in place - the name and the description of the type */
+.modeler-inline {
+    min-width: 0;
+}
+
+.modeler-inline--editable {
+    display: flex;
+    align-items: flex-start;
+    gap: 4px;
+}
+
+.modeler-inline-text {
+    min-width: 0;
+    margin-left: -6px;
+    padding: 0 6px;
+    border-radius: 6px;
+    cursor: text;
+}
+
+.modeler-inline-text:hover {
+    background-color: #f1f3f5;
+}
+
+.modeler-type-details .modeler-inline--editable .instance-name + .edit-icon-btn {
+    margin-top: 6px;
+}
+
+.modeler-type-details .modeler-type-description {
+    margin: 8px 0 0;
+    white-space: pre-line;
+}
+
+.modeler-type-details .modeler-type-description.modeler-inline-text {
+    margin-left: -6px;
+}
+
+.modeler-inline-placeholder {
+    color: #adb5bd;
+}
+
+.modeler-type-details .form-control.modeler-inline-input {
+    margin-left: -7px;
+    padding: 0 6px;
+    width: calc(100% + 7px);
+    color: #212529;
+    border-color: #dee2e6;
+    border-radius: 6px;
+}
+
+.modeler-type-details .form-control.modeler-inline-input.instance-name {
+    margin-bottom: 0;
+    font-size: 1.85rem;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+}
+
+.modeler-type-details .form-control.modeler-inline-input.modeler-type-description {
+    margin-top: 8px;
+    padding: 4px 6px;
+    font-size: 0.9rem;
+}
+
+.modeler-type-details .form-control.modeler-inline-input:focus {
+    border-color: #6c8ebf;
+    box-shadow: 0 0 0 2px rgba(108, 142, 191, 0.25);
+}
+
+.modeler-inline-help {
+    margin-top: 4px;
+    font-size: 0.75rem;
+    color: #868e96;
 }
 
 .modeler-type-link {
@@ -381,6 +477,25 @@
     margin-top: 6px;
     font-size: 0.8rem;
     color: #868e96;
+}
+
+/* If the property labels the instances of the type and if they can be searched by it */
+.modeler-field-flags {
+    display: inline-flex;
+    align-items: center;
+    gap: 16px;
+    margin-left: auto;
+}
+
+.modeler-field-flags .form-check {
+    margin-bottom: 0;
+    min-height: 0;
+    color: #495057;
+}
+
+.modeler-field-flags .form-check-input:focus-visible {
+    outline: 2px solid #5b5fc7;
+    outline-offset: 2px;
 }
 
 .modeler-field-meta .modeler-id {
