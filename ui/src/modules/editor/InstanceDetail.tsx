@@ -84,9 +84,9 @@ const INSTANCE_MODES: Array<{ mode: InstanceMode; icon: IconDefinition }> = [
   { mode: "read", icon: faEye },
   { mode: "edit", icon: faPencil },
   { mode: "raw", icon: faCode },
+  { mode: "review", icon: faUserPlus },
   { mode: "release", icon: faRocket },
   { mode: "info", icon: faCircleInfo },
-  { mode: "review", icon: faUserPlus },
 ];
 
 /** Names the change of an instance edited in the raw mode (e.g. in the unsaved instances) */

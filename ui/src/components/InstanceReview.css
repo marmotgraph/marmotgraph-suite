@@ -84,6 +84,36 @@
     border-top: 1px solid #f1f3f5;
 }
 
+.instance-review-hint {
+    padding: 10px 12px;
+    color: #6c757d;
+    font-size: 0.875rem;
+}
+
+.instance-review-hint--error {
+    color: #a3410a;
+}
+
+/* The invitation link is always the last option - set apart from the users found */
+.instance-review-list > li.instance-review-list-link {
+    border-top-color: #e4e7eb;
+    background-color: #f8f9fb;
+}
+
+.instance-review-list-link .instance-review-name strong {
+    font-weight: 600;
+}
+
+.instance-review-candidate:disabled {
+    color: #868e96;
+    cursor: not-allowed;
+}
+
+.instance-review-candidate:disabled:hover {
+    background-color: transparent;
+    border-left-color: transparent;
+}
+
 .instance-review-row,
 .instance-review-candidate {
     display: flex;

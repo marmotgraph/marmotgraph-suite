@@ -77,7 +77,7 @@ describe("InstanceReview", () => {
     ]);
     render(<InstanceReview instanceId="abc" />);
 
-    fireEvent.change(await screen.findByLabelText("User"), { target: { value: "jan" } });
+    fireEvent.change(await screen.findByLabelText("User or invitation label"), { target: { value: "jan" } });
     fireEvent.click(await screen.findByRole("button", { name: /Jane Doe/ }));
     fireEvent.click(screen.getByLabelText("parts"));
     fireEvent.click(screen.getByRole("button", { name: "Invite user" }));
@@ -90,8 +90,8 @@ describe("InstanceReview", () => {
 
   it("requires at least one scope", async () => {
     render(<InstanceReview instanceId="abc" />);
-    fireEvent.click(await screen.findByLabelText("Invitation link"));
-    fireEvent.change(screen.getByLabelText("Label"), { target: { value: "For Max" } });
+    fireEvent.change(await screen.findByLabelText("User or invitation label"), { target: { value: "Ma" } });
+    fireEvent.click(screen.getByRole("button", { name: /Create an invitation link labeled Ma/ }));
     fireEvent.click(screen.getByLabelText("parts"));
     fireEvent.click(screen.getByLabelText("rack"));
 
@@ -99,7 +99,19 @@ describe("InstanceReview", () => {
     expect(screen.getByRole("button", { name: "Create invitation link" })).toBeDisabled();
   });
 
-  it("requires a label for an invitation link and offers the created link to be copied", async () => {
+  it("offers an invitation link labeled with the text below the users found", async () => {
+    vi.mocked(searchInvitationCandidates).mockResolvedValue([]);
+    render(<InstanceReview instanceId="abc" />);
+
+    expect(screen.queryByRole("button", { name: /Create an invitation link/ })).not.toBeInTheDocument();
+    fireEvent.change(await screen.findByLabelText("User or invitation label"), { target: { value: "Max Muster" } });
+
+    expect(await screen.findByText("No users found.")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Create an invitation link labeled Max Muster" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Invite user" })).toBeDisabled();
+  });
+
+  it("creates an invitation link labeled with the text and offers it to be copied", async () => {
     const writeText = vi.fn().mockResolvedValue(undefined);
     Object.assign(navigator, { clipboard: { writeText } });
     vi.mocked(createInvitationLink).mockResolvedValue({
@@ -110,11 +122,9 @@ describe("InstanceReview", () => {
     });
     render(<InstanceReview instanceId="abc" />);
 
-    fireEvent.click(await screen.findByLabelText("Invitation link"));
-    const create = screen.getByRole("button", { name: "Create invitation link" });
-    expect(create).toBeDisabled();
-    fireEvent.change(screen.getByLabelText("Label"), { target: { value: "  For Max " } });
-    fireEvent.click(create);
+    fireEvent.change(await screen.findByLabelText("User or invitation label"), { target: { value: "  For Max " } });
+    fireEvent.click(screen.getByRole("button", { name: /Create an invitation link labeled For Max/ }));
+    fireEvent.click(screen.getByRole("button", { name: "Create invitation link" }));
 
     const link = await screen.findByLabelText("Invitation link", { selector: "input[readonly]" });
     expect(link).toHaveValue(`${window.location.origin}/invitations/secret%2Ftoken`);

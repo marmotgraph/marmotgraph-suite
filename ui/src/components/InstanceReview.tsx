@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useState } from "react";
 import { Alert, Button, Form, Modal, Spinner } from "react-bootstrap";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { faCheck, faCopy, faTrash, faUser } from "@fortawesome/free-solid-svg-icons";
+import { faCheck, faCopy, faLink, faTrash, faUser } from "@fortawesome/free-solid-svg-icons";
 import { useAuth } from "../contexts/AuthContext";
 import {
   createInvitationLink,
@@ -23,7 +23,8 @@ import "./InstanceReview.css";
 /** Delay after the last keystroke before the users are searched */
 const SEARCH_DELAY_MS = 300;
 
-type InviteMethod = "user" | "link";
+/** Whom to invite - a known user or whoever gets an invitation link (labeled with the text typed) */
+type Invitee = { kind: "user"; candidate: InvitationCandidate } | { kind: "link" };
 
 /** An invitation to be removed - of an invited user (by its username) or an invitation link. */
 type Removal =
@@ -147,10 +148,9 @@ function InviteForm({
   onInvited: () => void;
 }) {
   const { getAccessToken } = useAuth();
-  const [method, setMethod] = useState<InviteMethod>("user");
+  const [search, setSearch] = useState("");
+  const [selection, setSelection] = useState<Invitee>();
   const [selectedScopes, setSelectedScopes] = useState<string[]>(scopes ?? []);
-  const [candidate, setCandidate] = useState<InvitationCandidate>();
-  const [label, setLabel] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string>();
   /** The user invited last - confirmed below the form */
@@ -162,22 +162,27 @@ function InviteForm({
   const scopeKey = (scopes ?? []).join("\n");
   useEffect(() => setSelectedScopes(scopes ?? []), [scopeKey]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  /** The text typed is the label of an invitation link */
+  const label = search.trim();
   const hasScopes = (scopes?.length ?? 0) > 0;
   const missingScopes = hasScopes && selectedScopes.length === 0;
-  const trimmedLabel = label.trim();
   const canSubmit =
     !submitting &&
     !missingScopes &&
-    (method === "user" ? Boolean(candidate) : trimmedLabel.length > 0);
+    (selection?.kind === "user" || (selection?.kind === "link" && label.length > 0));
 
-  const switchMethod = (target: InviteMethod) => {
-    setMethod(target);
+  const changeSearch = (value: string) => {
+    setSearch(value);
     setError(undefined);
+    // A selected user doesn't match the new text anymore - choosing to create a link still holds (with the new label)
+    if (selection?.kind === "user" || !value.trim()) {
+      setSelection(undefined);
+    }
   };
 
   const submit = (event: React.FormEvent) => {
     event.preventDefault();
-    if (!canSubmit) {
+    if (!canSubmit || !selection) {
       return;
     }
     // Without the scopes being known, the core applies all scopes of the type
@@ -188,14 +193,14 @@ function InviteForm({
     setCreatedLink(undefined);
     getAccessToken()
       .then(async (token) => {
-        if (method === "user" && candidate) {
-          await inviteUser(token, instanceId, candidate.id, requestedScopes);
-          setInvitedUser(candidate);
-          setCandidate(undefined);
+        if (selection.kind === "user") {
+          await inviteUser(token, instanceId, selection.candidate.id, requestedScopes);
+          setInvitedUser(selection.candidate);
         } else {
-          setCreatedLink(await createInvitationLink(token, instanceId, trimmedLabel, requestedScopes));
-          setLabel("");
+          setCreatedLink(await createInvitationLink(token, instanceId, label, requestedScopes));
         }
+        setSearch("");
+        setSelection(undefined);
         onInvited();
       })
       .catch((e: unknown) => setError(errorMessage(e)))
@@ -208,50 +213,13 @@ function InviteForm({
         Invite for review
       </h3>
       <Form onSubmit={submit} className="instance-review-form">
-        <div className="instance-review-methods" role="radiogroup" aria-label="Invite">
-          <Form.Check
-            inline
-            type="radio"
-            id="instance-review-method-user"
-            name="instance-review-method"
-            label="Known user"
-            checked={method === "user"}
-            onChange={() => switchMethod("user")}
-          />
-          <Form.Check
-            inline
-            type="radio"
-            id="instance-review-method-link"
-            name="instance-review-method"
-            label="Invitation link"
-            checked={method === "link"}
-            onChange={() => switchMethod("link")}
-          />
-        </div>
-
-        {method === "user" ? (
-          <CandidateSearch
-            instanceId={instanceId}
-            selected={candidate}
-            onSelect={setCandidate}
-          />
-        ) : (
-          <Form.Group controlId="instance-review-label">
-            <Form.Label>Label</Form.Label>
-            <Form.Control
-              value={label}
-              onChange={(e) => setLabel(e.target.value)}
-              maxLength={MAX_INVITATION_LABEL_LENGTH}
-              placeholder="Whom the link is given to, e.g. Jane Doe (ETH)"
-              required
-              aria-describedby="instance-review-label-help"
-            />
-            <Form.Text id="instance-review-label-help" className="instance-review-help">
-              Required. Helps you recognize the invitation in the list below. The person opening the link signs in
-              and gets access - the link works once.
-            </Form.Text>
-          </Form.Group>
-        )}
+        <InviteeSearch
+          instanceId={instanceId}
+          search={search}
+          onSearchChange={changeSearch}
+          selection={selection}
+          onSelect={setSelection}
+        />
 
         <ScopeSelection
           scopes={scopes}
@@ -268,40 +236,45 @@ function InviteForm({
         <div className="instance-review-actions">
           <Button type="submit" variant="outline-dark" disabled={!canSubmit}>
             {submitting && <Spinner animation="border" size="sm" className="me-2" />}
-            {method === "user" ? "Invite user" : "Create invitation link"}
+            {selection?.kind === "link" ? "Create invitation link" : "Invite user"}
           </Button>
         </div>
       </Form>
 
-      {invitedUser && method === "user" && (
+      {invitedUser && (
         <div className="instance-review-success" role="status">
           <FontAwesomeIcon icon={faCheck} aria-hidden="true" className="me-2" />
           {invitedUser.name} is invited for review.
         </div>
       )}
-      {createdLink?.token && method === "link" && (
-        <CreatedLink invitation={createdLink} />
-      )}
+      {createdLink?.token && <CreatedLink invitation={createdLink} />}
     </section>
   );
 }
 
-/** Searches the known users while typing - one of them is selected to be invited. */
-function CandidateSearch({
+/**
+ * One field for both ways to invite: the known users matching the text are searched while typing - and an invitation
+ * link labeled with the text is offered below them (for whoever isn't found). One of the options is selected.
+ */
+function InviteeSearch({
   instanceId,
-  selected,
+  search,
+  onSearchChange,
+  selection,
   onSelect,
 }: {
   instanceId: string;
-  selected?: InvitationCandidate;
-  onSelect: (candidate: InvitationCandidate | undefined) => void;
+  search: string;
+  onSearchChange: (search: string) => void;
+  selection?: Invitee;
+  onSelect: (selection: Invitee | undefined) => void;
 }) {
   const { getAccessToken } = useAuth();
-  const [search, setSearch] = useState("");
   const [candidates, setCandidates] = useState<InvitationCandidate[]>();
   const [searching, setSearching] = useState(false);
   const [error, setError] = useState<string>();
   const term = search.trim();
+  const tooLongForLabel = term.length > MAX_INVITATION_LABEL_LENGTH;
 
   useEffect(() => {
     if (term.length < MIN_CANDIDATE_SEARCH_LENGTH) {
@@ -330,48 +303,49 @@ function CandidateSearch({
     };
   }, [getAccessToken, instanceId, term]);
 
+  const linkSelected = selection?.kind === "link";
+
   return (
     <Form.Group controlId="instance-review-search">
-      <Form.Label>User</Form.Label>
+      <Form.Label>User or invitation label</Form.Label>
       <Form.Control
         type="search"
         value={search}
-        onChange={(e) => setSearch(e.target.value)}
+        onChange={(e) => onSearchChange(e.target.value)}
         placeholder="Email address, username or name"
         autoComplete="off"
         aria-describedby="instance-review-search-help"
       />
       <Form.Text id="instance-review-search-help" className="instance-review-help">
-        Only users who have signed in before can be found. Invite everybody else with an invitation link.
+        Finds users who have signed in before. For anybody else, create an invitation link - the text becomes its
+        label, so you recognize it in the list below.
       </Form.Text>
-      <div className="instance-review-candidates" aria-live="polite">
-        {term.length > 0 && term.length < MIN_CANDIDATE_SEARCH_LENGTH ? (
-          <p className="instance-review-empty">
-            Type at least {MIN_CANDIDATE_SEARCH_LENGTH} characters.
-          </p>
-        ) : searching && !candidates ? (
-          <p className="instance-review-empty">
-            <Spinner animation="border" size="sm" role="status" className="me-2" />
-            Searching...
-          </p>
-        ) : error ? (
-          <Alert variant="danger" className="mb-0">
-            {error}
-          </Alert>
-        ) : candidates && candidates.length === 0 ? (
-          <p className="instance-review-empty">No users found.</p>
-        ) : (
-          candidates && (
-            <ul className="instance-review-list" aria-label="Users found">
-              {candidates.map((candidate) => {
-                const isSelected = selected?.id === candidate.id;
+      {term.length > 0 && (
+        <div className="instance-review-candidates" aria-live="polite">
+          <ul className="instance-review-list" aria-label="Invite">
+            {term.length < MIN_CANDIDATE_SEARCH_LENGTH ? (
+              <li className="instance-review-hint">
+                Type at least {MIN_CANDIDATE_SEARCH_LENGTH} characters to search users.
+              </li>
+            ) : searching && !candidates ? (
+              <li className="instance-review-hint">
+                <Spinner animation="border" size="sm" role="status" className="me-2" />
+                Searching users...
+              </li>
+            ) : error ? (
+              <li className="instance-review-hint instance-review-hint--error">{error}</li>
+            ) : candidates && candidates.length === 0 ? (
+              <li className="instance-review-hint">No users found.</li>
+            ) : (
+              candidates?.map((candidate) => {
+                const isSelected = selection?.kind === "user" && selection.candidate.id === candidate.id;
                 return (
                   <li key={candidate.id}>
                     <button
                       type="button"
                       className={`instance-review-candidate${isSelected ? " instance-review-candidate--selected" : ""}`}
                       aria-pressed={isSelected}
-                      onClick={() => onSelect(isSelected ? undefined : candidate)}
+                      onClick={() => onSelect(isSelected ? undefined : { kind: "user", candidate })}
                     >
                       <FontAwesomeIcon icon={faUser} className="instance-review-user-icon" aria-hidden="true" />
                       <span className="instance-review-name">{candidate.name}</span>
@@ -384,11 +358,33 @@ function CandidateSearch({
                     </button>
                   </li>
                 );
-              })}
-            </ul>
-          )
-        )}
-      </div>
+              })
+            )}
+            <li className="instance-review-list-link">
+              <button
+                type="button"
+                className={`instance-review-candidate${linkSelected ? " instance-review-candidate--selected" : ""}`}
+                aria-pressed={linkSelected}
+                disabled={tooLongForLabel}
+                onClick={() => onSelect(linkSelected ? undefined : { kind: "link" })}
+              >
+                <FontAwesomeIcon icon={faLink} className="instance-review-user-icon" aria-hidden="true" />
+                <span className="instance-review-name">
+                  Create an invitation link labeled <strong>{term}</strong>
+                </span>
+                {linkSelected && (
+                  <FontAwesomeIcon icon={faCheck} className="instance-review-check" aria-hidden="true" />
+                )}
+              </button>
+              {tooLongForLabel && (
+                <div className="instance-review-invalid px-3 pb-2">
+                  A label can have at most {MAX_INVITATION_LABEL_LENGTH} characters.
+                </div>
+              )}
+            </li>
+          </ul>
+        </div>
+      )}
     </Form.Group>
   );
 }
