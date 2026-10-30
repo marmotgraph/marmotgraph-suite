@@ -52,6 +52,7 @@ import UnsavedInstancesPanel from "../../components/UnsavedInstancesPanel";
 import RawInstanceEditor from "../../components/RawInstanceEditor";
 import InstanceRelease from "../../components/InstanceRelease";
 import InstanceInfo from "../../components/InstanceInfo";
+import { DisabledHint, noPermission } from "../../components/DisabledHint";
 import InstanceReview from "../../components/InstanceReview";
 import { InstanceStatusTags } from "../../components/InstanceStatusTags";
 import {
@@ -83,9 +84,9 @@ type InstanceMode = "read" | "edit" | "raw" | "release" | "info" | "review";
 const INSTANCE_MODES: Array<{ mode: InstanceMode; icon: IconDefinition }> = [
   { mode: "read", icon: faEye },
   { mode: "edit", icon: faPencil },
-  { mode: "raw", icon: faCode },
   { mode: "review", icon: faUserPlus },
   { mode: "release", icon: faRocket },
+  { mode: "raw", icon: faCode },
   { mode: "info", icon: faCircleInfo },
 ];
 
@@ -167,13 +168,14 @@ function InstanceDetailView({ instanceId }: { instanceId: string }) {
   const openInRawMode = searchParams.get("raw") === "1" && !isNewInstance;
   const openInReleaseMode = searchParams.get("release") === "1" && !isNewInstance && !openInRawMode;
 
-  const [isEditMode, setIsEditMode] = useState(
+  /** Whether the fields are to be edited - they are only while the user may edit the instance (see isEditMode) */
+  const [isEditModeRequested, setIsEditMode] = useState(
     (isNewInstance || openInEditMode) && !openInRawMode && !openInReleaseMode,
   );
   /** Shows the full JSON of the instance instead of its fields (only available when not editing the fields) */
   const [isRawMode, setIsRawMode] = useState(openInRawMode);
   /** Shows the release tree of the instance instead of its fields (only available when not editing the fields) */
-  const [isReleaseMode, setIsReleaseMode] = useState(openInReleaseMode);
+  const [isReleaseModeRequested, setIsReleaseMode] = useState(openInReleaseMode);
   /** Shows the administrative information of the instance (timestamps, contributors) instead of its fields */
   const [isInfoMode, setIsInfoMode] = useState(false);
   /** Shows who is invited to review the instance - and allows to invite more users */
@@ -197,6 +199,16 @@ function InstanceDetailView({ instanceId }: { instanceId: string }) {
           }
         : undefined,
   );
+  const permissions = instance?.permissions.split(",").map((permission) => permission.trim()) ?? [];
+  const canEdit = permissions.includes("Edit");
+  /** Whether the user may invite others to review the instance */
+  const canReview = permissions.includes("Review");
+  // A new instance is created by the user - an existing one is only edited with the right to edit it (also when
+  // requested by the URL or an unsaved draft)
+  const isEditMode = isEditModeRequested && (isNewInstance || canEdit);
+  const canRelease = permissions.includes("Release");
+  // The release tree is only shown with the right to release the instance (also when requested by the URL)
+  const isReleaseMode = isReleaseModeRequested && canRelease;
   /** The linked instance hovered - either in the form or in the outgoing links */
   const [hoveredLink, setHoveredLink] = useState<HoveredLink>();
   const [layoutEl, setLayoutEl] = useState<HTMLDivElement | null>(null);
@@ -531,14 +543,6 @@ function InstanceDetailView({ instanceId }: { instanceId: string }) {
     navigator.clipboard.writeText(instanceId || "");
   };
 
-  const canEdit = instance.permissions
-    .split(",")
-    .some((permission) => permission.trim() === "Edit");
-  /** Whether the user may invite others to review the instance */
-  const canReview = instance.permissions
-    .split(",")
-    .some((permission) => permission.trim() === "Review");
-
   /** Keeps the JSON edited in the raw mode as a draft - so it is listed with the unsaved instances. */
   const handleRawDraftChange = (rawJson: string | undefined) => {
     if (rawJson === undefined) {
@@ -607,6 +611,13 @@ function InstanceDetailView({ instanceId }: { instanceId: string }) {
     release: "Release",
     info: "Information",
     review: "Review",
+  };
+
+  /** The modes that need a permission - and what the user may not do without it */
+  const modePermissions: Partial<Record<InstanceMode, { permitted: boolean; action: string }>> = {
+    edit: { permitted: canEdit, action: "edit this instance" },
+    release: { permitted: canRelease, action: "release this instance" },
+    review: { permitted: canReview, action: "invite reviewers for this instance" },
   };
 
   const handleSave = () => {
@@ -764,19 +775,29 @@ function InstanceDetailView({ instanceId }: { instanceId: string }) {
                       role="group"
                       aria-label="Mode"
                     >
-                      {INSTANCE_MODES.filter(({ mode: target }) => target !== "review" || canReview).map(({ mode: target, icon }) => (
-                        <Button
-                          key={target}
-                          variant="link"
-                          className={`edit-icon-btn${mode === target ? " edit-icon-btn--active" : ""}`}
-                          onClick={() => switchMode(target)}
-                          aria-label={modeTitles[target]}
-                          aria-pressed={mode === target}
-                          title={modeTitles[target]}
-                        >
-                          <FontAwesomeIcon icon={icon} />
-                        </Button>
-                      ))}
+                      {INSTANCE_MODES.map(({ mode: target, icon }) => {
+                        // The modes are always shown - so they do not come and go when navigating between instances
+                        const missingPermission = modePermissions[target];
+                        const disabled = missingPermission !== undefined && !missingPermission.permitted;
+                        return (
+                          <DisabledHint
+                            key={target}
+                            reason={disabled ? noPermission(missingPermission.action) : undefined}
+                          >
+                            <Button
+                              variant="link"
+                              className={`edit-icon-btn${mode === target ? " edit-icon-btn--active" : ""}`}
+                              onClick={() => switchMode(target)}
+                              disabled={disabled}
+                              aria-label={modeTitles[target]}
+                              aria-pressed={mode === target}
+                              title={disabled ? undefined : modeTitles[target]}
+                            >
+                              <FontAwesomeIcon icon={icon} />
+                            </Button>
+                          </DisabledHint>
+                        );
+                      })}
                     </div>
                   )}
                 </div>

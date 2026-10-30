@@ -10,7 +10,7 @@ import "./InstanceInfo.css";
 
 /**
  * Shows the administrative information of an instance: when it was created, last modified and (first / last)
- * released - and the users who have contributed to it.
+ * released - and the users who have contributed to it (if the user may see them).
  */
 export default function InstanceInfo({ instanceId }: { instanceId: string }) {
   const { getAccessToken } = useAuth();
@@ -86,14 +86,13 @@ export default function InstanceInfo({ instanceId }: { instanceId: string }) {
           </div>
         ))}
       </dl>
-      <section aria-labelledby="instance-info-contributors">
-        <h3 id="instance-info-contributors" className="view-label">
-          Contributors
-          <span className="instance-info-count">{info.contributors.length}</span>
-        </h3>
-        {info.contributors.length === 0 ? (
-          <p className="instance-info-empty">No contributors known.</p>
-        ) : (
+      {/* The contributors are only given to users with the permission to see them - the section is left out otherwise */}
+      {info.contributors && info.contributors.length > 0 && (
+        <section aria-labelledby="instance-info-contributors">
+          <h3 id="instance-info-contributors" className="view-label">
+            Contributors
+            <span className="instance-info-count">{info.contributors.length}</span>
+          </h3>
           <ul className="instance-info-contributors">
             {info.contributors.map((contributor) => (
               <li
@@ -110,8 +109,8 @@ export default function InstanceInfo({ instanceId }: { instanceId: string }) {
               </li>
             ))}
           </ul>
-        )}
-      </section>
+        </section>
+      )}
     </div>
   );
 }

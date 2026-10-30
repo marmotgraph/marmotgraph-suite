@@ -402,7 +402,8 @@ export interface InstanceInformation {
   lastModified?: string;
   firstReleased?: string;
   lastReleased?: string;
-  contributors: Contributor[];
+  /** Empty (or missing) if the user may not see the contributors */
+  contributors?: Contributor[];
 }
 
 /** Fetches the administrative information of an instance (timestamps and contributors). */

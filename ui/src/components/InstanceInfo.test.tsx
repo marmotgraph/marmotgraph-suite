@@ -46,7 +46,7 @@ describe("InstanceInfo", () => {
     expect(fetchInstanceInformation).toHaveBeenCalledWith("token", "abc");
   });
 
-  it("tells when the instance has never been released and has no contributors", async () => {
+  it("tells when the instance has never been released and leaves out the contributors not given", async () => {
     vi.mocked(fetchInstanceInformation).mockResolvedValue({
       createdAt: "2026-01-02T10:00:00Z",
       lastModified: "2026-01-02T10:00:00Z",
@@ -54,7 +54,8 @@ describe("InstanceInfo", () => {
     });
     render(<InstanceInfo instanceId="abc" />);
 
-    expect(await screen.findByText("No contributors known.")).toBeInTheDocument();
+    expect(await screen.findByText("Last released")).toBeInTheDocument();
+    expect(screen.queryByText("Contributors")).not.toBeInTheDocument();
     expect(within(valueOf("Last released")).getByText("Never released")).toBeInTheDocument();
     expect(within(valueOf("First released")).getByText("Never released")).toBeInTheDocument();
   });
@@ -67,6 +68,6 @@ describe("InstanceInfo", () => {
 
     fireEvent.click(await screen.findByRole("button", { name: "Retry" }));
 
-    expect(await screen.findByText("No contributors known.")).toBeInTheDocument();
+    expect(await screen.findByText("Last modified")).toBeInTheDocument();
   });
 });

@@ -182,6 +182,28 @@ describe("InstanceDetail", () => {
     ).not.toBeInTheDocument();
   });
 
+  it("disables the modes the user may not use for the instance", async () => {
+    renderDetail("?edit=1", [], "inst-1", { permissions: "View" });
+
+    expect(await screen.findByRole("button", { name: "Edit" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Review" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Release" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Edit" }).parentElement).toHaveAttribute(
+      "title",
+      "You don't have the permission to edit this instance",
+    );
+    expect(screen.getByRole("button", { name: "Read" })).toHaveAttribute("aria-pressed", "true");
+    expect(screen.queryByRole("button", { name: "Save" })).not.toBeInTheDocument();
+  });
+
+  it("does not open the release tree without the permission to release", async () => {
+    renderDetail("?release=1");
+
+    expect(await screen.findByRole("button", { name: "Release" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Read" })).toHaveAttribute("aria-pressed", "true");
+    expect(screen.queryByRole("list", { name: "Release tree" })).not.toBeInTheDocument();
+  });
+
   it("opens in edit mode when requested from the preview", async () => {
     renderDetail("?edit=1");
 
@@ -213,7 +235,7 @@ describe("InstanceDetail", () => {
   });
 
   it("opens in release mode when requested", async () => {
-    renderDetail("?release=1");
+    renderDetail("?release=1", [], "inst-1", { permissions: "View, Edit, Release" });
 
     expect(
       await screen.findByRole("button", { name: "Release" }),
@@ -224,7 +246,7 @@ describe("InstanceDetail", () => {
   });
 
   it("switches to the release tree", async () => {
-    renderDetail();
+    renderDetail(undefined, [], "inst-1", { permissions: "View, Edit, Release" });
 
     fireEvent.click(await screen.findByRole("button", { name: "Release" }));
 

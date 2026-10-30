@@ -268,6 +268,13 @@
     color: #212529;
 }
 
+.instance-permission-btn:disabled {
+    background-color: #f8f9fa;
+    border-color: #e9ecef;
+    color: #ced4da;
+    pointer-events: none;
+}
+
 .instance-permission-btn:focus-visible {
     outline: 2px solid #5b5fc7;
     outline-offset: 2px;
@@ -422,6 +429,15 @@
 .instance-preview-actions {
     display: flex;
     gap: 6px;
+}
+
+/* A disabled action is wrapped for its tooltip (DisabledHint) - the wrapper takes its share of the width */
+.instance-preview-actions > .disabled-hint {
+    flex: 1 1 0;
+}
+
+.instance-preview-actions .disabled-hint .btn {
+    width: 100%;
 }
 
 .instance-preview-actions .btn {

@@ -39,6 +39,7 @@ import {
 import { Timestamp } from "../../components/Timestamp";
 import { InstanceStatusTags } from "../../components/InstanceStatusTags";
 import { InstanceSummary, ReleaseStatus } from "./editorMockData";
+import { DisabledHint, noPermission } from "../../components/DisabledHint";
 import { EDITOR_BREADCRUMB_TRAIL_KEY } from "./editorConstants";
 import "../query-builder/SharedQueries.css";
 import "./EditorHome.css";
@@ -488,14 +489,18 @@ export default function EditorHome() {
               {selectedInstances.size} instance
               {selectedInstances.size !== 1 ? "s" : ""} selected
             </span>
-            <Button
-              variant="danger"
-              size="sm"
-              onClick={handleDeleteClick}
-              disabled={!canDeleteSelected()}
+            <DisabledHint
+              reason={canDeleteSelected() ? undefined : noPermission("delete all the selected instances")}
             >
-              Delete Selected
-            </Button>
+              <Button
+                variant="danger"
+                size="sm"
+                onClick={handleDeleteClick}
+                disabled={!canDeleteSelected()}
+              >
+                Delete Selected
+              </Button>
+            </DisabledHint>
           </div>
         </div>
       )}
@@ -872,14 +877,14 @@ function FavoriteToggle({
 }
 
 /**
- * Permissions shown as icons, in display order, and the instance-page mode each one opens.
- * Review is the right to invite reviewers; the instance page has no review mode, so it opens in view.
+ * Permissions shown as icons, in display order, the instance-page mode each one opens and what the user may not do
+ * without it. Review is the right to invite reviewers; the instance page has no review mode, so it opens in view.
  */
 const permissionItems = [
-  { key: "View", icon: faEye, search: "" },
-  { key: "Edit", icon: faPen, search: "?edit=1" },
-  { key: "Review", icon: faClipboardCheck, search: "" },
-  { key: "Release", icon: faRocket, search: "?release=1" },
+  { key: "View", icon: faEye, search: "", action: "view this instance" },
+  { key: "Edit", icon: faPen, search: "?edit=1", action: "edit this instance" },
+  { key: "Review", icon: faClipboardCheck, search: "", action: "invite reviewers for this instance" },
+  { key: "Release", icon: faRocket, search: "?release=1", action: "release this instance" },
 ] as const;
 
 function InstancePermissionButtons({
@@ -892,35 +897,35 @@ function InstancePermissionButtons({
   labeled?: boolean;
   onOpen: (instanceId: string, search: string) => void;
 }) {
-  const items = permissionItems.filter((item) =>
-    instance.permissions.includes(item.key),
-  );
-  if (items.length === 0) {
-    return null;
-  }
+  // All permissions are shown - the ones the user lacks disabled - so the icons line up from row to row
   return (
     <div className="instance-permissions">
-      {items.map((item) => (
-        <button
-          key={item.key}
-          type="button"
-          className={
-            labeled
-              ? "instance-permission-btn instance-permission-btn--labeled"
-              : "instance-permission-btn"
-          }
-          aria-label={`Open ${instance.instanceName} in ${item.key.toLowerCase()} mode`}
-          title={`Open in ${item.key.toLowerCase()} mode`}
-          onClick={(event) => {
-            event.stopPropagation();
-            onOpen(instance.instanceId, item.search);
-          }}
-          onDoubleClick={(event) => event.stopPropagation()}
-        >
-          <FontAwesomeIcon icon={item.icon} aria-hidden="true" />
-          {labeled && item.key}
-        </button>
-      ))}
+      {permissionItems.map((item) => {
+        const permitted = instance.permissions.includes(item.key);
+        return (
+          <DisabledHint key={item.key} reason={permitted ? undefined : noPermission(item.action)}>
+            <button
+              type="button"
+              className={
+                labeled
+                  ? "instance-permission-btn instance-permission-btn--labeled"
+                  : "instance-permission-btn"
+              }
+              disabled={!permitted}
+              aria-label={`Open ${instance.instanceName} in ${item.key.toLowerCase()} mode`}
+              title={permitted ? `Open in ${item.key.toLowerCase()} mode` : undefined}
+              onClick={(event) => {
+                event.stopPropagation();
+                onOpen(instance.instanceId, item.search);
+              }}
+              onDoubleClick={(event) => event.stopPropagation()}
+            >
+              <FontAwesomeIcon icon={item.icon} aria-hidden="true" />
+              {labeled && item.key}
+            </button>
+          </DisabledHint>
+        );
+      })}
     </div>
   );
 }
@@ -1106,6 +1111,7 @@ function InstancePreview({
   const [fieldsLoading, setFieldsLoading] = useState(true);
   const [fieldsError, setFieldsError] = useState<string>();
   const [copied, setCopied] = useState(false);
+  const canEdit = instance.permissions.includes("Edit");
   const typeColor =
     instance.typeColor || typeColors[instance.type] || "#6c757d";
 
@@ -1217,15 +1223,18 @@ function InstancePreview({
             <FontAwesomeIcon icon={faEye} aria-hidden="true" />
             Open
           </Button>
-          <Button
-            variant="outline-secondary"
-            size="sm"
-            onClick={onEdit}
-            aria-label="Edit instance"
-          >
-            <FontAwesomeIcon icon={faPen} aria-hidden="true" />
-            Edit
-          </Button>
+          <DisabledHint reason={canEdit ? undefined : noPermission("edit this instance")}>
+            <Button
+              variant="outline-secondary"
+              size="sm"
+              onClick={onEdit}
+              disabled={!canEdit}
+              aria-label="Edit instance"
+            >
+              <FontAwesomeIcon icon={faPen} aria-hidden="true" />
+              Edit
+            </Button>
+          </DisabledHint>
           <Button
             variant="outline-secondary"
             size="sm"

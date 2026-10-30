@@ -280,6 +280,25 @@ describe("EditorHome", () => {
     );
   });
 
+  it("disables the permission icons the user lacks and tells why", () => {
+    renderHome([{ ...instance, permissions: "View" }]);
+
+    expect(
+      screen.getByRole("button", { name: "Open Headquarters in view mode" }),
+    ).toBeEnabled();
+    const release = screen.getByRole("button", {
+      name: "Open Headquarters in release mode",
+    });
+    expect(release).toBeDisabled();
+    expect(release.parentElement).toHaveAttribute(
+      "title",
+      "You don't have the permission to release this instance",
+    );
+    expect(
+      screen.getByRole("button", { name: "Open Headquarters in edit mode" }),
+    ).toBeDisabled();
+  });
+
   it("opens the instance page in edit mode from the preview", () => {
     renderHome();
     fireEvent.click(screen.getByText("Headquarters"));
