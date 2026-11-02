@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { useNavigate, useParams, useSearchParams } from "react-router-dom";
+import { useLocation, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { Alert, Button, Collapse, Form, Modal, Spinner } from "react-bootstrap";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
@@ -189,7 +189,11 @@ function InstanceDetailView({ instanceId }: { instanceId: string }) {
    * and stays even if the user lacks the permission for it on one of them (see mode): the next instance they are allowed
    * to use it on shows it again.
    */
-  const requestedMode: InstanceMode = isNewInstance ? "edit" : modeFromUrl(searchParams);
+  const location = useLocation();
+  /** Where the instance was when it got created - it stays in the edit mode until the URL tells so */
+  const [createdAtLocation, setCreatedAtLocation] = useState<string>();
+  const requestedMode: InstanceMode =
+    isNewInstance || createdAtLocation === location.key ? "edit" : modeFromUrl(searchParams);
   const requestMode = useCallback(
     (target: InstanceMode) => {
       if (target === requestedMode) {
@@ -737,6 +741,7 @@ function InstanceDetailView({ instanceId }: { instanceId: string }) {
         setBaseline(currentFieldValues);
         if (isNewInstance) {
           setIsNewInstance(false);
+          setCreatedAtLocation(location.key);
           addInstance({
             id: instances.length + 1,
             instanceId: stored.instanceId,

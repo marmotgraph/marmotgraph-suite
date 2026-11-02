@@ -459,7 +459,7 @@ describe("InstanceDetail", () => {
     );
     // Shown as stored by the core - still in the edit mode, with nothing left to save
     expect(await screen.findByText("private-1234")).toBeInTheDocument();
-    await waitFor(() => expect(screen.getByRole("button", { name: "Edit" })).toHaveAttribute("aria-pressed", "true"));
+    expect(screen.getByRole("button", { name: "Edit" })).toHaveAttribute("aria-pressed", "true");
     expect(screen.getByRole("button", { name: "Save" })).toBeDisabled();
     expect(updateInstance).not.toHaveBeenCalled();
   });
@@ -509,15 +509,30 @@ describe("InstanceDetail", () => {
     }
 
     it("is no longer listed once saved - and stays in the edit mode", async () => {
+      // Loaded as any other instance once it is created
+      vi.mocked(fetchInstance).mockResolvedValue({
+        instanceId,
+        type: "Device",
+        instanceName: "SN-1",
+        space: "shared",
+        permissions: "View, Edit",
+        releaseStatus: "in progress",
+        fields: [],
+        directLinks: [],
+      });
+      vi.mocked(fetchIncomingLinks).mockResolvedValue([]);
       renderDraft({ [serialNumber]: "SN-1" });
 
       fireEvent.click(await screen.findByRole("button", { name: "Save" }));
 
-      await waitFor(() => expect(screen.getByRole("button", { name: "Edit" })).toHaveAttribute("aria-pressed", "true"));
+      // Right away - it doesn't pass the read mode on the way
+      expect(await screen.findByRole("group", { name: "Mode" })).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "Edit" })).toHaveAttribute("aria-pressed", "true");
       await waitFor(() => expect(screen.getByTestId("drafts")).toHaveTextContent("0"));
       // Must not come back with the values which were just saved
-      await new Promise((resolve) => setTimeout(resolve, 50));
+      await new Promise((resolve) => setTimeout(resolve, 400));
       expect(screen.getByTestId("drafts")).toHaveTextContent("0");
+      expect(screen.getByRole("button", { name: "Edit" })).toHaveAttribute("aria-pressed", "true");
     });
 
     it("is created with its type and in its space", async () => {
@@ -873,7 +888,8 @@ describe("InstanceDetail", () => {
       fireEvent.change(await screen.findByDisplayValue("Headquarters"), { target: { value: "Renamed" } });
       fireEvent.click(screen.getByRole("button", { name: "Save" }));
 
-      await waitFor(() => expect(screen.queryByText("Unsaved")).not.toBeInTheDocument());
+      const form = document.querySelector(".instance-form") as HTMLElement;
+      await waitFor(() => expect(within(form).queryByText("Unsaved")).not.toBeInTheDocument());
       expect(screen.getByRole("button", { name: "Save" })).toBeDisabled();
       expect(screen.getByDisplayValue("Renamed")).toBeInTheDocument();
       expect(modeButton("Edit")).toHaveAttribute("aria-pressed", "true");
