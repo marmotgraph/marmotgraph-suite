@@ -1008,7 +1008,6 @@ function InstanceDetailView({ instanceId }: { instanceId: string }) {
                     {supportedFields.map((field) => (
                       <div key={field.identifier} {...fieldSectionProps(field)}>
                         {fieldCommentsToggle(field)}
-                        {fieldAlternatives.toggle(field)}
                         <ViewFieldLabel
                           tooltip={field.tooltip}
                           required={field.required}
@@ -1028,7 +1027,6 @@ function InstanceDetailView({ instanceId }: { instanceId: string }) {
                           {...linkHoverProps(field)}
                         />
                         <FieldErrors errors={fieldErrors.get(field.identifier)} />
-                        {fieldAlternatives.panel(field)}
                         {fieldCommentThread(field)}
                       </div>
                     ))}
@@ -1133,7 +1131,6 @@ function InstanceDetailView({ instanceId }: { instanceId: string }) {
                     changedFieldKeys={changedFieldKeys}
                     fieldErrors={fieldErrors}
                     onInstanceClick={handleLinkClick}
-                    fieldAlternatives={fieldAlternatives}
                   />
                 )}
               </>
@@ -1189,7 +1186,8 @@ function UnsupportedFieldsSection({
   changedFieldKeys: Set<string>;
   fieldErrors: Map<string, FieldValidationError[]>;
   onInstanceClick: (instanceId: string) => void;
-  fieldAlternatives: FieldAlternativesControls;
+  /** The contributions are only offered while editing */
+  fieldAlternatives?: FieldAlternativesControls;
 }) {
   const [isExpanded, setIsExpanded] = useState(false);
   // The section is flagged if any of its fields is - so the errors aren't missed while it is collapsed
@@ -1227,7 +1225,7 @@ function UnsupportedFieldsSection({
               );
               return isEditMode ? (
                 <Form.Group key={field.identifier} {...fieldSectionProps(field)}>
-                  {fieldAlternatives.toggle(field)}
+                  {fieldAlternatives?.toggle(field)}
                   <InstanceFieldLabel
                     isChanged={changedFieldKeys.has(field.identifier)}
                     tooltip={field.tooltip}
@@ -1238,11 +1236,10 @@ function UnsupportedFieldsSection({
                   </InstanceFieldLabel>
                   {control}
                   <FieldErrors errors={fieldErrors.get(field.identifier)} />
-                  {fieldAlternatives.panel(field)}
+                  {fieldAlternatives?.panel(field)}
                 </Form.Group>
               ) : (
                 <div key={field.identifier} {...fieldSectionProps(field)}>
-                  {fieldAlternatives.toggle(field)}
                   <ViewFieldLabel
                     tooltip={field.tooltip}
                     required={field.required}
@@ -1252,7 +1249,6 @@ function UnsupportedFieldsSection({
                   </ViewFieldLabel>
                   {control}
                   <FieldErrors errors={fieldErrors.get(field.identifier)} />
-                  {fieldAlternatives.panel(field)}
                 </div>
               );
             })}

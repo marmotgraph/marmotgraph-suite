@@ -122,7 +122,7 @@ describe("InstanceDetail", () => {
     const joe = { username: "joe", name: "Joe Bloggs" };
 
     it("shows on demand who has contributed which value", async () => {
-      renderDetail("", [nameField], "inst-1", {
+      renderDetail("?edit=1", [nameField], "inst-1", {
         alternatives: {
           [nameField.identifier]: [
             { value: "Headquarters", selected: true, users: [jane, joe] },
@@ -151,7 +151,7 @@ describe("InstanceDetail", () => {
     });
 
     it("tells who has defined a value nobody disagrees with - without a count", async () => {
-      renderDetail("", [nameField], "inst-1", {
+      renderDetail("?edit=1", [nameField], "inst-1", {
         alternatives: { [nameField.identifier]: [{ value: "Headquarters", selected: true, users: [jane] }] },
       });
 
@@ -161,14 +161,15 @@ describe("InstanceDetail", () => {
     });
 
     it("offers nothing for fields without contributions", async () => {
-      renderDetail("", [nameField]);
+      renderDetail("?edit=1", [nameField]);
 
       await screen.findAllByText("Headquarters");
       expect(screen.queryByRole("button", { name: /Contributions to/ })).not.toBeInTheDocument();
     });
 
     it("shows linked values as links and contributions which can't be shown as a link as they are", async () => {
-      renderDetail("", [roomField], "inst-1", {
+      vi.mocked(fetchTypes).mockResolvedValue([]);
+      renderDetail("?edit=1", [roomField], "inst-1", {
         alternatives: {
           [roomField.identifier]: [
             {
@@ -190,7 +191,7 @@ describe("InstanceDetail", () => {
     });
 
     it("tells when the latest contribution removed the value", async () => {
-      renderDetail("", [{ ...nameField, value: undefined }], "inst-1", {
+      renderDetail("?edit=1", [{ ...nameField, value: undefined }], "inst-1", {
         alternatives: { [nameField.identifier]: [{ value: "Main office", selected: false, users: [joe] }] },
       });
 
@@ -199,15 +200,19 @@ describe("InstanceDetail", () => {
       expect(screen.getByText("The latest contribution removed the value of this field.")).toBeInTheDocument();
     });
 
-    it("is available while editing - without being part of the form", async () => {
-      renderDetail("?edit=1", [nameField], "inst-1", {
-        alternatives: {
-          [nameField.identifier]: [
-            { value: "Headquarters", selected: true, users: [jane] },
-            { value: "Main office", selected: false, users: [joe] },
-          ],
-        },
-      });
+    it("is part of the edit mode only - without being part of the form", async () => {
+      const alternatives = {
+        [nameField.identifier]: [
+          { value: "Headquarters", selected: true, users: [jane] },
+          { value: "Main office", selected: false, users: [joe] },
+        ],
+      };
+      renderDetail("", [nameField], "inst-1", { alternatives });
+
+      await screen.findAllByText("Headquarters");
+      expect(screen.queryByRole("button", { name: /Contributions to/ })).not.toBeInTheDocument();
+
+      fireEvent.click(screen.getByRole("button", { name: "Edit" }));
 
       fireEvent.click(await screen.findByRole("button", { name: "Contributions to Name (2 different values)" }));
 
