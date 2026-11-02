@@ -137,6 +137,11 @@
     transition: background-color 0.2s ease;
 }
 
+/* Without release actions (e.g. when listing the instances of a scope for review) */
+.release-node--readonly {
+    grid-template-columns: minmax(0, auto) minmax(0, 1fr);
+}
+
 .release-node:hover {
     background-color: #f8f9fa;
 }
@@ -260,6 +265,10 @@
 
     .release-node-status {
         grid-column: 1 / -1;
+    }
+
+    .release-node--readonly {
+        grid-template-columns: minmax(0, 1fr);
     }
 
     .release-stats {

@@ -622,3 +622,24 @@
 .instance-unsupported-fields .instance-form {
     padding-top: 12px;
 }
+
+/* Marks the field the instance is named by */
+.instance-field-label-tag {
+    display: inline-block;
+    margin-left: 8px;
+    font-size: 0.62rem;
+    font-weight: 700;
+    line-height: 1.2;
+    color: #495057;
+    background-color: #f1f3f5;
+    border: 1px solid #dee2e6;
+    border-radius: 999px;
+    padding: 2px 7px;
+    text-transform: uppercase;
+    letter-spacing: 0.02em;
+    vertical-align: middle;
+}
+
+.instance-field-label--changed .instance-field-label-tag {
+    margin-left: 0;
+}

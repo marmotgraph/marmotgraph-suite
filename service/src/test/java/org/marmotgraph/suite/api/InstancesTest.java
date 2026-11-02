@@ -88,6 +88,8 @@ class InstancesTest {
     }
 
     private static final String DEVICE = "https://example.org/types/Device";
+    private static final String SENSOR = "https://example.org/types/Sensor";
+    private static final String GADGET = "https://example.org/types/Gadget";
     private static final String NAME = "http://schema.org/name";
     private static final UUID RELEASED_ID = UUID.fromString("47b94e45-5435-49a8-aba3-3d482fabced3");
     private static final UUID UNRELEASED_ID = UUID.fromString("a1b2c3d4-e5f6-4a5b-9c8d-7e6f5a4b3c2d");
@@ -443,6 +445,33 @@ class InstancesTest {
     }
 
     @Test
+    void getProvidesTheIdentifiersSeparatelyAndTheLabelPropertyFirst() throws Exception {
+        when(instancesResource.get(any(UUID.class), any(), any())).thenReturn(instance(RELEASED_ID, SENSOR, Map.of(
+                NAME, "Device-1",
+                FieldCache.IDENTIFIER, List.of("https://example.org/devices/1", "device-1", "device-1"))));
+        when(typesResource.getByNames(List.of(SENSOR), Stage.IN_PROGRESS, null, false, false))
+                .thenReturn(Map.of(SENSOR, new TypeInformation(SENSOR, null, "Device", null, NAME, null, null, List.of(), List.of(), List.of())));
+        when(typesResource.getByNames(List.of(SENSOR), Stage.IN_PROGRESS, null, true, false))
+                .thenReturn(Map.of(SENSOR, new TypeInformation(SENSOR, null, "Device", null, NAME, null, null, List.of(), List.of(
+                        new Property(FieldCache.IDENTIFIER, "identifier", null, "InputText", null, null, null, 1, null, List.of()),
+                        new Property("https://example.org/height", "height", null, "InputNumber", null, null, null, 2, null, List.of()),
+                        new Property(NAME, "name", null, "InputText", null, null, null, 3, null, List.of())
+                ), List.of())));
+        when(instancesResource.releaseStatus(RELEASED_ID, ReleaseTreeScope.TOP_INSTANCE_ONLY)).thenReturn(ReleaseStatus.RELEASED);
+
+        mockMvc.perform(get("/instances/" + RELEASED_ID).header(HttpHeaders.AUTHORIZATION, "Bearer theToken"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.fields.length()").value(2))
+                .andExpect(jsonPath("$.fields[0].identifier").value(NAME))
+                .andExpect(jsonPath("$.fields[0].labelProperty").value(true))
+                .andExpect(jsonPath("$.fields[1].identifier").value("https://example.org/height"))
+                .andExpect(jsonPath("$.fields[1].labelProperty").doesNotExist())
+                .andExpect(jsonPath("$.identifiers.length()").value(2))
+                .andExpect(jsonPath("$.identifiers[0]").value("https://example.org/devices/1"))
+                .andExpect(jsonPath("$.identifiers[1]").value("device-1"));
+    }
+
+    @Test
     void getProvidesTheEmbeddedInstancesWithTheFieldsOfTheirTypes() throws Exception {
         String chassis = "https://example.org/types/Chassis";
         String slot = "https://example.org/types/Slot";
@@ -784,6 +813,53 @@ class InstancesTest {
         verify(instancesResource, never()).update(any(), any());
     }
 
+    /** A gadget with the given identifiers whose type has no fields */
+    private void gadgetWithIdentifiers(List<String> identifiers) {
+        when(instancesResource.get(any(UUID.class), any(), any())).thenReturn(instance(RELEASED_ID, GADGET, Map.of(FieldCache.IDENTIFIER, identifiers)));
+        when(typesResource.getByNames(List.of(GADGET), Stage.IN_PROGRESS, null, false, false))
+                .thenReturn(Map.of(GADGET, new TypeInformation(GADGET, null, "Device", null, NAME, null, null, List.of(), List.of(), List.of())));
+        when(typesResource.getByNames(List.of(GADGET), Stage.IN_PROGRESS, null, true, false))
+                .thenReturn(Map.of(GADGET, new TypeInformation(GADGET, null, "Device", null, NAME, null, null, List.of(), List.of(), List.of())));
+        when(instancesResource.releaseStatus(RELEASED_ID, ReleaseTreeScope.TOP_INSTANCE_ONLY)).thenReturn(ReleaseStatus.RELEASED);
+    }
+
+    @Test
+    void updateOnlyAddsIdentifiers() throws Exception {
+        gadgetWithIdentifiers(List.of("device-1", "https://example.org/devices/1"));
+
+        // The identifiers which are not sent are kept anyway
+        mockMvc.perform(patch("/instances/" + RELEASED_ID).header(HttpHeaders.AUTHORIZATION, "Bearer theToken")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"%s\": [\"device-1\", \" device-2 \", \"\"]}".formatted(FieldCache.IDENTIFIER)))
+                .andExpect(status().isOk());
+
+        verify(instancesResource).update(RELEASED_ID, Map.of(FieldCache.IDENTIFIER, List.of("device-1", "https://example.org/devices/1", "device-2")));
+    }
+
+    @Test
+    void updateWithoutNewIdentifiersDoesNotChangeThem() throws Exception {
+        gadgetWithIdentifiers(List.of("device-1", "https://example.org/devices/1"));
+
+        mockMvc.perform(patch("/instances/" + RELEASED_ID).header(HttpHeaders.AUTHORIZATION, "Bearer theToken")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"%s\": []}".formatted(FieldCache.IDENTIFIER)))
+                .andExpect(status().isOk());
+
+        verify(instancesResource, never()).update(any(), any());
+    }
+
+    @Test
+    void updateRejectsIdentifiersWhichAreNoListOfStrings() throws Exception {
+        gadgetWithIdentifiers(List.of());
+
+        mockMvc.perform(patch("/instances/" + RELEASED_ID).header(HttpHeaders.AUTHORIZATION, "Bearer theToken")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"%s\": [1]}".formatted(FieldCache.IDENTIFIER)))
+                .andExpect(status().isBadRequest());
+
+        verify(instancesResource, never()).update(any(), any());
+    }
+
     @Test
     void updateRejectsUnknownFields() throws Exception {
         when(instancesResource.get(any(UUID.class), any(), any())).thenReturn(instance(RELEASED_ID, DEVICE, Map.of()));
@@ -827,6 +903,21 @@ class InstancesTest {
                 "@type", List.of(rack),
                 NAME, "Rack-2",
                 "https://example.org/blades", List.of(Map.of("@id", linkedId))));
+    }
+
+    @Test
+    void createSendsTheIdentifiers() throws Exception {
+        when(typesResource.getByNames(List.of(GADGET), Stage.IN_PROGRESS, null, true, false))
+                .thenReturn(Map.of(GADGET, new TypeInformation(GADGET, null, "Device", null, NAME, null, null, List.of(), List.of(), List.of())));
+        when(instancesResource.get(any(UUID.class), any(), any())).thenReturn(instance(NEVER_RELEASED_ID, GADGET, Map.of()));
+        when(instancesResource.releaseStatus(NEVER_RELEASED_ID, ReleaseTreeScope.TOP_INSTANCE_ONLY)).thenReturn(ReleaseStatus.UNRELEASED);
+
+        mockMvc.perform(post("/instances/" + NEVER_RELEASED_ID).header(HttpHeaders.AUTHORIZATION, "Bearer theToken")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"type\": \"%s\", \"fields\": {\"%s\": [\"device-2\"]}}".formatted(GADGET, FieldCache.IDENTIFIER)))
+                .andExpect(status().isOk());
+
+        verify(instancesResource).createWithId(NEVER_RELEASED_ID, "myspace", Map.of("@type", List.of(GADGET), FieldCache.IDENTIFIER, List.of("device-2")));
     }
 
     @Test
@@ -932,6 +1023,20 @@ class InstancesTest {
                 .andExpect(jsonPath("$.children[1].releaseStatus").value("in progress"))
                 .andExpect(jsonPath("$.children[1].canRelease").value(true))
                 .andExpect(jsonPath("$.children[1].canUnrelease").value(false));
+    }
+
+    @Test
+    void scopeIsRestrictedToTheScopeWithTheGivenName() throws Exception {
+        String json = """
+                {"@id": "%s", "@type": "%s", "_space": "myspace", "_label": "Server-Rack-A1", "_children": []}
+                """.formatted(RELEASED_ID, DEVICE);
+        when(instancesResource.scope(RELEASED_ID, "parts", Stage.IN_PROGRESS, true, true)).thenReturn(scope(json));
+        when(typesResource.getByNames(List.of(DEVICE), Stage.IN_PROGRESS, null, false, false)).thenReturn(Map.of());
+
+        mockMvc.perform(get("/instances/" + RELEASED_ID + "/scope").param("name", "parts").header(HttpHeaders.AUTHORIZATION, "Bearer theToken"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.instanceName").value("Server-Rack-A1"))
+                .andExpect(jsonPath("$.children.length()").value(0));
     }
 
     @Test

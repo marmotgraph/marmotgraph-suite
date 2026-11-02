@@ -1,7 +1,15 @@
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useEffect, useId, useMemo, useState } from "react";
 import { Alert, Button, Form, Modal, Spinner } from "react-bootstrap";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { faCheck, faCopy, faLink, faTrash, faUser } from "@fortawesome/free-solid-svg-icons";
+import {
+  faCheck,
+  faChevronDown,
+  faChevronRight,
+  faCopy,
+  faLink,
+  faTrash,
+  faUser,
+} from "@fortawesome/free-solid-svg-icons";
 import { useAuth } from "../contexts/AuthContext";
 import {
   createInvitationLink,
@@ -10,6 +18,7 @@ import {
   InvitationCandidate,
   InvitationLink,
   invitationUrl,
+  InvitedUser,
   inviteUser,
   MAX_INVITATION_LABEL_LENGTH,
   MIN_CANDIDATE_SEARCH_LENGTH,
@@ -17,7 +26,11 @@ import {
   revokeUserInvitation,
   searchInvitationCandidates,
 } from "../services/invitations";
+import { fetchReleaseTree, ReleaseNode } from "../services/instances";
+import { flattenReleaseTree, prepareReleaseTree } from "../modules/editor/releaseTree";
+import { ReleaseNodeLabel, StatusTag } from "./InstanceRelease";
 import { Timestamp } from "./Timestamp";
+import "./InstanceRelease.css";
 import "./InstanceReview.css";
 
 /** Delay after the last keystroke before the users are searched */
@@ -37,16 +50,25 @@ function errorMessage(e: unknown) {
 
 /**
  * Manages who is invited to review an instance: known users are searched and invited directly, everybody else gets an
- * invitation link. Both can be restricted to the scopes of the type of the instance. The invited users and the
- * invitation links which haven't been redeemed yet are listed - and can be removed.
+ * invitation link. Both apply to the instance and the selected scopes of its type (the instance only if none are
+ * selected) - the instances covered follow the scopes selected, so it is clear what an invitation includes. The invited
+ * users and the invitation links which haven't been redeemed yet are listed - and can be removed.
  */
-export default function InstanceReview({ instanceId }: { instanceId: string }) {
+export default function InstanceReview({
+  instanceId,
+  onInstanceClick,
+}: {
+  instanceId: string;
+  /** Called when the name of an instance in scope is clicked */
+  onInstanceClick?: (instanceId: string) => void;
+}) {
   const { getAccessToken } = useAuth();
   const [invitations, setInvitations] = useState<InstanceInvitations>();
   const [loadError, setLoadError] = useState<string>();
   /** Incremented to load the invitations again (after a change or a failure) */
   const [reloadCount, setReloadCount] = useState(0);
   const [removal, setRemoval] = useState<Removal>();
+  const scopeTrees = useScopeTrees(instanceId, invitations?.scopes ?? []);
 
   useEffect(() => {
     let cancelled = false;
@@ -119,14 +141,22 @@ export default function InstanceReview({ instanceId }: { instanceId: string }) {
       <InviteForm
         instanceId={instanceId}
         scopes={invitations.scopes}
+        scopeTrees={scopeTrees}
         onInvited={reload}
+        onInstanceClick={onInstanceClick}
       />
       <InvitedUsers
-        usernames={invitations.invitedUsers}
+        users={invitations.invitedUsers}
+        typeScopes={invitations.scopes}
+        scopeTrees={scopeTrees}
+        onInstanceClick={onInstanceClick}
         onRemove={(username) => setRemoval({ kind: "user", username })}
       />
       <PendingInvitations
         invitations={invitations.pendingInvitations}
+        typeScopes={invitations.scopes}
+        scopeTrees={scopeTrees}
+        onInstanceClick={onInstanceClick}
         onRemove={(invitation) => setRemoval({ kind: "link", invitation })}
       />
       <RemoveInvitationModal
@@ -141,70 +171,61 @@ export default function InstanceReview({ instanceId }: { instanceId: string }) {
 function InviteForm({
   instanceId,
   scopes,
+  scopeTrees,
   onInvited,
+  onInstanceClick,
 }: {
   instanceId: string;
-  scopes?: string[];
+  scopes: string[];
+  scopeTrees: ScopeTrees;
   onInvited: () => void;
+  onInstanceClick?: (instanceId: string) => void;
 }) {
   const { getAccessToken } = useAuth();
   const [search, setSearch] = useState("");
-  const [selection, setSelection] = useState<Invitee>();
-  const [selectedScopes, setSelectedScopes] = useState<string[]>(scopes ?? []);
-  const [submitting, setSubmitting] = useState(false);
+  const [selectedScopes, setSelectedScopes] = useState<string[]>(scopes);
+  /** The invitation being created */
+  const [submitting, setSubmitting] = useState<Invitee>();
   const [error, setError] = useState<string>();
   /** The user invited last - confirmed below the form */
   const [invitedUser, setInvitedUser] = useState<InvitationCandidate>();
   /** The link created last - its token can't be retrieved again */
   const [createdLink, setCreatedLink] = useState<InvitationLink>();
 
-  // The scopes are only known once loaded - all of them are selected by default
-  const scopeKey = (scopes ?? []).join("\n");
-  useEffect(() => setSelectedScopes(scopes ?? []), [scopeKey]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  /** The text typed is the label of an invitation link */
-  const label = search.trim();
-  const hasScopes = (scopes?.length ?? 0) > 0;
-  const missingScopes = hasScopes && selectedScopes.length === 0;
-  const canSubmit =
-    !submitting &&
-    !missingScopes &&
-    (selection?.kind === "user" || (selection?.kind === "link" && label.length > 0));
+  // All scopes are selected by default - again when they change
+  const scopeKey = scopes.join("\n");
+  useEffect(() => setSelectedScopes(scopes), [scopeKey]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const changeSearch = (value: string) => {
     setSearch(value);
     setError(undefined);
-    // A selected user doesn't match the new text anymore - choosing to create a link still holds (with the new label)
-    if (selection?.kind === "user" || !value.trim()) {
-      setSelection(undefined);
-    }
   };
 
-  const submit = (event: React.FormEvent) => {
-    event.preventDefault();
-    if (!canSubmit || !selection) {
+  const invite = (invitee: Invitee) => {
+    /** The text typed is the label of an invitation link */
+    const label = search.trim();
+    if (submitting || (invitee.kind === "link" && !label)) {
       return;
     }
-    // Without the scopes being known, the core applies all scopes of the type
-    const requestedScopes = hasScopes ? selectedScopes : [];
-    setSubmitting(true);
+    // No scopes selected: the invitation applies to the instance only
+    const requestedScopes = scopes.filter((scope) => selectedScopes.includes(scope));
+    setSubmitting(invitee);
     setError(undefined);
     setInvitedUser(undefined);
     setCreatedLink(undefined);
     getAccessToken()
       .then(async (token) => {
-        if (selection.kind === "user") {
-          await inviteUser(token, instanceId, selection.candidate.id, requestedScopes);
-          setInvitedUser(selection.candidate);
+        if (invitee.kind === "user") {
+          await inviteUser(token, instanceId, invitee.candidate.id, requestedScopes);
+          setInvitedUser(invitee.candidate);
         } else {
           setCreatedLink(await createInvitationLink(token, instanceId, label, requestedScopes));
         }
         setSearch("");
-        setSelection(undefined);
         onInvited();
       })
       .catch((e: unknown) => setError(errorMessage(e)))
-      .finally(() => setSubmitting(false));
+      .finally(() => setSubmitting(undefined));
   };
 
   return (
@@ -212,19 +233,29 @@ function InviteForm({
       <h3 id="instance-review-invite" className="view-label">
         Invite for review
       </h3>
-      <Form onSubmit={submit} className="instance-review-form">
-        <InviteeSearch
-          instanceId={instanceId}
-          search={search}
-          onSearchChange={changeSearch}
-          selection={selection}
-          onSelect={setSelection}
-        />
-
+      <div className="instance-review-form">
         <ScopeSelection
           scopes={scopes}
           selected={selectedScopes}
           onChange={setSelectedScopes}
+          trees={scopeTrees.trees}
+        />
+
+        {scopes.length > 0 && (
+          <CoveredInstances
+            scopes={scopes}
+            selected={selectedScopes}
+            scopeTrees={scopeTrees}
+            onInstanceClick={onInstanceClick}
+          />
+        )}
+
+        <InviteeSearch
+          instanceId={instanceId}
+          search={search}
+          onSearchChange={changeSearch}
+          submitting={submitting}
+          onInvite={invite}
         />
 
         {error && (
@@ -232,14 +263,7 @@ function InviteForm({
             {error}
           </Alert>
         )}
-
-        <div className="instance-review-actions">
-          <Button type="submit" variant="outline-dark" disabled={!canSubmit}>
-            {submitting && <Spinner animation="border" size="sm" className="me-2" />}
-            {selection?.kind === "link" ? "Create invitation link" : "Invite user"}
-          </Button>
-        </div>
-      </Form>
+      </div>
 
       {invitedUser && (
         <div className="instance-review-success" role="status">
@@ -253,21 +277,22 @@ function InviteForm({
 }
 
 /**
- * One field for both ways to invite: the known users matching the text are searched while typing - and an invitation
- * link labeled with the text is offered below them (for whoever isn't found). One of the options is selected.
+ * One field for both ways to invite: the known users matching the text are searched while typing - each can be invited
+ * right away - and an invitation link labeled with the text is offered below them (for whoever isn't found).
  */
 function InviteeSearch({
   instanceId,
   search,
   onSearchChange,
-  selection,
-  onSelect,
+  submitting,
+  onInvite,
 }: {
   instanceId: string;
   search: string;
   onSearchChange: (search: string) => void;
-  selection?: Invitee;
-  onSelect: (selection: Invitee | undefined) => void;
+  /** The invitation being created - all others wait for it */
+  submitting?: Invitee;
+  onInvite: (invitee: Invitee) => void;
 }) {
   const { getAccessToken } = useAuth();
   const [candidates, setCandidates] = useState<InvitationCandidate[]>();
@@ -303,11 +328,14 @@ function InviteeSearch({
     };
   }, [getAccessToken, instanceId, term]);
 
-  const linkSelected = selection?.kind === "link";
+  const creatingLink = submitting?.kind === "link";
 
   return (
     <Form.Group controlId="instance-review-search">
       <Form.Label>User or invitation label</Form.Label>
+      <Form.Text id="instance-review-search-help" className="instance-review-help instance-review-search-help">
+        Finds users who have signed in before. For anybody else, create an invitation link.
+      </Form.Text>
       <Form.Control
         type="search"
         value={search}
@@ -316,10 +344,6 @@ function InviteeSearch({
         autoComplete="off"
         aria-describedby="instance-review-search-help"
       />
-      <Form.Text id="instance-review-search-help" className="instance-review-help">
-        Finds users who have signed in before. For anybody else, create an invitation link - the text becomes its
-        label, so you recognize it in the list below.
-      </Form.Text>
       {term.length > 0 && (
         <div className="instance-review-candidates" aria-live="polite">
           <ul className="instance-review-list" aria-label="Invite">
@@ -338,24 +362,27 @@ function InviteeSearch({
               <li className="instance-review-hint">No users found.</li>
             ) : (
               candidates?.map((candidate) => {
-                const isSelected = selection?.kind === "user" && selection.candidate.id === candidate.id;
+                const inviting = submitting?.kind === "user" && submitting.candidate.id === candidate.id;
                 return (
-                  <li key={candidate.id}>
-                    <button
-                      type="button"
-                      className={`instance-review-candidate${isSelected ? " instance-review-candidate--selected" : ""}`}
-                      aria-pressed={isSelected}
-                      onClick={() => onSelect(isSelected ? undefined : { kind: "user", candidate })}
-                    >
-                      <FontAwesomeIcon icon={faUser} className="instance-review-user-icon" aria-hidden="true" />
+                  <li key={candidate.id} className="instance-review-row">
+                    <FontAwesomeIcon icon={faUser} className="instance-review-user-icon" aria-hidden="true" />
+                    <div className="instance-review-row-main">
                       <span className="instance-review-name">{candidate.name}</span>
                       {candidate.name !== candidate.username && (
                         <span className="instance-review-username">{candidate.username}</span>
                       )}
-                      {isSelected && (
-                        <FontAwesomeIcon icon={faCheck} className="instance-review-check" aria-hidden="true" />
-                      )}
-                    </button>
+                    </div>
+                    <Button
+                      size="sm"
+                      variant="outline-dark"
+                      className="instance-review-invite"
+                      disabled={Boolean(submitting)}
+                      onClick={() => onInvite({ kind: "user", candidate })}
+                      aria-label={`Invite ${candidate.name}`}
+                    >
+                      {inviting && <Spinner animation="border" size="sm" className="me-2" />}
+                      Invite user
+                    </Button>
                   </li>
                 );
               })
@@ -363,18 +390,18 @@ function InviteeSearch({
             <li className="instance-review-list-link">
               <button
                 type="button"
-                className={`instance-review-candidate${linkSelected ? " instance-review-candidate--selected" : ""}`}
-                aria-pressed={linkSelected}
-                disabled={tooLongForLabel}
-                onClick={() => onSelect(linkSelected ? undefined : { kind: "link" })}
+                className="instance-review-candidate"
+                disabled={tooLongForLabel || Boolean(submitting)}
+                onClick={() => onInvite({ kind: "link" })}
               >
-                <FontAwesomeIcon icon={faLink} className="instance-review-user-icon" aria-hidden="true" />
+                {creatingLink ? (
+                  <Spinner animation="border" size="sm" className="instance-review-user-icon" />
+                ) : (
+                  <FontAwesomeIcon icon={faLink} className="instance-review-user-icon" aria-hidden="true" />
+                )}
                 <span className="instance-review-name">
                   Create an invitation link labeled <strong>{term}</strong>
                 </span>
-                {linkSelected && (
-                  <FontAwesomeIcon icon={faCheck} className="instance-review-check" aria-hidden="true" />
-                )}
               </button>
               {tooLongForLabel && (
                 <div className="instance-review-invalid px-3 pb-2">
@@ -389,23 +416,19 @@ function InviteeSearch({
   );
 }
 
-/** The scopes of the type the invitation applies to - in addition to the instance itself. */
+/** The scopes of the type the invitation applies to - in addition to the instance itself (none: the instance only). */
 function ScopeSelection({
   scopes,
   selected,
   onChange,
+  trees,
 }: {
-  scopes?: string[];
+  scopes: string[];
   selected: string[];
   onChange: (scopes: string[]) => void;
+  /** The trees loaded so far - by scope - to tell how many instances each scope reaches */
+  trees: Record<string, ReleaseNode>;
 }) {
-  if (!scopes) {
-    return (
-      <p className="instance-review-help mb-0">
-        The scopes of this type can't be listed with your permissions - the invitation applies to all of them.
-      </p>
-    );
-  }
   if (scopes.length === 0) {
     return (
       <p className="instance-review-help mb-0">
@@ -425,21 +448,31 @@ function ScopeSelection({
         </span>
       </legend>
       <p className="instance-review-help">
-        The invitation covers this instance and the instances reached by the selected scopes.
+        The invitation covers this instance and the instances reached by the selected scopes - this instance only if
+        none is selected.
       </p>
       {scopes.map((scope) => (
         <Form.Check
           key={scope}
           type="checkbox"
           id={`instance-review-scope-${scope}`}
-          label={scope}
+          label={
+            <>
+              {scope}
+              {trees[scope] && (
+                <span className="instance-review-meta ms-2">
+                  {pluralize(countReached(trees[scope]), "instance")}
+                </span>
+              )}
+            </>
+          }
           checked={selected.includes(scope)}
           onChange={(e) => toggle(scope, e.target.checked)}
         />
       ))}
       {selected.length === 0 && (
-        <div className="instance-review-invalid" role="alert">
-          Select at least one scope.
+        <div className="instance-review-scope-note" role="status">
+          No scope selected - the invitation covers this instance only.
         </div>
       )}
     </fieldset>
@@ -509,30 +542,46 @@ function ScopeTags({ scopes }: { scopes: string[] }) {
 }
 
 function InvitedUsers({
-  usernames,
+  users,
+  typeScopes,
+  scopeTrees,
+  onInstanceClick,
   onRemove,
 }: {
-  usernames?: string[];
+  users?: InvitedUser[];
+  /** The scopes of the type - to list the instances an invitation covers */
+  typeScopes: string[];
+  scopeTrees: ScopeTrees;
+  onInstanceClick?: (instanceId: string) => void;
   onRemove: (username: string) => void;
 }) {
   return (
     <section className="instance-review-section" aria-labelledby="instance-review-users">
       <h3 id="instance-review-users" className="view-label">
         Invited users
-        {usernames && <span className="instance-review-count">{usernames.length}</span>}
+        {users && <span className="instance-review-count">{users.length}</span>}
       </h3>
-      {!usernames ? (
+      {!users ? (
         <p className="instance-review-empty">
           You aren't allowed to list the invited users.
         </p>
-      ) : usernames.length === 0 ? (
+      ) : users.length === 0 ? (
         <p className="instance-review-empty">No users invited yet.</p>
       ) : (
         <ul className="instance-review-list">
-          {usernames.map((username) => (
-            <li key={username} className="instance-review-row">
+          {users.map(({ username, scopes }) => (
+            <li key={username} className="instance-review-row instance-review-row--top">
               <FontAwesomeIcon icon={faUser} className="instance-review-user-icon" aria-hidden="true" />
-              <span className="instance-review-name">{username}</span>
+              <div className="instance-review-row-main">
+                <span className="instance-review-name">{username}</span>
+                <ScopeTags scopes={scopes} />
+                <CoveredInstancesToggle
+                  scopes={typeScopes}
+                  selected={scopes}
+                  scopeTrees={scopeTrees}
+                  onInstanceClick={onInstanceClick}
+                />
+              </div>
               <Button
                 variant="link"
                 className="edit-icon-btn instance-review-remove"
@@ -552,9 +601,16 @@ function InvitedUsers({
 
 function PendingInvitations({
   invitations,
+  typeScopes,
+  scopeTrees,
+  onInstanceClick,
   onRemove,
 }: {
   invitations: InvitationLink[];
+  /** The scopes of the type - to list the instances an invitation covers */
+  typeScopes: string[];
+  scopeTrees: ScopeTrees;
+  onInstanceClick?: (instanceId: string) => void;
   onRemove: (invitation: InvitationLink) => void;
 }) {
   return (
@@ -568,7 +624,7 @@ function PendingInvitations({
       ) : (
         <ul className="instance-review-list">
           {invitations.map((invitation) => (
-            <li key={invitation.id} className="instance-review-row instance-review-row--link">
+            <li key={invitation.id} className="instance-review-row instance-review-row--top">
               <div className="instance-review-row-main">
                 <span className="instance-review-name">{invitation.label || "Unlabeled"}</span>
                 <span className="instance-review-meta">
@@ -580,6 +636,12 @@ function PendingInvitations({
                   )}
                 </span>
                 <ScopeTags scopes={invitation.scopes} />
+                <CoveredInstancesToggle
+                  scopes={typeScopes}
+                  selected={invitation.scopes}
+                  scopeTrees={scopeTrees}
+                  onInstanceClick={onInstanceClick}
+                />
               </div>
               <Button
                 variant="link"
@@ -595,6 +657,222 @@ function PendingInvitations({
         </ul>
       )}
     </section>
+  );
+}
+
+function pluralize(count: number, noun: string) {
+  return `${count} ${noun}${count === 1 ? "" : "s"}`;
+}
+
+/** The number of instances reached by the scope of a tree - without the instance itself */
+function countReached(tree: ReleaseNode) {
+  return flattenReleaseTree(tree, {}, false).length - 1;
+}
+
+/** Combines the trees of several scopes (of the same instance) into one - the children are merged by instance. */
+function mergeTrees(trees: ReleaseNode[]): ReleaseNode {
+  const childrenById = new Map<string, ReleaseNode[]>();
+  trees.forEach((tree) =>
+    tree.children.forEach((child) => {
+      const merged = childrenById.get(child.instanceId);
+      if (merged) {
+        merged.push(child);
+      } else {
+        childrenById.set(child.instanceId, [child]);
+      }
+    }),
+  );
+  return { ...trees[0], children: [...childrenById.values()].map(mergeTrees) };
+}
+
+interface ScopeTrees {
+  /** The trees loaded so far - by scope */
+  trees: Record<string, ReleaseNode>;
+  error?: string;
+  retry: () => void;
+}
+
+/** Loads the release tree of the instance for every scope of its type - to be combined for the scopes selected. */
+function useScopeTrees(instanceId: string, scopes: string[]): ScopeTrees {
+  const { getAccessToken } = useAuth();
+  const scopeKey = scopes.join("\n");
+  /** The trees belong to the instance and scopes they were loaded for */
+  const loadKey = `${instanceId}\n${scopeKey}`;
+  const [loaded, setLoaded] = useState<{ key: string; trees: Record<string, ReleaseNode> }>({ key: loadKey, trees: {} });
+  const [error, setError] = useState<string>();
+  /** Incremented to load the trees again after a failure */
+  const [retryCount, setRetryCount] = useState(0);
+
+  useEffect(() => {
+    let cancelled = false;
+    setError(undefined);
+    getAccessToken()
+      .then((token) =>
+        Promise.all(
+          scopeKey.split("\n").filter(Boolean).map((scope) =>
+            fetchReleaseTree(token, instanceId, scope).then((tree) => {
+              if (!cancelled) {
+                setLoaded((current) => ({
+                  key: loadKey,
+                  trees: { ...(current.key === loadKey ? current.trees : {}), [scope]: tree },
+                }));
+              }
+            }),
+          ),
+        ),
+      )
+      .catch((e: unknown) => {
+        console.error("Failed to load the instances in scope", e);
+        if (!cancelled) {
+          setError(errorMessage(e));
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [getAccessToken, instanceId, scopeKey, loadKey, retryCount]);
+
+  const retry = useCallback(() => setRetryCount((count) => count + 1), []);
+  return { trees: loaded.key === loadKey ? loaded.trees : {}, error, retry };
+}
+
+/**
+ * The instances an invitation covers: the instance and the instances reached by the selected scopes of its type
+ * (merged) - undefined as long as the trees of the selected scopes aren't loaded.
+ */
+function useCoveredInstances(scopes: string[], selected: string[], trees: Record<string, ReleaseNode>) {
+  const selectedScopes = scopes.filter((scope) => selected.includes(scope));
+  const complete = selectedScopes.every((scope) => trees[scope]);
+  /** Any tree tells the instance itself - which is all that is covered without a scope */
+  const anyTree = scopes.map((scope) => trees[scope]).find(Boolean);
+  const selectionKey = selectedScopes.join("\n");
+
+  const tree = useMemo(() => {
+    if (!complete || !anyTree) {
+      return undefined;
+    }
+    return selectedScopes.length === 0
+      ? { ...anyTree, children: [] }
+      : prepareReleaseTree(mergeTrees(selectedScopes.map((scope) => trees[scope])));
+  }, [complete, anyTree, trees, selectionKey]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const entries = useMemo(() => (tree ? flattenReleaseTree(tree, {}, false) : undefined), [tree]);
+  return tree && entries ? { tree, entries } : undefined;
+}
+
+/** The instances the invitation being created covers - following the scopes selected. */
+function CoveredInstances({
+  scopes,
+  selected,
+  scopeTrees,
+  onInstanceClick,
+}: {
+  scopes: string[];
+  selected: string[];
+  scopeTrees: ScopeTrees;
+  onInstanceClick?: (instanceId: string) => void;
+}) {
+  const covered = useCoveredInstances(scopes, selected, scopeTrees.trees);
+  const labelId = useId();
+
+  return (
+    <div className="instance-review-covered" role="group" aria-labelledby={labelId}>
+      <div id={labelId} className="instance-review-legend">
+        Instances covered
+        {covered && <span className="instance-review-count">{covered.entries.length}</span>}
+      </div>
+      <CoveredTree covered={covered} scopeTrees={scopeTrees} onInstanceClick={onInstanceClick} />
+    </div>
+  );
+}
+
+/** The instances an existing invitation covers - collapsed, its number only, until expanded. */
+function CoveredInstancesToggle({
+  scopes,
+  selected,
+  scopeTrees,
+  onInstanceClick,
+}: {
+  scopes: string[];
+  selected: string[];
+  scopeTrees: ScopeTrees;
+  onInstanceClick?: (instanceId: string) => void;
+}) {
+  const [expanded, setExpanded] = useState(false);
+  const covered = useCoveredInstances(scopes, selected, scopeTrees.trees);
+  const treeId = useId();
+
+  if (scopes.length === 0) {
+    return null;
+  }
+  return (
+    <div className="instance-review-covered-toggle">
+      <button
+        type="button"
+        className="instance-review-disclosure"
+        aria-expanded={expanded}
+        aria-controls={treeId}
+        onClick={() => setExpanded((current) => !current)}
+      >
+        <FontAwesomeIcon icon={expanded ? faChevronDown : faChevronRight} className="me-2" aria-hidden="true" />
+        Instances covered
+        {covered && <span className="instance-review-count">{covered.entries.length}</span>}
+      </button>
+      {expanded && (
+        <div id={treeId}>
+          <CoveredTree covered={covered} scopeTrees={scopeTrees} onInstanceClick={onInstanceClick} />
+        </div>
+      )}
+    </div>
+  );
+}
+
+function CoveredTree({
+  covered,
+  scopeTrees: { error, retry },
+  onInstanceClick,
+}: {
+  covered: ReturnType<typeof useCoveredInstances>;
+  scopeTrees: ScopeTrees;
+  onInstanceClick?: (instanceId: string) => void;
+}) {
+  if (!covered) {
+    return error ? (
+      <Alert variant="danger" className="mb-0">
+        {error}
+        <div className="mt-2">
+          <Button size="sm" variant="outline-danger" onClick={retry}>
+            Retry
+          </Button>
+        </div>
+      </Alert>
+    ) : (
+      <div className="instance-review-tree instance-review-hint" role="status">
+        <Spinner animation="border" size="sm" className="me-2" />
+        Loading instances...
+      </div>
+    );
+  }
+  const { tree, entries } = covered;
+  return (
+    <ul className="release-tree instance-review-tree" aria-label="Instances covered">
+      {entries.map(({ node, level }) => (
+        <li
+          key={node.instanceId}
+          className="release-node release-node--readonly"
+          style={{ "--release-level": level } as React.CSSProperties}
+        >
+          <div className="release-node-status">
+            <StatusTag status={node.releaseStatus} />
+          </div>
+          <ReleaseNodeLabel
+            node={node}
+            isTop={node.instanceId === tree.instanceId}
+            onInstanceClick={onInstanceClick}
+          />
+        </li>
+      ))}
+    </ul>
   );
 }
 

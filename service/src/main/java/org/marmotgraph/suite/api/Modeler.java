@@ -48,6 +48,9 @@ import java.util.stream.Collectors;
  * Types and properties are identified by their full name (an IRI) - they are therefore passed as query parameters.
  * Since the editor shows the types and fields as cached by the {@link TypeCache} and {@link FieldCache}, the
  * modified types are dropped from these caches.
+ * <p>
+ * The {@link FieldCache#IDENTIFIER} is no ordinary property (it holds the identifiers of the instances) - it is
+ * therefore left out of the model and can't be defined.
  */
 @AllArgsConstructor
 @RestController
@@ -87,7 +90,7 @@ public class Modeler {
         static ModelType of(TypeInformation type) {
             return new ModelType(type.identifier(), type.name(), type.description(), type.color(), type.labelProperty(),
                     Boolean.TRUE.equals(type.embeddedOnly()), type.occurrences(),
-                    type.properties() == null ? List.of() : type.properties().stream().map(ModelProperty::of)
+                    type.properties() == null ? List.of() : type.properties().stream().filter(Modeler::isModeled).map(ModelProperty::of)
                             .sorted(Comparator.comparing(ModelProperty::orderNumber, Comparator.nullsLast(Comparator.naturalOrder()))).toList(),
                     type.spaces() == null ? List.of() : type.spaces().stream().map(SpaceTypeInformation::space).filter(Objects::nonNull).toList());
         }
@@ -127,7 +130,7 @@ public class Modeler {
                 .filter(type -> type.identifier() != null)
                 .collect(Collectors.toMap(TypeInformation::identifier,
                         type -> type.properties() == null ? List.of() :
-                                type.properties().stream().map(Property::identifier).filter(Objects::nonNull).distinct().toList(),
+                                type.properties().stream().filter(Modeler::isModeled).map(Property::identifier).filter(Objects::nonNull).distinct().toList(),
                         (a, b) -> a, LinkedHashMap::new));
         // The core only provides the specification of one type / property at a time - they are checked concurrently.
         // Properties are often shared by several types - a global specification therefore is looked up only once.
@@ -238,7 +241,7 @@ public class Modeler {
             return Map.of();
         }
         // The core only provides the specification of one property at a time - they are checked concurrently
-        return information.properties().parallelStream().map(Property::identifier).filter(Objects::nonNull).distinct()
+        return information.properties().parallelStream().filter(Modeler::isModeled).map(Property::identifier).filter(Objects::nonNull).distinct()
                 .collect(Collectors.toMap(Function.identity(), property -> source(client, type, property)));
     }
 
@@ -364,7 +367,17 @@ public class Modeler {
     }
 
     private static String requireProperty(String property) {
+        if (FieldCache.IDENTIFIER.equals(property)) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "The identifiers of the instances can't be modeled");
+        }
         return requireNotBlank(property, "The property is missing");
+    }
+
+    /**
+     * If the property is part of the model - all but the {@link FieldCache#IDENTIFIER}.
+     */
+    private static boolean isModeled(Property property) {
+        return !FieldCache.IDENTIFIER.equals(property.identifier());
     }
 
     private static String requireName(String name) {

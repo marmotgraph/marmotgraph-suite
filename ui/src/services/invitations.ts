@@ -13,14 +13,20 @@ export interface InvitationLink {
   token?: string;
 }
 
+/** A user invited to review an instance - with the names of the scopes of its type the invitation applies to. */
+export interface InvitedUser {
+  username: string;
+  scopes: string[];
+}
+
 /**
- * The invitations of an instance - the scopes are the names of the scopes defined for its type. The scopes and the
- * invited users are missing if the user isn't allowed to list them.
+ * The invitations of an instance - the scopes are the names of the scopes defined for its type (an invitation can apply
+ * to). The invited users are missing if the user isn't allowed to list them.
  */
 export interface InstanceInvitations {
-  scopes?: string[];
-  /** The usernames of the invited users */
-  invitedUsers?: string[];
+  scopes: string[];
+  /** The invited users - sorted by their username */
+  invitedUsers?: InvitedUser[];
   pendingInvitations: InvitationLink[];
 }
 
@@ -62,7 +68,7 @@ export function searchInvitationCandidates(
   );
 }
 
-/** Invites a known user for the instance and the given scopes of its type (all of them if none are given). */
+/** Invites a known user for the instance and the given scopes of its type (the instance only if none are given). */
 export function inviteUser(
   accessToken: string,
   instanceId: string,

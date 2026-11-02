@@ -438,6 +438,14 @@
     cursor: progress;
 }
 
+/* The label property stays at the top - it can't be moved */
+.modeler-field-handle--pinned,
+.modeler-field:hover .modeler-field-handle--pinned {
+    color: #adb5bd;
+    background: transparent;
+    cursor: default;
+}
+
 .modeler-field-body {
     flex: 1;
     min-width: 0;

@@ -61,9 +61,23 @@
     color: #a3410a;
 }
 
-.instance-review-actions {
-    display: flex;
-    justify-content: flex-end;
+.instance-review-scope-note {
+    margin-top: 6px;
+    padding: 6px 10px;
+    border-radius: 6px;
+    background-color: #f1f3f5;
+    color: #495057;
+    font-size: 0.8rem;
+}
+
+.instance-review-search-help {
+    margin-top: 0;
+    margin-bottom: 6px;
+}
+
+.instance-review-invite {
+    flex: none;
+    min-height: 32px;
 }
 
 /* Search results and listed invitations */
@@ -123,8 +137,12 @@
     padding: 8px 12px;
 }
 
-.instance-review-row--link {
+.instance-review-row--top {
     align-items: flex-start;
+}
+
+.instance-review-row--top > .instance-review-user-icon {
+    margin-top: 4px;
 }
 
 .instance-review-row-main {
@@ -147,12 +165,6 @@
 
 .instance-review-candidate:hover {
     background-color: #e8e9f3;
-    border-left-color: #5b5fc7;
-}
-
-.instance-review-candidate--selected,
-.instance-review-candidate--selected:hover {
-    background-color: #eef0fb;
     border-left-color: #5b5fc7;
 }
 
@@ -185,11 +197,6 @@
     white-space: nowrap;
 }
 
-.instance-review-check {
-    margin-left: auto;
-    color: #5b5fc7;
-}
-
 .instance-review-meta {
     color: #868e96;
     font-size: 0.8rem;
@@ -210,6 +217,54 @@
     padding: 1px 8px;
     font-size: 0.8rem;
     overflow-wrap: anywhere;
+}
+
+/* Instances covered by the invitation - scrolls so the form stays compact */
+.instance-review-tree {
+    border: 1px solid #e4e7eb;
+    border-radius: 8px;
+    max-height: 320px;
+    overflow-y: auto;
+}
+
+.instance-review-tree .release-node:last-child {
+    border-bottom: 0;
+}
+
+/* The instances an existing invitation covers - collapsed in its row */
+.instance-review-covered-toggle {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.instance-review-disclosure {
+    align-self: flex-start;
+    display: inline-flex;
+    align-items: center;
+    min-height: 32px;
+    padding: 4px 8px;
+    margin-left: -8px;
+    border: 0;
+    border-radius: 6px;
+    background: transparent;
+    color: #6c757d;
+    font-size: 0.8rem;
+    font-weight: 500;
+    transition: background-color 0.15s ease;
+}
+
+.instance-review-disclosure:hover {
+    background-color: #f1f3f5;
+}
+
+.instance-review-disclosure:focus-visible {
+    outline: 2px solid #5b5fc7;
+    outline-offset: 0;
+}
+
+.instance-review-disclosure .instance-review-count {
+    margin-left: 6px;
 }
 
 .instance-review-remove {
@@ -280,7 +335,8 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-    .instance-review-candidate {
+    .instance-review-candidate,
+    .instance-review-disclosure {
         transition: none;
     }
 }

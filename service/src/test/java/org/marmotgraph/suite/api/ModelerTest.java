@@ -145,6 +145,29 @@ class ModelerTest {
     }
 
     @Test
+    void theIdentifiersAreLeftOutOfTheModel() throws Exception {
+        Property name = new Property("https://schema.org/name", "name", null, "InputText", null, null, true, 2, 10, List.of());
+        Property identifier = new Property("http://schema.org/identifier", "identifier", null, null, null, null, null, 1, 10, List.of());
+        TypeInformation device = new TypeInformation(DEVICE, null, "Device", null, null, null, 10, null, List.of(identifier, name), List.of());
+        when(types.list(any(TypeListOptions.class))).thenReturn(new Page<>(List.of(device), 1, 50, null, null, Map.of(), null));
+
+        mockMvc.perform(get("/modeler/types").header(HttpHeaders.AUTHORIZATION, "Bearer theToken"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].properties.length()").value(1))
+                .andExpect(jsonPath("$[0].properties[0].identifier").value("https://schema.org/name"));
+    }
+
+    @Test
+    void theIdentifiersCanNotBeDefined() throws Exception {
+        mockMvc.perform(put("/modeler/types/properties").param("type", DEVICE).param("property", "http://schema.org/identifier")
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer theToken")
+                        .contentType(MediaType.APPLICATION_JSON).content("{\"widget\": \"InputText\"}"))
+                .andExpect(status().isBadRequest());
+
+        verify(properties, never()).defineForType(any(), any(), any());
+    }
+
+    @Test
     void specificationIsProvidedByTheCore() throws Exception {
         when(types.getSpecification(DEVICE)).thenReturn(new TypeSpecification("Device", null, "#ff9800", null, List.of(), false));
 

@@ -65,11 +65,26 @@ class FieldCacheTest {
         List<FieldDefinition> fields = cache.get(client, DEVICE);
 
         assertEquals(List.of(
-                new FieldDefinition("http://schema.org/name", "Name", FieldKind.TEXT, 1, true, true, "The name of the device", List.of(), null),
-                new FieldDefinition("https://example.org/components", "Components", FieldKind.NESTED, 2, false, false, null, List.of(), null),
-                new FieldDefinition("https://example.org/blades", "Blades", FieldKind.LINKS, 3, false, false, null, List.of("https://example.org/types/Blade"), "Is blade of"),
-                new FieldDefinition("https://example.org/serialNumber", "SerialNumber", FieldKind.UNSUPPORTED, null, false, false, null, List.of(), null)
+                new FieldDefinition("http://schema.org/name", "Name", FieldKind.TEXT, 1, true, true, "The name of the device", List.of(), null, false),
+                new FieldDefinition("https://example.org/components", "Components", FieldKind.NESTED, 2, false, false, null, List.of(), null, false),
+                new FieldDefinition("https://example.org/blades", "Blades", FieldKind.LINKS, 3, false, false, null, List.of("https://example.org/types/Blade"), "Is blade of", false),
+                new FieldDefinition("https://example.org/serialNumber", "SerialNumber", FieldKind.UNSUPPORTED, null, false, false, null, List.of(), null, false)
         ), fields);
+    }
+
+    @Test
+    void theLabelPropertyComesFirstAndTheIdentifiersAreNoField() {
+        when(types.getByNames(List.of(DEVICE), Stage.IN_PROGRESS, null, true, false)).thenReturn(Map.of(DEVICE,
+                new TypeInformation(DEVICE, null, "Device", null, "http://schema.org/name", null, null, List.of(), List.of(
+                        property("https://example.org/serialNumber", "serialNumber", "InputText", 1, List.of()),
+                        property(FieldCache.IDENTIFIER, "identifier", "InputText", 2, List.of()),
+                        property("http://schema.org/name", "name", "InputText", 3, List.of())
+                ), List.of())));
+
+        List<FieldDefinition> fields = cache.get(client, DEVICE);
+
+        assertEquals(List.of("http://schema.org/name", "https://example.org/serialNumber"), fields.stream().map(FieldDefinition::identifier).toList());
+        assertEquals(List.of(true, false), fields.stream().map(FieldDefinition::labelProperty).toList());
     }
 
     @Test

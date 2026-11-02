@@ -295,6 +295,12 @@ function TypeLink({ identifier, types }: { identifier: string; types: ModelType[
   );
 }
 
+/** The properties with the label property (if any) moved to the top. */
+function labelFirst(properties: ModelProperty[], labelProperty: string | undefined): ModelProperty[] {
+  const label = properties.find((p) => p.identifier === labelProperty);
+  return label ? [label, ...properties.filter((p) => p !== label)] : properties;
+}
+
 /** The specification of a type without one - the type as observed in the data. */
 function observedSpecification(type: ModelType): TypeSpecification {
   return {
@@ -360,14 +366,18 @@ function PropertiesTab({ type, types, reload, canDefineTypes, specification, def
     }
   };
 
+  // The label property is shown first regardless of its order number (as in the editor)
+  const labelProperty = specification ? specification.labelProperty : type.labelProperty;
+  const shown = useMemo(() => labelFirst(ordered ?? type.properties, labelProperty), [ordered, type.properties, labelProperty]);
+
   const reorder = async (properties: ModelProperty[]) => {
     setOrdered(properties);
     setError(undefined);
     try {
       const token = await getAccessToken();
-      // Only the properties whose position changed are updated
+      // Only the properties whose position changed are updated - the label property keeps its order number
       await Promise.all(
-        orderChanges(properties).map(({ property, orderNumber }) =>
+        orderChanges(properties.filter((p) => p.identifier !== labelProperty)).map(({ property, orderNumber }) =>
           definePropertyOrder(token, type.identifier, property.identifier, orderNumber),
         ),
       );
@@ -403,7 +413,8 @@ function PropertiesTab({ type, types, reload, canDefineTypes, specification, def
         <p className="modeler-empty">The type has no properties yet.</p>
       ) : (
         <PropertyFields
-          properties={ordered ?? type.properties}
+          properties={shown}
+          labelProperty={labelProperty}
           types={types}
           sources={sources}
           canDefine={canDefineTypes}

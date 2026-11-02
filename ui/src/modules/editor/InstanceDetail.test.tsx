@@ -29,6 +29,7 @@ vi.mock("../../contexts/InstancesContext", () => ({
 }));
 
 vi.mock("../../services/instances", () => ({
+  IDENTIFIER: "http://schema.org/identifier",
   createInstance: vi.fn(),
   deleteInstance: vi.fn(),
   fetchInstance: vi.fn(),
@@ -118,14 +119,16 @@ describe("InstanceDetail", () => {
 
     expect(await screen.findByText(/Serial number/)).toBeInTheDocument();
     expect(screen.getByText("Device")).toBeInTheDocument();
-    expect(screen.getByRole("textbox")).toHaveValue("");
+    // The fields come before the identifiers (which can be added to a new instance as well)
+    expect(screen.getAllByRole("textbox")[0]).toHaveValue("");
+    expect(screen.getByRole("textbox", { name: "New identifier" })).toHaveValue("");
     expect(fetchTypeFields).toHaveBeenCalledWith("token", device);
     expect(fetchInstance).not.toHaveBeenCalled();
     // Named "New instance" until the label field is filled in
     expect(screen.getByRole("heading", { level: 2 })).toHaveTextContent("New instance");
     expect(screen.queryByRole("button", { name: "Delete instance" })).not.toBeInTheDocument();
 
-    fireEvent.change(screen.getByRole("textbox"), { target: { value: "SN-42" } });
+    fireEvent.change(screen.getAllByRole("textbox")[0], { target: { value: "SN-42" } });
 
     expect(screen.getByRole("heading", { level: 2 })).toHaveTextContent("SN-42");
   });
@@ -154,7 +157,7 @@ describe("InstanceDetail", () => {
     });
     renderDetail(`?new=1&type=${encodeURIComponent(device)}`, [], instanceId);
 
-    fireEvent.change(await screen.findByRole("textbox"), { target: { value: "SN-42" } });
+    fireEvent.change((await screen.findAllByRole("textbox"))[0], { target: { value: "SN-42" } });
     fireEvent.click(screen.getByRole("button", { name: "Save" }));
 
     await waitFor(() =>
@@ -288,6 +291,78 @@ describe("InstanceDetail", () => {
       }),
     );
     expect(await screen.findByRole("heading", { name: "Renamed" })).toBeInTheDocument();
+  });
+
+  it("shows the identifiers apart from the fields and marks the label field", async () => {
+    renderDetail("", [
+      { identifier: "name", label: "Name", kind: "TEXT", value: "Headquarters", required: false, readOnly: false, labelProperty: true },
+      { identifier: "city", label: "City", kind: "TEXT", value: "Bern", required: false, readOnly: false },
+    ], "inst-1", { identifiers: ["https://example.org/buildings/hq", "hq"] });
+
+    const identifiers = await screen.findByRole("region", { name: /Identifiers/ });
+    // Collapsed by default - the summary shows how many there are
+    const toggle = within(identifiers).getByRole("button", { name: "Identifiers (2)" });
+    expect(toggle).toHaveAttribute("aria-expanded", "false");
+    expect(identifiers.querySelector(".collapse")).not.toHaveClass("show");
+    fireEvent.click(toggle);
+    expect(toggle).toHaveAttribute("aria-expanded", "true");
+    expect(within(identifiers).getAllByRole("listitem").map((item) => item.textContent)).toEqual([
+      "https://example.org/buildings/hq",
+      "hq",
+    ]);
+    expect(screen.getByText("Label").closest(".view-label")).toHaveTextContent("Name");
+    // Nothing to add in the read mode
+    expect(screen.queryByRole("textbox", { name: "New identifier" })).not.toBeInTheDocument();
+  });
+
+  it("hides the identifiers in the read mode if there are none", async () => {
+    renderDetail("", [
+      { identifier: "name", label: "Name", kind: "TEXT", value: "Headquarters", required: false, readOnly: false },
+    ]);
+
+    expect(await screen.findByText("Name")).toBeInTheDocument();
+    expect(screen.queryByRole("region", { name: /Identifiers/ })).not.toBeInTheDocument();
+  });
+
+  it("only adds identifiers - the stored ones can't be removed", async () => {
+    vi.mocked(updateInstance).mockResolvedValue({
+      instanceId: "inst-1",
+      type: "Building",
+      instanceName: "Headquarters",
+      space: "default",
+      permissions: "View, Edit",
+      releaseStatus: "has changed",
+      fields: [],
+      identifiers: ["hq", "bern-hq"],
+      directLinks: [],
+    });
+    renderDetail("?edit=1", [
+      { identifier: "name", label: "Name", kind: "TEXT", value: "Headquarters", required: false, readOnly: false },
+    ], "inst-1", { identifiers: ["hq"] });
+
+    const identifiers = await screen.findByRole("region", { name: /Identifiers/ });
+    fireEvent.click(within(identifiers).getByRole("button", { name: "Identifiers (1)" }));
+    expect(within(identifiers).queryByRole("button", { name: /Remove/ })).not.toBeInTheDocument();
+
+    const input = within(identifiers).getByRole("textbox", { name: "New identifier" });
+    fireEvent.change(input, { target: { value: "hq" } });
+    expect(within(identifiers).getByRole("button", { name: "Add identifier" })).toBeDisabled();
+    expect(within(identifiers).getByText("The instance already has this identifier.")).toBeInTheDocument();
+
+    fireEvent.change(input, { target: { value: " bern-hq " } });
+    fireEvent.keyDown(input, { key: "Enter" });
+    expect(input).toHaveValue("");
+    // A new identifier can be taken back until it is saved
+    expect(within(identifiers).getByRole("button", { name: "Remove the new identifier bern-hq" })).toBeInTheDocument();
+    expect(screen.getByRole("status")).toHaveTextContent("Identifiers");
+
+    fireEvent.click(screen.getByRole("button", { name: "Save" }));
+
+    await waitFor(() =>
+      expect(updateInstance).toHaveBeenCalledWith("token", "inst-1", {
+        "http://schema.org/identifier": ["hq", "bern-hq"],
+      }),
+    );
   });
 
   it("shows the validation results and flags the fields with errors", async () => {

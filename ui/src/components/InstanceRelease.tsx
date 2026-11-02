@@ -335,7 +335,7 @@ export default function InstanceRelease({
   );
 }
 
-function StatusTag({ status }: { status: ReleaseStatus }) {
+export function StatusTag({ status }: { status: ReleaseStatus }) {
   const { modifier, icon } = STATUS_STYLES[status];
   return (
     <span className={`release-status release-status--${modifier}`}>
@@ -387,6 +387,42 @@ function ReleaseStatsPanel({ stats }: { stats: ReleaseStats }) {
   );
 }
 
+/** The type and the name of an instance of the release tree - the name opens the instance (unless it is the top one). */
+export function ReleaseNodeLabel({
+  node,
+  isTop,
+  onInstanceClick,
+}: {
+  node: ReleaseNode;
+  isTop: boolean;
+  onInstanceClick?: (instanceId: string) => void;
+}) {
+  return (
+    <div className="release-node-label">
+      <span className="release-node-type">
+        <FontAwesomeIcon
+          icon={faCircle}
+          className="me-1"
+          style={{ color: node.typeColor || "#6c757d" }}
+        />
+        {node.type}
+      </span>
+      {isTop || !onInstanceClick ? (
+        <span className="release-node-name">{node.instanceName}</span>
+      ) : (
+        <Button
+          variant="link"
+          className="release-node-name release-node-name--link p-0"
+          onClick={() => onInstanceClick(node.instanceId)}
+          title={`Open ${node.instanceName}`}
+        >
+          {node.instanceName}
+        </Button>
+      )}
+    </div>
+  );
+}
+
 function ReleaseTreeRow({
   node,
   level,
@@ -425,28 +461,11 @@ function ReleaseTreeRow({
           </>
         )}
       </div>
-      <div className="release-node-label">
-        <span className="release-node-type">
-          <FontAwesomeIcon
-            icon={faCircle}
-            className="me-1"
-            style={{ color: node.typeColor || "#6c757d" }}
-          />
-          {node.type}
-        </span>
-        {isTop ? (
-          <span className="release-node-name">{node.instanceName}</span>
-        ) : (
-          <Button
-            variant="link"
-            className="release-node-name release-node-name--link p-0"
-            onClick={() => onInstanceClick(node.instanceId)}
-            title={`Open ${node.instanceName}`}
-          >
-            {node.instanceName}
-          </Button>
-        )}
-      </div>
+      <ReleaseNodeLabel
+        node={node}
+        isTop={isTop}
+        onInstanceClick={onInstanceClick}
+      />
       {!node.canRelease && !node.canUnrelease ? (
         <span
           className="release-node-forbidden"

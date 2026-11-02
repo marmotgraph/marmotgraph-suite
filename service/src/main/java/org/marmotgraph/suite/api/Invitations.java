@@ -5,9 +5,6 @@ import org.marmotgraph.sdk.MarmotGraphApiException;
 import org.marmotgraph.sdk.MarmotGraphClient;
 import org.marmotgraph.sdk.model.InvitationCandidate;
 import org.marmotgraph.sdk.model.PendingInvitation;
-import org.marmotgraph.sdk.model.ScopeDefinition;
-import org.marmotgraph.sdk.model.Stage;
-import org.marmotgraph.sdk.resources.ResponseOptions;
 import org.marmotgraph.suite.auth.AuthenticatedClient;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -21,6 +18,7 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.time.Instant;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Objects;
 import java.util.UUID;
@@ -51,11 +49,19 @@ public class Invitations {
     }
 
     /**
-     * The invitations of an instance. The scopes are the names of the scopes defined for its type - null if the user
-     * isn't allowed to list them. The invitedUsers are the usernames of the users invited - null if the user isn't
-     * allowed to list them.
+     * The invitations of an instance. The scopes are the names of the scopes defined for its type (an invitation can
+     * apply to). The invitedUsers are the users invited (sorted by their username) - null if the user
+     * isn't allowed to list them.
      */
-    public record InstanceInvitations(List<String> scopes, List<String> invitedUsers, List<InvitationLink> pendingInvitations) {
+    public record InstanceInvitations(List<String> scopes, List<InvitedUser> invitedUsers, List<InvitationLink> pendingInvitations) {
+    }
+
+    /** A user invited to review an instance - with the names of the scopes of its type the invitation applies to. */
+    public record InvitedUser(String username, List<String> scopes) {
+
+        static InvitedUser of(org.marmotgraph.sdk.model.InvitedUser invitedUser) {
+            return new InvitedUser(invitedUser.username(), invitedUser.scopes());
+        }
     }
 
     /** A known user who can be invited - the name falls back to the username if it is not known. */
@@ -68,7 +74,7 @@ public class Invitations {
     }
 
     /**
-     * The scopes of the type of the instance an invitation applies to (by their name) - all of them if none are
+     * The scopes of the type of the instance an invitation applies to (by their name) - the instance only if none are
      * given.
      */
     public record InvitationScopes(List<String> scopes) {
@@ -87,8 +93,8 @@ public class Invitations {
 
     /**
      * The invitations of the instance: the invited users and the invitation links which haven't been redeemed yet - and
-     * the scopes an invitation can be restricted to. Listing the invited users requires the global functionality
-     * LIST_INVITATIONS, listing the scopes DEFINE_SCOPES - both are omitted (null) if the user lacks them.
+     * the scopes an invitation can apply to. Listing the invited users requires the global functionality
+     * LIST_INVITATIONS - they are omitted (null) if the user lacks it.
      *
      * @param id the uuid of the instance as known by the core
      */
@@ -97,10 +103,9 @@ public class Invitations {
         // Requires the permission to invite for the instance - its failures are forwarded. Since it succeeded, the
         // token is valid: a 401 of the following requests stems from a missing functionality.
         List<InvitationLink> pending = client.instances().listPendingInvitations(id).stream().map(InvitationLink::of).toList();
-        List<String> invitedUsers = unlessUnauthorized(() -> client.instances().listInvitations(id).stream().sorted(String.CASE_INSENSITIVE_ORDER).toList());
-        String type = client.instances().get(id, Stage.IN_PROGRESS, ResponseOptions.DEFAULT).getType();
-        List<String> scopes = type == null ? List.of()
-                : unlessUnauthorized(() -> client.types().listScopes(type).stream().map(ScopeDefinition::name).toList());
+        List<InvitedUser> invitedUsers = unlessUnauthorized(() -> client.instances().listInvitations(id).stream().map(InvitedUser::of)
+                .sorted(Comparator.comparing(InvitedUser::username, String.CASE_INSENSITIVE_ORDER)).toList());
+        List<String> scopes = client.instances().listInvitationScopes(id);
         return new InstanceInvitations(scopes, invitedUsers, pending);
     }
 
@@ -116,8 +121,8 @@ public class Invitations {
     }
 
     /**
-     * Invites the known user to review the instance and the instances in the given scopes of its type - replaces the
-     * scopes of an existing invitation of the user.
+     * Invites the known user to review the instance and the instances in the given scopes of its type (the instance
+     * only if none are given) - replaces the scopes of an existing invitation of the user.
      *
      * @param id     the uuid of the instance as known by the core
      * @param userId the id of the user as provided by {@link #candidates}
@@ -130,7 +135,7 @@ public class Invitations {
 
     /**
      * Revokes the invitation of the user with the given username - the core lists the invited users by their username
-     * only, which is why its id is looked up among the candidates. A no-op if the user is not known.
+     * (not their id), which is why its id is looked up among the candidates. A no-op if the user is not known.
      *
      * @param id the uuid of the instance as known by the core
      */

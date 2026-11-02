@@ -9,10 +9,16 @@ import {
   revokeUserInvitation,
   searchInvitationCandidates,
 } from "../services/invitations";
+import { fetchReleaseTree, ReleaseNode } from "../services/instances";
 
 vi.mock("../contexts/AuthContext", () => {
   const getAccessToken = () => Promise.resolve("token");
   return { useAuth: () => ({ getAccessToken }) };
+});
+
+vi.mock("../services/instances", async (importOriginal) => {
+  const original = await importOriginal<typeof import("../services/instances")>();
+  return { ...original, fetchReleaseTree: vi.fn() };
 });
 
 vi.mock("../services/invitations", async (importOriginal) => {
@@ -30,7 +36,10 @@ vi.mock("../services/invitations", async (importOriginal) => {
 
 const INVITATIONS = {
   scopes: ["parts", "rack"],
-  invitedUsers: ["jdoe"],
+  invitedUsers: [
+    { username: "jdoe", scopes: ["parts"] },
+    { username: "mmuster", scopes: [] },
+  ],
   pendingInvitations: [
     {
       id: "inv-1",
@@ -42,8 +51,26 @@ const INVITATIONS = {
   ],
 };
 
+function node(instanceId: string, instanceName: string, children: ReleaseNode[] = []): ReleaseNode {
+  return {
+    instanceId,
+    instanceName,
+    type: "Device",
+    releaseStatus: "released",
+    canRelease: false,
+    canUnrelease: false,
+    children,
+  };
+}
+
+const PARTS_TREE = node("abc", "Rack", [node("p1", "Power supply")]);
+const RACK_TREE = node("abc", "Rack", [node("p1", "Power supply"), node("s1", "Server")]);
+
 describe("InstanceReview", () => {
   beforeEach(() => {
+    vi.mocked(fetchReleaseTree)
+      .mockReset()
+      .mockImplementation((_token, _id, scope) => Promise.resolve(scope === "parts" ? PARTS_TREE : RACK_TREE));
     vi.mocked(fetchInvitations).mockReset().mockResolvedValue(INVITATIONS);
     vi.mocked(searchInvitationCandidates).mockReset();
     vi.mocked(inviteUser).mockReset().mockResolvedValue(undefined);
@@ -56,11 +83,76 @@ describe("InstanceReview", () => {
     render(<InstanceReview instanceId="abc" />);
 
     const users = await screen.findByRole("region", { name: /Invited users/ });
-    expect(within(users).getByText("jdoe")).toBeInTheDocument();
+    expect(within(within(users).getByText("jdoe").closest("li")!).getByText("parts")).toBeInTheDocument();
+    expect(within(within(users).getByText("mmuster").closest("li")!).getByText("This instance only")).toBeInTheDocument();
     const pending = screen.getByRole("region", { name: /Pending invitation links/ });
     expect(within(pending).getByText("For Max")).toBeInTheDocument();
     expect(within(pending).getByText("rack")).toBeInTheDocument();
     expect(fetchInvitations).toHaveBeenCalledWith("token", "abc");
+  });
+
+  it("lists the instances covered by the selected scopes", async () => {
+    const onInstanceClick = vi.fn();
+    render(<InstanceReview instanceId="abc" onInstanceClick={onInstanceClick} />);
+
+    const covered = await screen.findByRole("group", { name: /Instances covered/ });
+    expect(await within(covered).findByText("Server")).toBeInTheDocument();
+    expect(within(covered).getByText("Power supply")).toBeInTheDocument();
+    expect(within(covered).getByText("3")).toBeInTheDocument();
+    expect(fetchReleaseTree).toHaveBeenCalledWith("token", "abc", "parts");
+    expect(fetchReleaseTree).toHaveBeenCalledWith("token", "abc", "rack");
+
+    fireEvent.click(screen.getByLabelText(/rack/));
+    expect(within(covered).queryByText("Server")).not.toBeInTheDocument();
+    expect(within(covered).getByText("Power supply")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByLabelText(/parts/));
+    expect(within(covered).queryByText("Power supply")).not.toBeInTheDocument();
+    expect(within(covered).getByText("Rack")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByLabelText(/parts/));
+    fireEvent.click(within(covered).getByRole("button", { name: "Power supply" }));
+    expect(onInstanceClick).toHaveBeenCalledWith("p1");
+  });
+
+  it("lists the instances an existing invitation covers when expanded", async () => {
+    render(<InstanceReview instanceId="abc" />);
+
+    const users = await screen.findByRole("region", { name: /Invited users/ });
+    const jdoe = within(users).getByText("jdoe").closest("li")!;
+    const toggle = await within(jdoe).findByRole("button", { name: /^Instances covered\s*2$/ });
+    expect(toggle).toHaveAttribute("aria-expanded", "false");
+    expect(within(jdoe).queryByText("Power supply")).not.toBeInTheDocument();
+
+    fireEvent.click(toggle);
+    expect(toggle).toHaveAttribute("aria-expanded", "true");
+    expect(within(jdoe).getByText("Power supply")).toBeInTheDocument();
+    expect(within(jdoe).queryByText("Server")).not.toBeInTheDocument();
+
+    const mmuster = within(users).getByText("mmuster").closest("li")!;
+    expect(within(mmuster).getByRole("button", { name: /^Instances covered\s*1$/ })).toBeInTheDocument();
+    const pending = screen.getByRole("region", { name: /Pending invitation links/ });
+    fireEvent.click(within(pending).getByRole("button", { name: /^Instances covered\s*3$/ }));
+    expect(within(pending).getByText("Server")).toBeInTheDocument();
+    expect(fetchReleaseTree).toHaveBeenCalledTimes(2);
+  });
+
+  it("tells how many instances each scope reaches", async () => {
+    render(<InstanceReview instanceId="abc" />);
+
+    expect(await screen.findByLabelText(/^parts\s*1 instance$/)).toBeInTheDocument();
+    expect(await screen.findByLabelText(/^rack\s*2 instances$/)).toBeInTheDocument();
+  });
+
+  it("tells when the type defines no scopes", async () => {
+    vi.mocked(fetchInvitations).mockResolvedValue({ ...INVITATIONS, scopes: [] });
+    render(<InstanceReview instanceId="abc" />);
+
+    expect(
+      await screen.findByText("The type defines no scopes - the invitation applies to this instance only."),
+    ).toBeInTheDocument();
+    expect(screen.queryByRole("group", { name: /Instances covered/ })).not.toBeInTheDocument();
+    expect(fetchReleaseTree).not.toHaveBeenCalled();
   });
 
   it("tells when the invited users can't be listed", async () => {
@@ -77,10 +169,9 @@ describe("InstanceReview", () => {
     ]);
     render(<InstanceReview instanceId="abc" />);
 
-    fireEvent.change(await screen.findByLabelText("User or invitation label"), { target: { value: "jan" } });
-    fireEvent.click(await screen.findByRole("button", { name: /Jane Doe/ }));
-    fireEvent.click(screen.getByLabelText("parts"));
-    fireEvent.click(screen.getByRole("button", { name: "Invite user" }));
+    fireEvent.click(await screen.findByLabelText(/parts/));
+    fireEvent.change(screen.getByLabelText("User or invitation label"), { target: { value: "jan" } });
+    fireEvent.click(await screen.findByRole("button", { name: "Invite Jane Doe" }));
 
     expect(await screen.findByText("Jane Doe is invited for review.")).toBeInTheDocument();
     expect(searchInvitationCandidates).toHaveBeenCalledWith("token", "abc", "jan");
@@ -88,15 +179,17 @@ describe("InstanceReview", () => {
     expect(fetchInvitations).toHaveBeenCalledTimes(2);
   });
 
-  it("requires at least one scope", async () => {
+  it("invites for the instance only if no scope is selected", async () => {
+    vi.mocked(createInvitationLink).mockResolvedValue({ id: "inv-2", label: "Ma", scopes: [], token: "secret" });
     render(<InstanceReview instanceId="abc" />);
-    fireEvent.change(await screen.findByLabelText("User or invitation label"), { target: { value: "Ma" } });
-    fireEvent.click(screen.getByRole("button", { name: /Create an invitation link labeled Ma/ }));
-    fireEvent.click(screen.getByLabelText("parts"));
-    fireEvent.click(screen.getByLabelText("rack"));
+    fireEvent.click(await screen.findByLabelText(/parts/));
+    fireEvent.click(screen.getByLabelText(/rack/));
+    expect(screen.getByText("No scope selected - the invitation covers this instance only.")).toBeInTheDocument();
 
-    expect(screen.getByRole("alert")).toHaveTextContent("Select at least one scope.");
-    expect(screen.getByRole("button", { name: "Create invitation link" })).toBeDisabled();
+    fireEvent.change(screen.getByLabelText("User or invitation label"), { target: { value: "Ma" } });
+    fireEvent.click(screen.getByRole("button", { name: /Create an invitation link labeled Ma/ }));
+
+    await waitFor(() => expect(createInvitationLink).toHaveBeenCalledWith("token", "abc", "Ma", []));
   });
 
   it("offers an invitation link labeled with the text below the users found", async () => {
@@ -108,7 +201,7 @@ describe("InstanceReview", () => {
 
     expect(await screen.findByText("No users found.")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Create an invitation link labeled Max Muster" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Invite user" })).toBeDisabled();
+    expect(screen.queryByRole("button", { name: /^Invite / })).not.toBeInTheDocument();
   });
 
   it("creates an invitation link labeled with the text and offers it to be copied", async () => {
@@ -124,7 +217,6 @@ describe("InstanceReview", () => {
 
     fireEvent.change(await screen.findByLabelText("User or invitation label"), { target: { value: "  For Max " } });
     fireEvent.click(screen.getByRole("button", { name: /Create an invitation link labeled For Max/ }));
-    fireEvent.click(screen.getByRole("button", { name: "Create invitation link" }));
 
     const link = await screen.findByLabelText("Invitation link", { selector: "input[readonly]" });
     expect(link).toHaveValue(`${window.location.origin}/invitations/secret%2Ftoken`);

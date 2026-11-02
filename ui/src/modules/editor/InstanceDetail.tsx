@@ -34,6 +34,7 @@ import {
   deleteInstance,
   fetchIncomingLinks,
   fetchInstance,
+  IDENTIFIER,
   IncomingLinks,
   IncomingLinksOfType,
   InstanceDetail as InstanceDetailData,
@@ -43,6 +44,7 @@ import {
 import { fetchTypeFields, fetchTypes, typeLabel } from "../../services/types";
 import { Breadcrumbs, BreadcrumbItem as BreadcrumbTrailItem } from "../../components/Breadcrumbs";
 import InstanceFieldControl from "../../components/InstanceFieldControl";
+import InstanceIdentifiers from "../../components/InstanceIdentifiers";
 import InstanceLinksPanel, {
   HoveredLink,
 } from "../../components/InstanceLinksPanel";
@@ -92,6 +94,9 @@ const INSTANCE_MODES: Array<{ mode: InstanceMode; icon: IconDefinition }> = [
 
 /** Names the change of an instance edited in the raw mode (e.g. in the unsaved instances) */
 const RAW_JSON_LABEL = "Raw JSON";
+
+/** Names the change of the identifiers (which are no field) */
+const IDENTIFIERS_LABEL = "Identifiers";
 
 export default function InstanceDetail() {
   const { instanceId } = useParams<{ instanceId: string }>();
@@ -404,13 +409,22 @@ function InstanceDetailView({ instanceId }: { instanceId: string }) {
     () => new Map(fields.map((field) => [field.identifier, field.label])),
     [fields],
   );
+  /** The fields and the identifiers - as their changes are named */
+  const changeLabels = useMemo(
+    () => [...fields, { identifier: IDENTIFIER, label: IDENTIFIERS_LABEL }],
+    [fields],
+  );
 
+  const savedIdentifiers = useMemo(() => instance?.identifiers ?? [], [instance]);
+  // The identifiers are edited (and saved) like a field - the backend only adds them though
   const savedFieldValues = useMemo<InstanceFieldValues>(
-    () =>
-      Object.fromEntries(
+    () => ({
+      ...Object.fromEntries(
         fields.map((field) => [field.identifier, field.value ?? null]),
       ),
-    [fields],
+      [IDENTIFIER]: savedIdentifiers,
+    }),
+    [fields, savedIdentifiers],
   );
 
   const setFieldValue = useCallback((identifier: string, value: unknown) => {
@@ -441,7 +455,8 @@ function InstanceDetailView({ instanceId }: { instanceId: string }) {
     }
 
     if (draft) {
-      setCurrentFieldValues(draft.fieldValues);
+      // Drafts kept before the identifiers were editable don't change them
+      setCurrentFieldValues({ [IDENTIFIER]: savedFieldValues[IDENTIFIER], ...draft.fieldValues });
       setBaseline(savedFieldValues);
       setIsEditMode(true);
       setIsRawMode(false);
@@ -474,8 +489,8 @@ function InstanceDetailView({ instanceId }: { instanceId: string }) {
   }, [baseline, currentFieldValues, isEditMode]);
 
   const changedFieldLabels = useMemo(
-    () => getChangedInstanceFieldLabels(currentFieldValues, baseline, fields),
-    [baseline, currentFieldValues, fields],
+    () => getChangedInstanceFieldLabels(currentFieldValues, baseline, changeLabels),
+    [baseline, currentFieldValues, changeLabels],
   );
 
   const rawDraft = getDraft(instanceId)?.rawJson;
@@ -864,7 +879,7 @@ function InstanceDetailView({ instanceId }: { instanceId: string }) {
             )}
 
             {isReviewMode ? (
-              <InstanceReview instanceId={instanceId} />
+              <InstanceReview instanceId={instanceId} onInstanceClick={handleLinkClick} />
             ) : isInfoMode ? (
               <InstanceInfo instanceId={instanceId} />
             ) : isReleaseMode ? (
@@ -896,6 +911,7 @@ function InstanceDetailView({ instanceId }: { instanceId: string }) {
                         <ViewFieldLabel
                           tooltip={field.tooltip}
                           required={field.required}
+                          isLabel={field.labelProperty}
                           validationErrors={fieldErrors.get(field.identifier)}
                         >
                           {field.label}
@@ -922,6 +938,7 @@ function InstanceDetailView({ instanceId }: { instanceId: string }) {
                           isChanged={changedFieldKeys.has(field.identifier)}
                           tooltip={field.tooltip}
                           required={field.required}
+                          isLabel={field.labelProperty}
                           validationErrors={fieldErrors.get(field.identifier)}
                         >
                           {field.label}
@@ -941,6 +958,13 @@ function InstanceDetailView({ instanceId }: { instanceId: string }) {
                         <FieldErrors errors={fieldErrors.get(field.identifier)} />
                       </Form.Group>
                     ))}
+
+                    <InstanceIdentifiers
+                      identifiers={identifiersOf(currentFieldValues)}
+                      saved={isNewInstance ? [] : savedIdentifiers}
+                      isEditMode
+                      onChange={(identifiers) => setFieldValue(IDENTIFIER, identifiers)}
+                    />
 
                     {unsupportedFields.length > 0 && (
                       <UnsupportedFieldsSection
@@ -997,6 +1021,15 @@ function InstanceDetailView({ instanceId }: { instanceId: string }) {
                       </div>
                     </div>
                   </div>
+                )}
+
+                {!isEditMode && (
+                  <InstanceIdentifiers
+                    identifiers={identifiersOf(currentFieldValues)}
+                    saved={savedIdentifiers}
+                    isEditMode={false}
+                    onChange={() => undefined}
+                  />
                 )}
 
                 {!isEditMode && unsupportedFields.length > 0 && (
@@ -1131,6 +1164,12 @@ function UnsupportedFieldsSection({
   );
 }
 
+/** The identifiers among the values of the fields - also of a draft stored before they were edited. */
+function identifiersOf(values: InstanceFieldValues): string[] {
+  const identifiers = values[IDENTIFIER];
+  return Array.isArray(identifiers) ? identifiers.filter((i): i is string => typeof i === "string") : [];
+}
+
 function fieldSectionProps(field: InstanceField) {
   return {
     className: "mb-4 instance-field-section",
@@ -1138,7 +1177,15 @@ function fieldSectionProps(field: InstanceField) {
   };
 }
 
-/** The label of a field in the read mode - flagged if the validation reports errors for the field. */
+/** Marks the field the instance is named by. */
+function LabelTag() {
+  return (
+    <span className="instance-field-label-tag" title="The instance is named by this field">
+      Label
+    </span>
+  );
+}
+
 function RequiredMark() {
   return (
     <span className="instance-field-required text-danger" title="Required">
@@ -1148,21 +1195,25 @@ function RequiredMark() {
   );
 }
 
+/** The label of a field in the read mode - flagged if the validation reports errors for the field. */
 function ViewFieldLabel({
   children,
   tooltip,
   required = false,
+  isLabel = false,
   validationErrors,
 }: {
   children: React.ReactNode;
   tooltip?: string;
   required?: boolean;
+  isLabel?: boolean;
   validationErrors?: FieldValidationError[];
 }) {
   return (
     <div className="view-label" title={tooltip}>
       {children}
       {required && <RequiredMark />}
+      {isLabel && <LabelTag />}
       {validationErrors && <FieldValidationIndicator errors={validationErrors} />}
     </div>
   );
@@ -1177,12 +1228,14 @@ function InstanceFieldLabel({
   isChanged = false,
   tooltip,
   required = false,
+  isLabel = false,
   validationErrors,
 }: {
   children: React.ReactNode;
   isChanged?: boolean;
   tooltip?: string;
   required?: boolean;
+  isLabel?: boolean;
   validationErrors?: FieldValidationError[];
 }) {
   return (
@@ -1192,6 +1245,7 @@ function InstanceFieldLabel({
     >
       {children}
       {required && <RequiredMark />}
+      {isLabel && <LabelTag />}
       {validationErrors && <FieldValidationIndicator errors={validationErrors} />}
       {isChanged && (
         <span className="instance-field-label-changed-badge">Unsaved</span>

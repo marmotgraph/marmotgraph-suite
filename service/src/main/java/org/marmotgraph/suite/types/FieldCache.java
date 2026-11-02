@@ -19,17 +19,25 @@ import java.util.Objects;
 
 /**
  * Caches the fields of the types (as shown in the editor) by the full name of the type - derived from the properties
- * of the type as provided by the /types endpoint of the core. Only the user independent parts (widget, order, ...) are
- * kept. This is separate from the {@link TypeCache} since the properties are only needed for the detail view of an
+ * of the type as provided by the /types endpoint of the core (except for the {@link #IDENTIFIER}). Only the user
+ * independent parts (widget, order, ...) are kept. This is separate from the {@link TypeCache} since the properties are only needed for the detail view of an
  * instance - and are therefore not fetched when listing the types.
  */
 @Component
 public class FieldCache extends DefinitionCache<List<FieldCache.FieldDefinition>> {
 
     /**
-     * Properties without an order number are placed after those with one (keeping the order of the core)
+     * The identifiers of an instance - a list of values with a meaning of its own (an instance can be looked up by
+     * any of them) rather than an ordinary property. It is therefore not provided as a field.
      */
-    private static final Comparator<FieldDefinition> BY_ORDER = Comparator.comparing(FieldDefinition::order, Comparator.nullsLast(Comparator.naturalOrder()));
+    public static final String IDENTIFIER = "http://schema.org/identifier";
+
+    /**
+     * The label property comes first (regardless of its order number) - properties without an order number are placed
+     * after those with one (keeping the order of the core)
+     */
+    private static final Comparator<FieldDefinition> BY_ORDER = Comparator.comparing(FieldDefinition::labelProperty).reversed()
+            .thenComparing(FieldDefinition::order, Comparator.nullsLast(Comparator.naturalOrder()));
 
     /**
      * The definition of a field of a type.
@@ -38,16 +46,17 @@ public class FieldCache extends DefinitionCache<List<FieldCache.FieldDefinition>
      * @param targetTypes      the types (full names) the property can link to
      * @param reverseLinkLabel the label of the property when shown from the perspective of the linked instance (e.g.
      *                         "Is language of" for "Language") - null if there is none
+     * @param labelProperty    whether the instances of the type are labeled with the property (its label property)
      */
     public record FieldDefinition(String identifier, String label, FieldKind kind, Integer order, boolean required, boolean readOnly,
-                                  String tooltip, List<String> targetTypes, String reverseLinkLabel) {
+                                  String tooltip, List<String> targetTypes, String reverseLinkLabel, boolean labelProperty) {
 
-        static FieldDefinition of(Property property) {
+        static FieldDefinition of(Property property, String labelProperty) {
             return new FieldDefinition(property.identifier(), label(property), FieldKind.ofWidget(property.widget()),
                     property.orderNumber(), Boolean.TRUE.equals(property.required()), Boolean.TRUE.equals(property.readOnly()),
                     property.labelTooltip(),
                     property.targetTypes().stream().map(TargetType::type).filter(Objects::nonNull).toList(),
-                    property.nameForReverseLink());
+                    property.nameForReverseLink(), property.identifier() != null && property.identifier().equals(labelProperty));
         }
 
         /**
@@ -83,7 +92,8 @@ public class FieldCache extends DefinitionCache<List<FieldCache.FieldDefinition>
     protected Map<String, List<FieldDefinition>> fetch(MarmotGraphClient client, List<String> typeNames) {
         Map<String, List<FieldDefinition>> result = new LinkedHashMap<>();
         client.types().getByNames(typeNames, Stage.IN_PROGRESS, null, true, false).forEach((name, type) ->
-                result.put(name, type.properties().stream().map(FieldDefinition::of).sorted(BY_ORDER).toList()));
+                result.put(name, type.properties().stream().filter(p -> !IDENTIFIER.equals(p.identifier()))
+                        .map(p -> FieldDefinition.of(p, type.labelProperty())).sorted(BY_ORDER).toList()));
         return result;
     }
 

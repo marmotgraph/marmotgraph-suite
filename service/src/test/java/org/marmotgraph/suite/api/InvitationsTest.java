@@ -4,14 +4,10 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.marmotgraph.sdk.MarmotGraphApiException;
 import org.marmotgraph.sdk.MarmotGraphClient;
-import org.marmotgraph.sdk.model.Instance;
 import org.marmotgraph.sdk.model.InvitationCandidate;
+import org.marmotgraph.sdk.model.InvitedUser;
 import org.marmotgraph.sdk.model.PendingInvitation;
-import org.marmotgraph.sdk.model.ScopeDefinition;
-import org.marmotgraph.sdk.model.Stage;
 import org.marmotgraph.sdk.resources.InstancesResource;
-import org.marmotgraph.sdk.resources.ResponseOptions;
-import org.marmotgraph.sdk.resources.TypesResource;
 import org.marmotgraph.suite.auth.AuthenticatedClientResolver;
 import org.marmotgraph.suite.configuration.ArgumentResolvers;
 import org.mockito.Mockito;
@@ -28,7 +24,6 @@ import org.springframework.web.servlet.config.annotation.EnableWebMvc;
 
 import java.time.Instant;
 import java.util.List;
-import java.util.Map;
 import java.util.UUID;
 
 import static org.mockito.ArgumentMatchers.any;
@@ -55,7 +50,6 @@ class InvitationsTest {
         }
     }
 
-    private static final String DEVICE = "https://example.org/types/Device";
     private static final UUID INSTANCE_ID = UUID.fromString("47b94e45-5435-49a8-aba3-3d482fabced3");
     private static final UUID USER_ID = UUID.fromString("a1b2c3d4-e5f6-4a5b-9c8d-7e6f5a4b3c2d");
     private static final UUID INVITATION_ID = UUID.fromString("0f1e2d3c-4b5a-4968-8776-655443322110");
@@ -64,7 +58,6 @@ class InvitationsTest {
     private MarmotGraphClient client;
 
     private InstancesResource instancesResource;
-    private TypesResource typesResource;
     private MockMvc mockMvc;
 
     @BeforeEach
@@ -72,12 +65,8 @@ class InvitationsTest {
         Mockito.reset(client);
         MarmotGraphClient userClient = Mockito.mock(MarmotGraphClient.class);
         instancesResource = Mockito.mock(InstancesResource.class);
-        typesResource = Mockito.mock(TypesResource.class);
         when(client.withToken("theToken")).thenReturn(userClient);
         when(userClient.instances()).thenReturn(instancesResource);
-        when(userClient.types()).thenReturn(typesResource);
-        when(instancesResource.get(INSTANCE_ID, Stage.IN_PROGRESS, ResponseOptions.DEFAULT))
-                .thenReturn(new Instance(Map.of("@id", INSTANCE_ID, "@type", DEVICE, "_space", "myspace")));
         mockMvc = MockMvcBuilders.webAppContextSetup(context).build();
     }
 
@@ -89,15 +78,18 @@ class InvitationsTest {
     @Test
     void listProvidesTheScopesInvitedUsersAndPendingInvitations() throws Exception {
         when(instancesResource.listPendingInvitations(INSTANCE_ID)).thenReturn(List.of(pending(null)));
-        when(instancesResource.listInvitations(INSTANCE_ID)).thenReturn(List.of("zoe", "adam"));
-        when(typesResource.listScopes(DEVICE)).thenReturn(List.of(new ScopeDefinition("parts", null), new ScopeDefinition("rack", null)));
+        when(instancesResource.listInvitations(INSTANCE_ID)).thenReturn(List.of(new InvitedUser("zoe", List.of()), new InvitedUser("adam", List.of("parts", "rack"))));
+        when(instancesResource.listInvitationScopes(INSTANCE_ID)).thenReturn(List.of("parts", "rack"));
 
         mockMvc.perform(get("/instances/" + INSTANCE_ID + "/invitations").header(HttpHeaders.AUTHORIZATION, "Bearer theToken"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.scopes[0]").value("parts"))
                 .andExpect(jsonPath("$.scopes[1]").value("rack"))
-                .andExpect(jsonPath("$.invitedUsers[0]").value("adam"))
-                .andExpect(jsonPath("$.invitedUsers[1]").value("zoe"))
+                .andExpect(jsonPath("$.invitedUsers[0].username").value("adam"))
+                .andExpect(jsonPath("$.invitedUsers[0].scopes[0]").value("parts"))
+                .andExpect(jsonPath("$.invitedUsers[0].scopes[1]").value("rack"))
+                .andExpect(jsonPath("$.invitedUsers[1].username").value("zoe"))
+                .andExpect(jsonPath("$.invitedUsers[1].scopes").isEmpty())
                 .andExpect(jsonPath("$.pendingInvitations[0].id").value(INVITATION_ID.toString()))
                 .andExpect(jsonPath("$.pendingInvitations[0].label").value("For Jane"))
                 .andExpect(jsonPath("$.pendingInvitations[0].scopes[0]").value("parts"))
@@ -107,14 +99,14 @@ class InvitationsTest {
     }
 
     @Test
-    void listOmitsWhatTheUserIsNotAllowedToList() throws Exception {
+    void listOmitsTheInvitedUsersIfTheUserIsNotAllowedToListThem() throws Exception {
         when(instancesResource.listPendingInvitations(INSTANCE_ID)).thenReturn(List.of());
         when(instancesResource.listInvitations(INSTANCE_ID)).thenThrow(new MarmotGraphApiException(401, "Unauthorized", null, null));
-        when(typesResource.listScopes(DEVICE)).thenThrow(new MarmotGraphApiException(403, "Forbidden", null, null));
+        when(instancesResource.listInvitationScopes(INSTANCE_ID)).thenReturn(List.of());
 
         mockMvc.perform(get("/instances/" + INSTANCE_ID + "/invitations").header(HttpHeaders.AUTHORIZATION, "Bearer theToken"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.scopes").doesNotExist())
+                .andExpect(jsonPath("$.scopes").isEmpty())
                 .andExpect(jsonPath("$.invitedUsers").doesNotExist())
                 .andExpect(jsonPath("$.pendingInvitations").isEmpty());
     }

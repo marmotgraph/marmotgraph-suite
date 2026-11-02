@@ -104,9 +104,9 @@ class TypesTest {
     void fieldsOfTheTypeAreProvidedEmpty() throws Exception {
         String device = "https://example.org/types/Device";
         when(fieldCache.get(userClient, device)).thenReturn(List.of(
-                new FieldDefinition("http://schema.org/name", "Name", FieldKind.TEXT, 1, true, false, "The name", List.of(), null),
-                new FieldDefinition("https://example.org/rack", "Rack", FieldKind.LINK, 2, false, false, null, List.of("https://example.org/types/Rack"), null),
-                new FieldDefinition("https://example.org/blades", "Blades", FieldKind.LINKS, 3, false, true, null, List.of(), null)));
+                new FieldDefinition("http://schema.org/name", "Name", FieldKind.TEXT, 1, true, false, "The name", List.of(), null, false),
+                new FieldDefinition("https://example.org/rack", "Rack", FieldKind.LINK, 2, false, false, null, List.of("https://example.org/types/Rack"), null, false),
+                new FieldDefinition("https://example.org/blades", "Blades", FieldKind.LINKS, 3, false, true, null, List.of(), null, false)));
 
         mockMvc.perform(get("/types/fields").param("type", device).header(HttpHeaders.AUTHORIZATION, "Bearer theToken"))
                 .andExpect(status().isOk())

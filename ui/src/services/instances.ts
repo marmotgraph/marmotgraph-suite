@@ -31,7 +31,15 @@ export interface InstanceField {
   tooltip?: string;
   /** The types (identifiers) the field can link to - or embed (for the nested fields) */
   targetTypes?: string[];
+  /** Whether the instances of the type are named by the field (it is shown first) */
+  labelProperty?: boolean;
 }
+
+/**
+ * The property holding the identifiers of an instance - it is no field. Its values are sent like a field (as a list
+ * of strings) but they can only be added: the backend keeps the stored ones.
+ */
+export const IDENTIFIER = "http://schema.org/identifier";
 
 /**
  * An instance embedded in another one (the value of a nested field) - with the fields of its type, which hold its
@@ -60,6 +68,8 @@ export interface InstanceDetail {
   contributed?: boolean;
   /** The fields in the order they are to be shown - not available for new instances (yet) */
   fields?: InstanceField[];
+  /** The identifiers of the instance (the values of the IDENTIFIER) */
+  identifiers?: string[];
   /** The instances linked by the fields (labeled with the field they are linked by) */
   directLinks?: LinkedInstance[];
   /** The results of the last validation per validation schema of the type - with their errors */
@@ -335,13 +345,18 @@ export interface ReleaseNode {
   children: ReleaseNode[];
 }
 
-/** Fetches the release tree of an instance - with the release status and the permissions of the user per instance. */
+/**
+ * Fetches the release tree of an instance - with the release status and the permissions of the user per instance. The
+ * tree spans all scopes of the type of the instance - or the one with the given name.
+ */
 export function fetchReleaseTree(
   accessToken: string,
   instanceId: string,
+  scope?: string,
 ): Promise<ReleaseNode> {
+  const query = scope ? `?${new URLSearchParams({ name: scope })}` : "";
   return getJson(
-    `/api/instances/${encodeURIComponent(instanceId)}/scope`,
+    `/api/instances/${encodeURIComponent(instanceId)}/scope${query}`,
     "the release tree",
     accessToken,
   );

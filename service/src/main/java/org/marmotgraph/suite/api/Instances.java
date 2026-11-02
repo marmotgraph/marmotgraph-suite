@@ -152,11 +152,12 @@ public class Instances {
 
     /**
      * A field of an instance as shown in the editor - the value is provided in the shape required by the kind of the
-     * field (see {@link #fieldValue(FieldDefinition, Object, Definitions)}).
+     * field (see {@link #fieldValue(FieldDefinition, Object, Definitions)}). labelProperty is only set (true) for the
+     * field the instances of the type are labeled with - it is the first one.
      */
     @JsonInclude(JsonInclude.Include.NON_NULL)
     public record Field(String identifier, String label, FieldKind kind, Object value, boolean required, boolean readOnly,
-                        String tooltip, List<String> targetTypes) {
+                        String tooltip, List<String> targetTypes, Boolean labelProperty) {
     }
 
     /**
@@ -182,12 +183,13 @@ public class Instances {
      * to be shown in. The direct links are the instances linked by its fields (labeled with the field they are linked
      * by, in the order of the fields). The incoming links are provided separately (see {@link #incomingLinks}) since they are paginated.
      * The validation holds the results of the last validation per validation schema of the type - with their errors.
-     * contributed tells whether the current user has contributed to the instance.
+     * contributed tells whether the current user has contributed to the instance. The identifiers are the values of
+     * the {@link FieldCache#IDENTIFIER} - they are no field (they can only be added, see {@link #update}).
      */
     @JsonInclude(JsonInclude.Include.NON_NULL)
     public record InstanceDetail(String instanceId, String type, String typeDescription, String typeColor, String instanceName,
                                  String space, String permissions, String releaseStatus, boolean contributed, List<Field> fields,
-                                 List<LinkedInstance> directLinks, List<Validation> validation) {
+                                 List<String> identifiers, List<LinkedInstance> directLinks, List<Validation> validation) {
     }
 
     /**
@@ -347,7 +349,8 @@ public class Instances {
         List<Field> fields = fields(client, instance, typeName);
         return new InstanceDetail(instanceId, typeLabel(typeName, type), type != null ? type.description() : null, type != null ? type.color() : null,
                 instanceName(instance, type, instanceId), instance.getSpace(), permissions(instance.getPermissions()),
-                releaseStatus(releaseStatus), Boolean.TRUE.equals(instance.hasContributed()), fields, directLinks(fields),
+                releaseStatus(releaseStatus), Boolean.TRUE.equals(instance.hasContributed()), fields,
+                identifiers(instance.get(FieldCache.IDENTIFIER)), directLinks(fields),
                 instance.getValidation().stream().map(v -> Validation.of(v, fields)).toList());
     }
 
@@ -368,6 +371,8 @@ public class Instances {
      * Updates the given fields of the instance (as edited in the editor) - the other properties are kept as they are.
      * The values are expected in the shape of the kind of their field (see {@link #fieldValue(FieldDefinition, Object, Definitions)})
      * and are translated back to JSON-LD. The core rejects the request if the user is not allowed to edit the instance.
+     * The identifiers (a list of strings by the {@link FieldCache#IDENTIFIER}) can only be added - the ones the
+     * instance already has are kept even if they are not sent.
      *
      * @param id      the uuid of the instance as known by the core
      * @param changes the changed fields - by their identifier
@@ -376,8 +381,15 @@ public class Instances {
     @PatchMapping("/{id}")
     public InstanceDetail update(@AuthenticatedClient MarmotGraphClient client, @PathVariable UUID id,
                                  @RequestBody Map<String, Object> changes) {
-        String typeName = client.instances().get(id, Stage.IN_PROGRESS, ResponseOptions.DEFAULT).getType();
-        Map<String, Object> payload = jsonLdPayload(client, typeName, changes);
+        org.marmotgraph.sdk.model.Instance instance = client.instances().get(id, Stage.IN_PROGRESS, ResponseOptions.DEFAULT);
+        Map<String, Object> fields = new LinkedHashMap<>(changes);
+        Object addedIdentifiers = fields.remove(FieldCache.IDENTIFIER);
+        Map<String, Object> payload = jsonLdPayload(client, instance.getType(), fields);
+        List<String> existingIdentifiers = identifiers(instance.get(FieldCache.IDENTIFIER));
+        List<String> identifiers = withIdentifiers(existingIdentifiers, addedIdentifiers);
+        if (identifiers.size() > existingIdentifiers.size()) {
+            payload.put(FieldCache.IDENTIFIER, identifiers);
+        }
         if (!payload.isEmpty()) {
             client.instances().update(id, payload);
         }
@@ -386,7 +398,8 @@ public class Instances {
 
     /**
      * A new instance as created in the editor - the values of its fields (by their identifier) are expected in the
-     * shape of the kind of their field. The space falls back to the private space of the user if none is given.
+     * shape of the kind of their field, the identifiers (if any) as a list of strings by the {@link FieldCache#IDENTIFIER}.
+     * The space falls back to the private space of the user if none is given.
      */
     public record NewInstance(String type, String space, Map<String, Object> fields) {
     }
@@ -407,14 +420,40 @@ public class Instances {
         }
         Map<String, Object> payload = new LinkedHashMap<>();
         payload.put("@type", List.of(instance.type()));
-        jsonLdPayload(client, instance.type(), Objects.requireNonNullElse(instance.fields(), Map.of())).forEach((identifier, value) -> {
+        Map<String, Object> fields = new LinkedHashMap<>(Objects.requireNonNullElse(instance.fields(), Map.of()));
+        List<String> identifiers = withIdentifiers(List.of(), fields.remove(FieldCache.IDENTIFIER));
+        jsonLdPayload(client, instance.type(), fields).forEach((identifier, value) -> {
             if (value != null) {
                 payload.put(identifier, value);
             }
         });
+        if (!identifiers.isEmpty()) {
+            payload.put(FieldCache.IDENTIFIER, identifiers);
+        }
         String space = instance.space() != null && !instance.space().isBlank() ? instance.space() : PRIVATE_SPACE;
         client.instances().createWithId(id, space, payload);
         return get(client, id);
+    }
+
+    /**
+     * The identifiers of an instance (the JSON-LD value of its {@link FieldCache#IDENTIFIER}) - distinct, in the order
+     * they are stored.
+     */
+    static List<String> identifiers(Object value) {
+        return values(value).stream().map(Instances::firstString).filter(Objects::nonNull).filter(i -> !i.isBlank()).distinct().toList();
+    }
+
+    /**
+     * The existing identifiers followed by the added ones (a list of strings) which are new - identifiers are only
+     * added, never removed.
+     */
+    static List<String> withIdentifiers(List<String> existing, Object added) {
+        if (added != null && !(added instanceof List<?> list && list.stream().allMatch(String.class::isInstance))) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "The identifiers are expected as a list of strings");
+        }
+        Set<String> identifiers = new LinkedHashSet<>(existing);
+        values(added).stream().map(i -> ((String) i).trim()).filter(i -> !i.isEmpty()).forEach(identifiers::add);
+        return List.copyOf(identifiers);
     }
 
     /**
@@ -531,14 +570,17 @@ public class Instances {
 
     /**
      * The release tree of the instance: the instance and the instances reached from it by the scopes of its type (the
-     * combination of all of them) - with their release status and the permissions of the user to release them.
-     * Instances the user can't read are left out by the core (together with the instances reached through them).
+     * combination of all of them, or the one with the given name) - with their release status and the permissions of
+     * the user to release them. Instances the user can't read are left out by the core (together with the instances
+     * reached through them).
      *
-     * @param id the uuid of the instance as known by the core
+     * @param id   the uuid of the instance as known by the core
+     * @param name the name of a scope of the type of the instance - all of them if not given
      */
     @GetMapping("/{id}/scope")
-    public ReleaseNode scope(@AuthenticatedClient MarmotGraphClient client, @PathVariable UUID id) {
-        Scope scope = client.instances().scope(id, null, Stage.IN_PROGRESS, true, true);
+    public ReleaseNode scope(@AuthenticatedClient MarmotGraphClient client, @PathVariable UUID id,
+                             @RequestParam(required = false) String name) {
+        Scope scope = client.instances().scope(id, name != null && !name.isBlank() ? name : null, Stage.IN_PROGRESS, true, true);
         Set<String> typeNames = new LinkedHashSet<>();
         collectTypes(scope, typeNames);
         Map<String, TypeDefinition> types = typeNames.isEmpty() ? Map.of() : typeCache.get(client, List.copyOf(typeNames));
@@ -820,7 +862,8 @@ public class Instances {
      */
     static Field field(FieldDefinition definition, Object value, Definitions definitions) {
         return new Field(definition.identifier(), definition.label(), definition.kind(), fieldValue(definition, value, definitions),
-                definition.required(), definition.readOnly(), definition.tooltip(), definition.targetTypes().isEmpty() ? null : definition.targetTypes());
+                definition.required(), definition.readOnly(), definition.tooltip(), definition.targetTypes().isEmpty() ? null : definition.targetTypes(),
+                definition.labelProperty() ? true : null);
     }
 
     /**

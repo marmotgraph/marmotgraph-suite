@@ -1,6 +1,6 @@
 import React, { useLayoutEffect, useRef, useState } from "react";
 import { Button, Form } from "react-bootstrap";
-import { ArrowRight, GripVertical, Layers, Pencil, Trash2 } from "lucide-react";
+import { ArrowRight, GripVertical, Layers, Pencil, Pin, Tag, Trash2 } from "lucide-react";
 import {
   describeWidget,
   ModelProperty,
@@ -22,10 +22,12 @@ function moved<T>(items: T[], from: number, to: number): T[] {
 
 /**
  * The properties of a type as the editor shows them in its form - each with an example of its widget. They can be
- * dragged (or moved with the arrow keys on their handle) to change their order.
+ * dragged (or moved with the arrow keys on their handle) to change their order. The label property is expected first -
+ * it stays there (regardless of its order number), the others are ordered below it.
  */
 export default function PropertyFields({
   properties,
+  labelProperty,
   types,
   sources,
   canDefine,
@@ -38,6 +40,8 @@ export default function PropertyFields({
   renderFlags,
 }: {
   properties: ModelProperty[];
+  /** The property the instances of the type are labeled with - pinned to the top */
+  labelProperty?: string;
   types: ModelType[];
   /** Where the specifications of the properties come from - undefined while they are checked */
   sources?: Record<string, SpecificationSource>;
@@ -61,6 +65,7 @@ export default function PropertyFields({
   const handles = useRef(new Map<string, HTMLButtonElement>());
   const [focus, setFocus] = useState<string>();
   const sortable = canDefine && !saving;
+  const pinned = properties[0]?.identifier === labelProperty ? 1 : 0;
 
   // Moving the property in the DOM loses the focus of its handle - it's given back after the move
   useLayoutEffect(() => {
@@ -76,7 +81,7 @@ export default function PropertyFields({
   };
 
   const move = (from: number, to: number) => {
-    if (from === to || to < 0 || to >= properties.length) {
+    if (from === to || from < pinned || to < pinned || to >= properties.length) {
       return;
     }
     const property = properties[from];
@@ -105,9 +110,10 @@ export default function PropertyFields({
       {properties.map((property, index) => {
         const name = propertyName(property);
         const known = widgetKind(property.widget);
+        const isLabel = index < pinned;
         const classes = ["modeler-field"];
         if (sources?.[property.identifier] === "NONE") classes.push("modeler-field--unspecified");
-        if (sortable) classes.push("modeler-field--sortable");
+        if (sortable && !isLabel) classes.push("modeler-field--sortable");
         if (dragged === property.identifier) classes.push("modeler-field--dragged");
         if (dragged && dropIndex === index) classes.push("modeler-field--drop-before");
         if (dragged && dropIndex === properties.length && index === properties.length - 1) {
@@ -118,7 +124,7 @@ export default function PropertyFields({
             key={property.identifier}
             className={classes.join(" ")}
             data-testid="modeler-field"
-            draggable={sortable}
+            draggable={sortable && !isLabel}
             onDragStart={(e) => {
               e.dataTransfer.effectAllowed = "move";
               // Firefox only starts dragging with data
@@ -132,11 +138,17 @@ export default function PropertyFields({
               e.preventDefault();
               e.dataTransfer.dropEffect = "move";
               const rect = e.currentTarget.getBoundingClientRect();
-              setDropIndex(e.clientY < rect.top + rect.height / 2 ? index : index + 1);
+              // Nothing is placed above the label property
+              setDropIndex(Math.max(pinned, e.clientY < rect.top + rect.height / 2 ? index : index + 1));
             }}
             onDragEnd={endDrag}
           >
-            {canDefine && (
+            {canDefine && isLabel && (
+              <span className="modeler-field-handle modeler-field-handle--pinned" title="The label property is always shown first">
+                <Pin size={16} aria-hidden />
+              </span>
+            )}
+            {canDefine && !isLabel && (
               <button
                 type="button"
                 className="modeler-field-handle"
@@ -166,6 +178,12 @@ export default function PropertyFields({
                   {name}
                   {property.required && <span title="Required"> *</span>}
                 </Form.Label>
+                {isLabel && (
+                  <span className="modeler-status" title="The instances of the type are labeled with this property - it is shown first">
+                    <Tag size={12} aria-hidden />
+                    Label
+                  </span>
+                )}
                 {renderBadges(property)}
                 <span className="modeler-field-tools">
                   <span className="modeler-status" title={property.widget ? `Widget: ${property.widget}` : "No widget specified"}>

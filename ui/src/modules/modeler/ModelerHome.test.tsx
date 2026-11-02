@@ -121,6 +121,26 @@ describe("ModelerHome", () => {
     expect(definePropertyOrder).toHaveBeenCalledWith("token", DEVICE, "https://schema.org/name", 2);
   });
 
+  it("keeps the label property at the top", async () => {
+    vi.mocked(definePropertyOrder).mockClear();
+    renderAt(`/modeler/types?type=${encodeURIComponent(DEVICE)}`, ["DEFINE_TYPES_AND_PROPERTIES"]);
+    vi.mocked(fetchTypeSpecification).mockResolvedValue({
+      name: "Device",
+      labelProperty: "https://example.org/locatedIn",
+      searchableProperties: [],
+      embeddedOnly: false,
+    });
+    // Shown first regardless of its order number - and it can't be moved
+    const handle = await screen.findByLabelText("Move name (position 2 of 2)", {}, { timeout: 5000 });
+    const names = screen.getAllByTestId("modeler-field").map((field) => field.querySelector(".modeler-field-label")?.textContent);
+    expect(names).toEqual(["located in", "name *"]);
+    const header = screen.getAllByTestId("modeler-field")[0].querySelector<HTMLElement>(".modeler-field-header")!;
+    expect(within(header).getByText("Label")).toBeInTheDocument();
+    expect(screen.queryByLabelText(/^Move located in/)).not.toBeInTheDocument();
+    fireEvent.keyDown(handle, { key: "ArrowUp" });
+    expect(definePropertyOrder).not.toHaveBeenCalled();
+  });
+
   it("flags the label and the searchable properties of the type", async () => {
     vi.mocked(defineType).mockClear();
     renderAt(`/modeler/types?type=${encodeURIComponent(DEVICE)}`, ["DEFINE_TYPES_AND_PROPERTIES"]);
