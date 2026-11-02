@@ -488,14 +488,18 @@ public class Instances {
 
     /**
      * Translates the value of a field (in the shape required by its kind) back into JSON-LD - the linked instances are
-     * referenced by their id, the embedded instances are translated with the fields of their type. Empty values are
-     * sent as null so they are removed.
+     * referenced by their id, the embedded instances are translated with the fields of their type. Lists of texts are
+     * sent without blank or repeated values. Empty values are sent as null so they are removed.
      */
     static Object jsonLdValue(FieldDefinition definition, Object value, Function<String, List<FieldDefinition>> fieldsOf) {
         if (value == null || value instanceof String s && s.isBlank()) {
             return null;
         }
         return switch (definition.kind()) {
+            case TEXTS -> {
+                List<String> texts = nonBlank(values(value).stream().map(Instances::firstString).toList());
+                yield texts.isEmpty() ? null : texts;
+            }
             case LINK -> reference(value);
             case LINKS -> {
                 List<Map<String, Object>> references = values(value).stream().map(Instances::reference).filter(Objects::nonNull).toList();
@@ -870,12 +874,13 @@ public class Instances {
 
     /**
      * Translates the JSON-LD value of a property into the shape required by the kind of the field: a string for the
-     * textual ones, a number, a boolean, a linked instance (or a list of them), an embedded instance (or a list of
+     * textual ones, a list of strings, a number, a boolean, a linked instance (or a list of them), an embedded instance (or a list of
      * them) - and the value as is for the unsupported ones.
      */
     static Object fieldValue(FieldDefinition definition, Object value, Definitions definitions) {
         return switch (definition.kind()) {
             case TEXT, TEXTAREA, DATE, DATETIME, TIME, COLOR -> firstString(value);
+            case TEXTS -> values(value).stream().map(Instances::firstString).filter(Objects::nonNull).toList();
             case NUMBER -> toNumber(firstString(value));
             case CHECKBOX -> {
                 String s = firstString(value);

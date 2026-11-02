@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { Form } from "react-bootstrap";
 import CodeMirror from "@uiw/react-codemirror";
 import LinkedInstancesField from "./LinkedInstancesField";
+import MultipleTextField from "./MultipleTextField";
 import NestedInstancesField from "./NestedInstancesField";
 import { jsonEditorSetup, jsonExtensions } from "./jsonEditor";
 import "./InstanceFieldControl.css";
@@ -62,6 +63,10 @@ function TextArea({ value, onChange, isEditMode }: InstanceFieldControlProps) {
       onChange={(e) => onChange(e.target.value)}
     />
   );
+}
+
+function MultipleTexts({ field, value, onChange, isEditMode }: InstanceFieldControlProps) {
+  return <MultipleTextField label={field.label} value={value} onChange={onChange} isEditMode={isEditMode} />;
 }
 
 function NumberInput({ value, onChange, isEditMode }: InstanceFieldControlProps) {
@@ -206,6 +211,7 @@ function UnsupportedField({ value, onChange, isEditMode }: InstanceFieldControlP
 const fieldControls: Record<FieldKind, React.ComponentType<InstanceFieldControlProps>> = {
   TEXT: textInput("text"),
   TEXTAREA: TextArea,
+  TEXTS: MultipleTexts,
   NUMBER: NumberInput,
   DATE: textInput("date"),
   // datetime-local inputs do not accept seconds / time zones

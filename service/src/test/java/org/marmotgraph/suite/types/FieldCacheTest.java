@@ -109,6 +109,7 @@ class FieldCacheTest {
 
     @Test
     void widgetsAreMappedToTheKindsOfFields() {
+        assertEquals(FieldKind.TEXTS, FieldKind.ofWidget("InputTextMultiple"));
         assertEquals(FieldKind.LINKS, FieldKind.ofWidget("DynamicDropdown"));
         assertEquals(FieldKind.LINK, FieldKind.ofWidget("SimpleDropdown"));
         assertEquals(FieldKind.CHECKBOX, FieldKind.ofWidget("CheckBox"));

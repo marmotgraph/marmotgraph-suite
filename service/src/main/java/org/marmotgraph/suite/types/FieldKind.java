@@ -10,6 +10,10 @@ import java.util.Map;
 public enum FieldKind {
     TEXT, TEXTAREA, NUMBER, DATE, DATETIME, TIME, COLOR, CHECKBOX,
     /**
+     * A list of texts
+     */
+    TEXTS,
+    /**
      * A single linked instance
      */
     LINK,
@@ -31,10 +35,11 @@ public enum FieldKind {
     UNSUPPORTED;
 
     /**
-     * TODO InputTextMultiple, InputNumberMultiple and AnnotatedInputText are not supported yet
+     * TODO InputNumberMultiple and AnnotatedInputText are not supported yet
      */
     private static final Map<String, FieldKind> BY_WIDGET = Map.ofEntries(
             Map.entry("InputText", TEXT),
+            Map.entry("InputTextMultiple", TEXTS),
             Map.entry("TextArea", TEXTAREA),
             Map.entry("InputNumber", NUMBER),
             Map.entry("InputDate", DATE),

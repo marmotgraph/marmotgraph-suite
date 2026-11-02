@@ -2,6 +2,7 @@ import React from "react";
 import { Badge, Button, Form, Table } from "react-bootstrap";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faCircle, faPlus } from "@fortawesome/free-solid-svg-icons";
+import MultipleTextField from "../../components/MultipleTextField";
 import { ModelType, shortName, typeName, UNSUPPORTED_WIDGETS, widgetKind } from "../../services/modeler";
 import "../editor/InstanceDetail.css";
 import "../../components/LinkedInstancesField.css";
@@ -84,7 +85,7 @@ export default function WidgetPreview({
       control = <Form.Control readOnly value="Example text" />;
       break;
     case "InputTextMultiple":
-      control = <Tags values={[{ label: "First value" }, { label: "Second value" }]} />;
+      control = <MultipleTextField label="Example" value={["First value", "Second value"]} onChange={() => undefined} isEditMode />;
       break;
     case "TextArea":
       control = <Form.Control as="textarea" rows={3} readOnly value={"An example text\nspanning several lines."} />;

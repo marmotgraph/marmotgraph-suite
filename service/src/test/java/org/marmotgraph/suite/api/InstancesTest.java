@@ -758,6 +758,57 @@ class InstancesTest {
     }
 
     @Test
+    void fieldsWithMultipleTextsAreProvidedAsListOfStrings() throws Exception {
+        String shelf = "https://example.org/types/LabeledShelf";
+        when(instancesResource.get(any(UUID.class), any(), any())).thenReturn(instance(RELEASED_ID, shelf, Map.of(
+                "https://example.org/aliases", List.of("First", Map.of("@value", "Second")),
+                "https://example.org/keywords", "Single")));
+        when(typesResource.getByNames(List.of(shelf), Stage.IN_PROGRESS, null, false, false))
+                .thenReturn(Map.of(shelf, new TypeInformation(shelf, null, "LabeledShelf", null, null, null, null, List.of(), List.of(), List.of())));
+        when(typesResource.getByNames(List.of(shelf), Stage.IN_PROGRESS, null, true, false))
+                .thenReturn(Map.of(shelf, new TypeInformation(shelf, null, "LabeledShelf", null, null, null, null, List.of(), List.of(
+                        new Property("https://example.org/aliases", "aliases", null, "InputTextMultiple", null, null, null, 1, null, List.of()),
+                        new Property("https://example.org/keywords", "keywords", null, "InputTextMultiple", null, null, null, 2, null, List.of()),
+                        new Property("https://example.org/tags", "tags", null, "InputTextMultiple", null, null, null, 3, null, List.of())
+                ), List.of())));
+        when(instancesResource.releaseStatus(RELEASED_ID, ReleaseTreeScope.TOP_INSTANCE_ONLY)).thenReturn(ReleaseStatus.RELEASED);
+
+        mockMvc.perform(get("/instances/" + RELEASED_ID).header(HttpHeaders.AUTHORIZATION, "Bearer theToken"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.fields[0].kind").value("TEXTS"))
+                .andExpect(jsonPath("$.fields[0].value.length()").value(2))
+                .andExpect(jsonPath("$.fields[0].value[0]").value("First"))
+                .andExpect(jsonPath("$.fields[0].value[1]").value("Second"))
+                .andExpect(jsonPath("$.fields[1].value.length()").value(1))
+                .andExpect(jsonPath("$.fields[1].value[0]").value("Single"))
+                .andExpect(jsonPath("$.fields[2].value.length()").value(0));
+    }
+
+    @Test
+    void updateSendsMultipleTextsWithoutBlankOrRepeatedValuesToTheCore() throws Exception {
+        String cabinet = "https://example.org/types/LabeledCabinet";
+        when(instancesResource.get(any(UUID.class), any(), any())).thenReturn(instance(RELEASED_ID, cabinet, Map.of()));
+        when(typesResource.getByNames(List.of(cabinet), Stage.IN_PROGRESS, null, true, false))
+                .thenReturn(Map.of(cabinet, new TypeInformation(cabinet, null, "LabeledCabinet", null, null, null, null, List.of(), List.of(
+                        new Property("https://example.org/aliases", "aliases", null, "InputTextMultiple", null, null, null, 1, null, List.of()),
+                        new Property("https://example.org/keywords", "keywords", null, "InputTextMultiple", null, null, null, 2, null, List.of())
+                ), List.of())));
+        when(instancesResource.releaseStatus(RELEASED_ID, ReleaseTreeScope.TOP_INSTANCE_ONLY)).thenReturn(ReleaseStatus.RELEASED);
+
+        mockMvc.perform(patch("/instances/" + RELEASED_ID).header(HttpHeaders.AUTHORIZATION, "Bearer theToken")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"https://example.org/aliases": [" First ", "", "Second", "First"], "https://example.org/keywords": []}
+                                """))
+                .andExpect(status().isOk());
+
+        Map<String, Object> expected = new HashMap<>();
+        expected.put("https://example.org/aliases", List.of("First", "Second"));
+        expected.put("https://example.org/keywords", null);
+        verify(instancesResource).update(RELEASED_ID, expected);
+    }
+
+    @Test
     void updateSendsTheEmbeddedInstancesAsJsonLdToTheCore() throws Exception {
         String shelf = "https://example.org/types/Shelf";
         String tray = "https://example.org/types/Tray";

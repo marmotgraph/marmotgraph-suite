@@ -5,6 +5,7 @@ import { getJson, send } from "./http";
 export type FieldKind =
   | "TEXT"
   | "TEXTAREA"
+  | "TEXTS"
   | "NUMBER"
   | "DATE"
   | "DATETIME"
@@ -18,7 +19,7 @@ export type FieldKind =
   | "UNSUPPORTED";
 
 /**
- * A field of an instance - the value is in the shape required by its kind (e.g. LinkedInstance[] for LINKS,
+ * A field of an instance - the value is in the shape required by its kind (e.g. string[] for TEXTS, LinkedInstance[] for LINKS,
  * EmbeddedInstance[] for NESTED, an EmbeddedInstance for SINGLE_NESTED).
  */
 export interface InstanceField {

@@ -99,7 +99,7 @@ export const WIDGET_KINDS: WidgetKind[] = [
 ];
 
 /** The widgets the editor doesn't support yet - it shows their values as raw JSON. */
-export const UNSUPPORTED_WIDGETS = ["InputTextMultiple", "InputNumberMultiple", "AnnotatedInputText"];
+export const UNSUPPORTED_WIDGETS = ["InputNumberMultiple", "AnnotatedInputText"];
 
 /** The kind and cardinality of the widget - undefined for widgets unknown to the modeler. */
 export function widgetKind(widget: string | undefined): { kind: WidgetKind; cardinality: Cardinality } | undefined {

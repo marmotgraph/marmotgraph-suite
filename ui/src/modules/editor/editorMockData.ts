@@ -151,9 +151,9 @@ function isLinkedInstance(value: unknown): value is LinkedInstance {
   return typeof value === "object" && value !== null && "instanceId" in value;
 }
 
-/** Empty values (no value, an empty text) are considered equal. */
+/** Empty values (no value, an empty text, an empty list) are considered equal. */
 function normalizeFieldValue(value: unknown): unknown {
-  return value === undefined || value === "" ? null : value;
+  return value === undefined || value === "" || (Array.isArray(value) && value.length === 0) ? null : value;
 }
 
 function isInstanceFieldValueEqual(left: unknown, right: unknown): boolean {
