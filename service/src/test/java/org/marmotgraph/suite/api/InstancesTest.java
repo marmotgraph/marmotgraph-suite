@@ -218,6 +218,11 @@ class InstancesTest {
     }
 
     @Test
+    void translatesThePermissionsNeededForTheComments() {
+        assertEquals("View, Comment, Manage", Instances.permissions(List.of("MANAGE_SPACE", "COMMENT", "READ")));
+    }
+
+    @Test
     void listForwardsTheFavoritesFilterToTheCore() throws Exception {
         when(instancesResource.list(any(InstanceListOptions.class))).thenReturn(page(List.of()));
 

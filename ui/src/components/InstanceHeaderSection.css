@@ -1,0 +1,86 @@
+/* What describes the instance rather than being one of its properties - set apart from the fields in the header */
+.instance-header-sections {
+    margin-top: 10px;
+    min-width: 0;
+    border: 1px solid #e4e7eb;
+    border-radius: 8px;
+    background-color: #f8f9fa;
+}
+
+/* The sections hide themselves if they have nothing to show */
+.instance-header-sections:empty {
+    display: none;
+}
+
+.instance-header-section {
+    min-width: 0;
+    padding: 4px 12px;
+}
+
+.instance-header-section + .instance-header-section {
+    border-top: 1px solid #e4e7eb;
+}
+
+.instance-header-section-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 4px 12px;
+    min-width: 0;
+    min-height: 32px;
+}
+
+.instance-header-section-title {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    margin: 0;
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: #6c757d;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.instance-header-section-toggle.btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    min-height: 32px;
+    font: inherit;
+    letter-spacing: inherit;
+    text-transform: inherit;
+    color: inherit !important;
+    text-decoration: none !important;
+}
+
+.instance-header-section-toggle.btn:hover {
+    color: #212529 !important;
+}
+
+.instance-header-section-toggle.btn:focus-visible {
+    outline: 2px solid #6c8ebf;
+    outline-offset: 2px;
+    box-shadow: none;
+}
+
+.instance-header-section-toggle-icon {
+    font-size: 0.7rem;
+    color: #868e96;
+}
+
+.instance-header-section-count {
+    font-weight: 500;
+    color: #868e96;
+    font-variant-numeric: tabular-nums;
+}
+
+.instance-header-section-summary {
+    margin-left: auto;
+    min-width: 0;
+    max-width: 100%;
+}
+
+.instance-header-section-content {
+    padding: 4px 0 8px;
+}

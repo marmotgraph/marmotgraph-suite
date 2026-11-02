@@ -2,6 +2,7 @@ import React from "react";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faCircleCheck, faTriangleExclamation } from "@fortawesome/free-solid-svg-icons";
 import { InstanceValidation } from "../modules/editor/editorMockData";
+import InstanceHeaderSection from "./InstanceHeaderSection";
 import "./InstanceValidation.css";
 
 /** A violation of a validation schema as shown with the field it concerns. */
@@ -97,28 +98,11 @@ export function validationErrorsByField(
   return byField;
 }
 
-/** The compliance of each schema, shown with the instance name. The messages live with the fields. */
-export function InstanceValidationStatus({
-  validation,
-}: {
-  validation: InstanceValidation[];
-}) {
-  return (
-    <section className="instance-validation-summary" aria-label="Validation">
-      <div className="instance-validation-badges">
-        {validation.map((v) => (
-          <ValidationStatus key={v.name} validation={v} variant="badge" />
-        ))}
-      </div>
-    </section>
-  );
-}
-
 /**
- * The errors of the failed schemas, labeled with the field they concern.
- * Errors of no field stay here, because they never appear on a field.
+ * The validation in the instance header: the compliance of each schema stays visible, the errors are collapsed - those
+ * concerning a field are shown with it as well.
  */
-export function InstanceValidationErrors({
+export function InstanceValidationSection({
   validation,
   fieldLabels,
 }: {
@@ -126,19 +110,44 @@ export function InstanceValidationErrors({
   /** The labels of the fields by their identifier */
   fieldLabels: Map<string, string>;
 }) {
-  const failed = validation.filter((v) => v.errors && v.errors.length > 0);
-  const errorCount = failed.reduce((count, v) => count + (v.errors?.length ?? 0), 0);
-  if (errorCount === 0) {
-    return null;
-  }
+  const errorCount = validation.reduce((count, v) => count + (v.errors?.length ?? 0), 0);
   return (
-    <section className="instance-validation-errors-panel" aria-label="Validation errors">
-      <div className="instance-validation-summary-title">
-        Validation
-        <span className="instance-validation-summary-count">
-          {errorCount} {errorCount === 1 ? "error" : "errors"}
-        </span>
-      </div>
+    <InstanceHeaderSection
+      title="Validation"
+      count={
+        errorCount > 0 && (
+          <span className="instance-validation-summary-count">
+            {errorCount} {errorCount === 1 ? "error" : "errors"}
+          </span>
+        )
+      }
+      summary={
+        <div className="instance-validation-badges">
+          {validation.map((v) => (
+            <ValidationStatus key={v.name} validation={v} variant="badge" />
+          ))}
+        </div>
+      }
+    >
+      {errorCount > 0 && <InstanceValidationErrors validation={validation} fieldLabels={fieldLabels} />}
+    </InstanceHeaderSection>
+  );
+}
+
+/**
+ * The errors of the failed schemas, labeled with the field they concern.
+ * Errors of no field stay here, because they never appear on a field.
+ */
+function InstanceValidationErrors({
+  validation,
+  fieldLabels,
+}: {
+  validation: InstanceValidation[];
+  fieldLabels: Map<string, string>;
+}) {
+  const failed = validation.filter((v) => v.errors && v.errors.length > 0);
+  return (
+    <section aria-label="Validation errors">
       <div className="instance-validation-schemas">
         {failed.map((v) => {
           const schemaErrors = v.errors ?? [];

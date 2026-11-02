@@ -15,6 +15,7 @@ import {
   updateInstance,
 } from "../../services/instances";
 import { fetchTypeFields, fetchTypes } from "../../services/types";
+import { addComment, deleteComment, fetchComments, InstanceComment, updateComment } from "../../services/comments";
 import { UnsavedInstancesProvider } from "../../contexts/UnsavedInstancesContext";
 
 vi.mock("../../contexts/AuthContext", () => {
@@ -40,6 +41,13 @@ vi.mock("../../services/instances", () => ({
   unreleaseInstance: vi.fn(),
   appendIncomingLinks: vi.fn(),
   updateInstance: vi.fn(),
+}));
+
+vi.mock("../../services/comments", () => ({
+  addComment: vi.fn(),
+  deleteComment: vi.fn(),
+  fetchComments: vi.fn(),
+  updateComment: vi.fn(),
 }));
 
 vi.mock("../../services/types", async (importOriginal) => ({
@@ -119,16 +127,18 @@ describe("InstanceDetail", () => {
 
     expect(await screen.findByText(/Serial number/)).toBeInTheDocument();
     expect(screen.getByText("Device")).toBeInTheDocument();
-    // The fields come before the identifiers (which can be added to a new instance as well)
-    expect(screen.getAllByRole("textbox")[0]).toHaveValue("");
-    expect(screen.getByRole("textbox", { name: "New identifier" })).toHaveValue("");
+    expect(within(document.querySelector(".instance-form") as HTMLElement).getByRole("textbox")).toHaveValue("");
+    // The identifiers can be added to a new instance as well - in the header, apart from the fields
+    expect(
+      within(document.querySelector(".instance-header") as HTMLElement).getByRole("textbox", { name: "New identifier" }),
+    ).toHaveValue("");
     expect(fetchTypeFields).toHaveBeenCalledWith("token", device);
     expect(fetchInstance).not.toHaveBeenCalled();
     // Named "New instance" until the label field is filled in
     expect(screen.getByRole("heading", { level: 2 })).toHaveTextContent("New instance");
     expect(screen.queryByRole("button", { name: "Delete instance" })).not.toBeInTheDocument();
 
-    fireEvent.change(screen.getAllByRole("textbox")[0], { target: { value: "SN-42" } });
+    fireEvent.change(within(document.querySelector(".instance-form") as HTMLElement).getByRole("textbox"), { target: { value: "SN-42" } });
 
     expect(screen.getByRole("heading", { level: 2 })).toHaveTextContent("SN-42");
   });
@@ -157,7 +167,8 @@ describe("InstanceDetail", () => {
     });
     renderDetail(`?new=1&type=${encodeURIComponent(device)}`, [], instanceId);
 
-    fireEvent.change((await screen.findAllByRole("textbox"))[0], { target: { value: "SN-42" } });
+    await screen.findByRole("button", { name: "Save" });
+    fireEvent.change(within(document.querySelector(".instance-form") as HTMLElement).getByRole("textbox"), { target: { value: "SN-42" } });
     fireEvent.click(screen.getByRole("button", { name: "Save" }));
 
     await waitFor(() =>
@@ -197,6 +208,224 @@ describe("InstanceDetail", () => {
     );
     expect(screen.getByRole("button", { name: "Read" })).toHaveAttribute("aria-pressed", "true");
     expect(screen.queryByRole("button", { name: "Save" })).not.toBeInTheDocument();
+  });
+
+  describe("comments", () => {
+    const NAME: InstanceField = { identifier: "http://schema.org/name", label: "Name", kind: "TEXT", value: "HQ", required: false, readOnly: false };
+    const comment = (overrides: Partial<InstanceComment>): InstanceComment => ({
+      id: "c1",
+      text: "A comment",
+      createdAt: "2026-11-02T10:00:00Z",
+      own: false,
+      ...overrides,
+    });
+    const render = (comments: InstanceComment[], permissions = "View, Comment", search = "") => {
+      vi.mocked(fetchComments).mockResolvedValue(comments);
+      renderDetail(search, [NAME], "inst-1", { permissions });
+    };
+    /** Opens the comments on the instance - or on its field */
+    const open = async (subject: RegExp) => fireEvent.click(await screen.findByRole("button", { name: subject }));
+
+    beforeEach(() => {
+      vi.mocked(fetchComments).mockReset();
+      vi.mocked(addComment).mockReset();
+      vi.mocked(updateComment).mockReset();
+      vi.mocked(deleteComment).mockReset();
+    });
+
+    it("are neither loaded nor reachable without the permission to comment", async () => {
+      renderDetail("", [NAME], "inst-1", { permissions: "View" });
+
+      const button = await screen.findByRole("button", { name: "Comments on this instance" });
+      expect(button).toBeDisabled();
+      expect(button.parentElement).toHaveAttribute("title", "You don't have the permission to comment on this instance");
+      expect(screen.queryByRole("button", { name: /Comments on Name/ })).not.toBeInTheDocument();
+      expect(fetchComments).not.toHaveBeenCalled();
+    });
+
+    it("are no mode of their own", async () => {
+      render([]);
+
+      await screen.findByRole("button", { name: "Comments on this instance" });
+      const modes = within(screen.getByRole("group", { name: "Mode" }));
+      expect(modes.queryByRole("button", { name: /Comments/ })).not.toBeInTheDocument();
+      expect(modes.getByRole("button", { name: "Read" })).toHaveAttribute("aria-pressed", "true");
+    });
+
+    it("tell their number at the field and are shown on request", async () => {
+      render([comment({ text: "About the name", property: NAME.identifier, createdBy: { username: "jd", name: "Jane Doe" } })]);
+
+      const toggle = await screen.findByRole("button", { name: "Comments on Name (1)" });
+      expect(toggle).toHaveAttribute("aria-expanded", "false");
+      expect(screen.queryByText("About the name")).not.toBeInTheDocument();
+
+      fireEvent.click(toggle);
+
+      expect(toggle).toHaveAttribute("aria-expanded", "true");
+      expect(screen.getByText("About the name")).toBeInTheDocument();
+      expect(screen.getByText("Jane Doe")).toBeInTheDocument();
+
+      fireEvent.click(toggle);
+
+      expect(screen.queryByText("About the name")).not.toBeInTheDocument();
+    });
+
+    it("on the instance and on properties without a field are listed at the instance", async () => {
+      render([
+        comment({ id: "c1", text: "About the instance" }),
+        comment({ id: "c2", text: "About the name", property: NAME.identifier }),
+        comment({ id: "c3", text: "About something else", property: "https://example.org/gone" }),
+      ]);
+
+      await open(/Comments on this instance \(2\)/);
+
+      const overview = screen.getByRole("region", { name: /Comments on this instance/ });
+      expect(document.querySelector(".instance-header-sections")).toContainElement(overview);
+      expect(within(overview).getByText("About the instance")).toBeInTheDocument();
+      expect(within(overview).getAllByText("A reviewer")).toHaveLength(2);
+      expect(within(overview).getByText("gone")).toBeInTheDocument();
+      expect(within(overview).getByText("About something else")).toBeInTheDocument();
+      expect(screen.queryByText("About the name")).not.toBeInTheDocument();
+    });
+
+    it("can be added to a field - right away if it has none yet", async () => {
+      render([]);
+      vi.mocked(addComment).mockResolvedValue(comment({ text: "Typo?", property: NAME.identifier, own: true }));
+
+      await open(/Comments on Name/);
+      const submit = screen.getByRole("button", { name: "Add comment" });
+      expect(submit).toBeDisabled();
+      fireEvent.change(screen.getByRole("textbox", { name: "Comment on Name" }), { target: { value: " Typo? " } });
+      fireEvent.click(submit);
+
+      await waitFor(() => expect(screen.queryByRole("textbox", { name: "Comment on Name" })).not.toBeInTheDocument());
+      expect(screen.getByText("Typo?")).toBeInTheDocument();
+      expect(addComment).toHaveBeenCalledWith("token", "inst-1", NAME.identifier, "Typo?");
+      expect(screen.getByRole("button", { name: "Comments on Name (1)" })).toBeInTheDocument();
+    });
+
+    it("are closed again if the first comment is canceled", async () => {
+      render([]);
+
+      await open(/Comments on Name/);
+      fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
+
+      expect(screen.queryByRole("textbox", { name: "Comment on Name" })).not.toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "Comments on Name" })).toHaveAttribute("aria-expanded", "false");
+    });
+
+    it("on the instance only offer to add one once they are opened - and close again if it is canceled", async () => {
+      render([]);
+
+      const toggle = await screen.findByRole("button", { name: "Comments on this instance" });
+      expect(toggle).toHaveAttribute("aria-expanded", "false");
+      expect(screen.queryByRole("textbox", { name: "Comment on this instance" })).not.toBeInTheDocument();
+
+      fireEvent.click(toggle);
+      expect(toggle).toHaveAttribute("aria-expanded", "true");
+      fireEvent.click(within(screen.getByRole("region", { name: /Comments on this instance/ })).getByRole("button", { name: "Cancel" }));
+
+      expect(toggle).toHaveAttribute("aria-expanded", "false");
+      await waitFor(() =>
+        expect(screen.queryByRole("textbox", { name: "Comment on this instance" })).not.toBeInTheDocument(),
+      );
+    });
+
+    it("can be added in the edit mode - without touching the unsaved changes", async () => {
+      render([], "View, Edit, Comment", "?edit=1");
+      vi.mocked(addComment).mockResolvedValue(comment({ text: "Typo?", property: NAME.identifier, own: true }));
+
+      await screen.findByRole("button", { name: "Save" });
+      const input = document.querySelector<HTMLInputElement>(".instance-form input.form-control");
+      fireEvent.change(input!, { target: { value: "Changed" } });
+      await open(/Comments on Name/);
+      fireEvent.change(screen.getByRole("textbox", { name: "Comment on Name" }), { target: { value: "Typo?" } });
+      fireEvent.click(screen.getByRole("button", { name: "Add comment" }));
+
+      await waitFor(() => expect(screen.getByRole("button", { name: "Comments on Name (1)" })).toBeInTheDocument());
+      expect(input).toHaveValue("Changed");
+      expect(screen.getByRole("button", { name: "Save" })).toBeEnabled();
+      expect(updateInstance).not.toHaveBeenCalled();
+    });
+
+    it("are only available in the read and the edit mode", async () => {
+      render([]);
+
+      await open(/^Raw|raw JSON/);
+
+      const toggle = await screen.findByRole("button", { name: "Comments on this instance" });
+      expect(toggle).toBeDisabled();
+      expect(toggle.parentElement).toHaveAttribute("title", "Comments are available in the read and the edit mode");
+    });
+
+    it("keep the text if adding fails", async () => {
+      render([]);
+      vi.mocked(addComment).mockRejectedValue(new Error("Failed to add the comment"));
+
+      await open(/Comments on this instance/);
+      const input = screen.getByRole("textbox", { name: "Comment on this instance" });
+      fireEvent.change(input, { target: { value: "Looks good" } });
+      fireEvent.click(screen.getByRole("button", { name: "Add comment" }));
+
+      expect(await screen.findByText("Failed to add the comment")).toBeInTheDocument();
+      expect(input).toHaveValue("Looks good");
+    });
+
+    it("can only be edited and deleted by their author", async () => {
+      render([comment({ text: "Theirs" })]);
+
+      await open(/Comments on this instance \(1\)/);
+
+      expect(screen.getByText("Theirs")).toBeInTheDocument();
+      expect(screen.queryByRole("button", { name: "Edit comment" })).not.toBeInTheDocument();
+      expect(screen.queryByRole("button", { name: "Delete comment" })).not.toBeInTheDocument();
+    });
+
+    it("of others can be deleted by those managing the space - but not edited", async () => {
+      render([comment({ text: "Theirs" })], "View, Comment, Manage");
+
+      await open(/Comments on this instance \(1\)/);
+
+      expect(screen.getByRole("button", { name: "Delete comment" })).toBeInTheDocument();
+      expect(screen.queryByRole("button", { name: "Edit comment" })).not.toBeInTheDocument();
+    });
+
+    it("of the user can be edited", async () => {
+      render([comment({ text: "Mine", own: true })]);
+      vi.mocked(updateComment).mockResolvedValue(comment({ text: "Changed", own: true, updatedAt: "2026-11-02T11:00:00Z" }));
+
+      await open(/Comments on this instance \(1\)/);
+      fireEvent.click(screen.getByRole("button", { name: "Edit comment" }));
+      fireEvent.change(screen.getByRole("textbox", { name: "Edit comment" }), { target: { value: "Changed" } });
+      fireEvent.click(screen.getByRole("button", { name: "Save comment" }));
+
+      expect(await screen.findByText("(edited)")).toBeInTheDocument();
+      expect(screen.getByText("Changed")).toBeInTheDocument();
+      expect(updateComment).toHaveBeenCalledWith("token", "inst-1", "c1", "Changed");
+    });
+
+    it("are deleted after a confirmation", async () => {
+      render([comment({ text: "Mine", own: true })]);
+      vi.mocked(deleteComment).mockResolvedValue();
+
+      await open(/Comments on this instance \(1\)/);
+      fireEvent.click(screen.getByRole("button", { name: "Delete comment" }));
+      expect(deleteComment).not.toHaveBeenCalled();
+      fireEvent.click(within(screen.getByRole("dialog")).getByRole("button", { name: "Delete comment" }));
+
+      await waitFor(() => expect(screen.queryByText("Mine")).not.toBeInTheDocument());
+      expect(deleteComment).toHaveBeenCalledWith("token", "inst-1", "c1");
+    });
+
+    it("offer a retry if they can't be loaded", async () => {
+      vi.mocked(fetchComments).mockRejectedValueOnce(new Error("Failed to load the comments"));
+      render([comment({ text: "Loaded" })]);
+
+      fireEvent.click(await screen.findByRole("button", { name: "Retry" }));
+      await open(/Comments on this instance \(1\)/);
+
+      expect(screen.getByText("Loaded")).toBeInTheDocument();
+    });
   });
 
   it("does not open the release tree without the permission to release", async () => {
@@ -300,6 +529,8 @@ describe("InstanceDetail", () => {
     ], "inst-1", { identifiers: ["https://example.org/buildings/hq", "hq"] });
 
     const identifiers = await screen.findByRole("region", { name: /Identifiers/ });
+    expect(document.querySelector(".instance-header")).toContainElement(identifiers);
+    expect(document.querySelector(".instance-view")).not.toContainElement(identifiers);
     // Collapsed by default - the summary shows how many there are
     const toggle = within(identifiers).getByRole("button", { name: "Identifiers (2)" });
     expect(toggle).toHaveAttribute("aria-expanded", "false");
@@ -322,6 +553,19 @@ describe("InstanceDetail", () => {
 
     expect(await screen.findByText("Name")).toBeInTheDocument();
     expect(screen.queryByRole("region", { name: /Identifiers/ })).not.toBeInTheDocument();
+  });
+
+  it("has nothing to expand in the validation without errors", async () => {
+    renderDetail(
+      "",
+      [{ identifier: "name", label: "Name", kind: "TEXT", value: "HQ", required: false, readOnly: false }],
+      "inst-1",
+      { validation: [{ name: "minimal", valid: true, compliance: 100, errors: [] }] },
+    );
+
+    const validation = await screen.findByRole("region", { name: "Validation" });
+    expect(validation).toHaveTextContent("minimal");
+    expect(within(validation).queryByRole("button")).not.toBeInTheDocument();
   });
 
   it("only adds identifiers - the stored ones can't be removed", async () => {
@@ -391,14 +635,20 @@ describe("InstanceDetail", () => {
       },
     );
 
-    const status = await screen.findByRole("region", { name: "Validation" });
-    expect(status).toHaveTextContent("minimal");
-    expect(status).toHaveTextContent("complete");
-    expect(status).toHaveTextContent("50%");
-    expect(status).not.toHaveTextContent("string found");
+    const validation = await screen.findByRole("region", { name: "Validation" });
+    const summary = validation.querySelector(".instance-header-section-summary") as HTMLElement;
+    expect(summary).toHaveTextContent("minimal");
+    expect(summary).toHaveTextContent("complete");
+    expect(summary).toHaveTextContent("50%");
 
-    const errors = screen.getByRole("region", { name: "Validation errors" });
-    expect(errors).toHaveTextContent("2 errors");
+    // Collapsed by default - the summary tells the compliance and how many errors there are
+    const toggle = within(validation).getByRole("button", { name: "Validation 2 errors" });
+    expect(toggle).toHaveAttribute("aria-expanded", "false");
+    expect(validation.querySelector(".collapse")).not.toHaveClass("show");
+    fireEvent.click(toggle);
+    expect(toggle).toHaveAttribute("aria-expanded", "true");
+
+    const errors = within(validation).getByRole("region", { name: "Validation errors" });
     expect(errors).toHaveTextContent("Height");
     expect(errors).toHaveTextContent("string found, integer expected");
     expect(errors).toHaveTextContent("property 'x' is not defined in the schema");
@@ -410,9 +660,8 @@ describe("InstanceDetail", () => {
     expect(titleColumn).toHaveTextContent("ID:");
     expect(titleColumn).toHaveTextContent("Space:");
     expect(statusColumn.querySelector(".link-status-icon")).not.toBeNull();
-    expect(statusColumn).toContainElement(status);
     expect(statusColumn).toHaveTextContent("released");
-    expect(header).not.toContainElement(errors);
+    expect(header).toContainElement(validation);
 
     // Only the field concerned by an error is flagged - with the error and its schema below it
     const heightSection = document.querySelector('[data-instance-field="Height"]') as HTMLElement;

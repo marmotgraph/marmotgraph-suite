@@ -116,20 +116,6 @@
     white-space: nowrap;
 }
 
-/* Failed-schema messages sit under the header. The pills sit under the link-status icon. */
-.instance-validation-block {
-    margin: 0 0 20px;
-    min-width: 0;
-}
-
-.instance-validation-summary {
-    margin: 0;
-}
-
-.instance-validation-errors-panel {
-    margin: 12px 0 0;
-}
-
 .instance-validation-schemas {
     display: flex;
     flex-direction: column;
@@ -185,18 +171,6 @@
     background-color: #f0a33a;
 }
 
-.instance-validation-summary-title {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    font-size: 0.75rem;
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-    color: #6c757d;
-    margin-bottom: 8px;
-}
-
 .instance-validation-summary-count {
     font-size: 0.75rem;
     font-weight: 600;
@@ -208,8 +182,10 @@
     padding: 2px 8px;
 }
 
-.instance-validation-summary .instance-validation-badges {
+.instance-header-section .instance-validation-badges {
     flex: none;
+    justify-content: flex-end;
+    gap: 4px 8px;
 }
 
 .instance-validation-errors {

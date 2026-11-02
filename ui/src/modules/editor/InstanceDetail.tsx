@@ -44,6 +44,7 @@ import {
 import { fetchTypeFields, fetchTypes, typeLabel } from "../../services/types";
 import { Breadcrumbs, BreadcrumbItem as BreadcrumbTrailItem } from "../../components/Breadcrumbs";
 import InstanceFieldControl from "../../components/InstanceFieldControl";
+import InstanceHeaderSection from "../../components/InstanceHeaderSection";
 import InstanceIdentifiers from "../../components/InstanceIdentifiers";
 import InstanceLinksPanel, {
   HoveredLink,
@@ -56,13 +57,14 @@ import InstanceRelease from "../../components/InstanceRelease";
 import InstanceInfo from "../../components/InstanceInfo";
 import { DisabledHint, noPermission } from "../../components/DisabledHint";
 import InstanceReview from "../../components/InstanceReview";
+import { CommentThread, CommentsToggle, InstanceCommentsOverview } from "../../components/InstanceComments";
+import { useInstanceComments } from "../../hooks/useInstanceComments";
 import { InstanceStatusTags } from "../../components/InstanceStatusTags";
 import {
   FieldValidationError,
   FieldValidationErrors,
   FieldValidationIndicator,
-  InstanceValidationErrors,
-  InstanceValidationStatus,
+  InstanceValidationSection,
   validationErrorsByField,
 } from "../../components/InstanceValidation";
 import DirLinkIcon from "../../assets/icons/DirLink.svg";
@@ -185,6 +187,10 @@ function InstanceDetailView({ instanceId }: { instanceId: string }) {
   const [isInfoMode, setIsInfoMode] = useState(false);
   /** Shows who is invited to review the instance - and allows to invite more users */
   const [isReviewMode, setIsReviewMode] = useState(false);
+  /** Shows the comments on the instance as a whole (the comments are available in the read and the edit mode) */
+  const [isInstanceCommentsOpen, setIsInstanceCommentsOpen] = useState(false);
+  /** The fields (identifiers) with their comments shown */
+  const [openCommentFields, setOpenCommentFields] = useState<ReadonlySet<string>>(new Set());
   const [currentFieldValues, setCurrentFieldValues] =
     useState<InstanceFieldValues>(emptyInstanceFieldValues);
   /** The property of the type of the new instance which names its instances */
@@ -212,6 +218,16 @@ function InstanceDetailView({ instanceId }: { instanceId: string }) {
   // requested by the URL or an unsaved draft)
   const isEditMode = isEditModeRequested && (isNewInstance || canEdit);
   const canRelease = permissions.includes("Release");
+  /** Whether the user may read and write comments (reviewers and above) */
+  const canComment = permissions.includes("Comment");
+  /** Whether the user may delete the comments of others (the authors can always delete their own ones) */
+  const canModerateComments = permissions.includes("Manage");
+  const comments = useInstanceComments(instanceId, canComment && !isNewInstance);
+
+  useEffect(() => {
+    setIsInstanceCommentsOpen(false);
+    setOpenCommentFields(new Set());
+  }, [instanceId]);
   // The release tree is only shown with the right to release the instance (also when requested by the URL)
   const isReleaseMode = isReleaseModeRequested && canRelease;
   /** The linked instance hovered - either in the form or in the outgoing links */
@@ -404,6 +420,11 @@ function InstanceDetailView({ instanceId }: { instanceId: string }) {
   const fieldErrors = useMemo(
     () => validationErrorsByField(instance?.validation),
     [instance],
+  );
+  /** The properties with a comment thread at their field - the comments on other properties are listed in the overview */
+  const fieldProperties = useMemo(
+    () => new Set(supportedFields.map((field) => field.identifier)),
+    [supportedFields],
   );
   const fieldLabels = useMemo(
     () => new Map(fields.map((field) => [field.identifier, field.label])),
@@ -618,6 +639,50 @@ function InstanceDetailView({ instanceId }: { instanceId: string }) {
       setIsReviewMode(true);
     }
   };
+
+  // The comments are shown together with the fields - so in the read and the edit mode only
+  const commentsDisabledReason = !canComment
+    ? noPermission("comment on this instance")
+    : mode !== "read" && mode !== "edit"
+      ? "Comments are available in the read and the edit mode"
+      : undefined;
+  // A failure to load the comments is always shown - the fields can't tell about their comments without them
+  const showInstanceComments = commentsDisabledReason === undefined && (isInstanceCommentsOpen || comments.loadError !== undefined);
+  /** The comments listed at the instance: those on the instance itself and on properties which aren't shown as fields */
+  const instanceCommentCount = comments.comments.filter(
+    (comment) => !comment.property || !fieldProperties.has(comment.property),
+  ).length;
+
+  const toggleFieldComments = (identifier: string) =>
+    setOpenCommentFields((open) => {
+      const next = new Set(open);
+      if (!next.delete(identifier)) {
+        next.add(identifier);
+      }
+      return next;
+    });
+
+  const fieldCommentsToggle = (field: InstanceField) =>
+    canComment && !comments.loadError ? (
+      <CommentsToggle
+        className="instance-field-comments-toggle"
+        subject={field.label}
+        count={comments.comments.filter((comment) => comment.property === field.identifier).length}
+        expanded={openCommentFields.has(field.identifier)}
+        onClick={() => toggleFieldComments(field.identifier)}
+      />
+    ) : null;
+
+  const fieldCommentThread = (field: InstanceField) =>
+    canComment && !comments.loadError && openCommentFields.has(field.identifier) ? (
+      <CommentThread
+        comments={comments}
+        property={field.identifier}
+        canModerate={canModerateComments}
+        subject={field.label}
+        onClose={() => toggleFieldComments(field.identifier)}
+      />
+    ) : null;
 
   const modeTitles: Record<InstanceMode, string> = {
     read: "Read",
@@ -844,14 +909,50 @@ function InstanceDetailView({ instanceId }: { instanceId: string }) {
                       alt="Link status"
                       className="link-status-icon"
                     />
-                    {validationResults && (
-                      <InstanceValidationStatus validation={validationResults} />
-                    )}
                     <InstanceStatusTags
                       releaseStatus={instance.releaseStatus}
                       contributed={instance.contributed}
                     />
                   </div>
+                </div>
+                <div className="instance-header-sections">
+                  {validationResults && (
+                    <InstanceValidationSection
+                      key={instanceId}
+                      validation={validationResults}
+                      fieldLabels={fieldLabels}
+                    />
+                  )}
+                  {/* Starts over with the mode - the identifiers added before are not to go unnoticed when editing */}
+                  <InstanceIdentifiers
+                    key={`${instanceId}-${mode === "edit"}`}
+                    identifiers={identifiersOf(currentFieldValues)}
+                    saved={isNewInstance ? [] : savedIdentifiers}
+                    isEditMode={mode === "edit"}
+                    onChange={(identifiers) => setFieldValue(IDENTIFIER, identifiers)}
+                  />
+                  {!isNewInstance && (
+                    <InstanceHeaderSection
+                      key={instanceId}
+                      title="Comments on this instance"
+                      count={
+                        instanceCommentCount > 0 && (
+                          <span className="instance-header-section-count">({instanceCommentCount})</span>
+                        )
+                      }
+                      expanded={showInstanceComments}
+                      onToggle={() => setIsInstanceCommentsOpen((open) => !open)}
+                      disabledReason={commentsDisabledReason}
+                      mountOnExpand
+                    >
+                      <InstanceCommentsOverview
+                        comments={comments}
+                        fieldProperties={fieldProperties}
+                        canModerate={canModerateComments}
+                        onClose={() => setIsInstanceCommentsOpen(false)}
+                      />
+                    </InstanceHeaderSection>
+                  )}
                 </div>
               </div>
             </div>
@@ -866,15 +967,6 @@ function InstanceDetailView({ instanceId }: { instanceId: string }) {
                     ))}
                   </ul>
                 )}
-              </div>
-            )}
-
-            {validationResults && validationResults.some((result) => (result.errors?.length ?? 0) > 0) && (
-              <div className="instance-validation-block">
-                <InstanceValidationErrors
-                  validation={validationResults}
-                  fieldLabels={fieldLabels}
-                />
               </div>
             )}
 
@@ -908,6 +1000,7 @@ function InstanceDetailView({ instanceId }: { instanceId: string }) {
                   <div className="instance-view">
                     {supportedFields.map((field) => (
                       <div key={field.identifier} {...fieldSectionProps(field)}>
+                        {fieldCommentsToggle(field)}
                         <ViewFieldLabel
                           tooltip={field.tooltip}
                           required={field.required}
@@ -927,6 +1020,7 @@ function InstanceDetailView({ instanceId }: { instanceId: string }) {
                           {...linkHoverProps(field)}
                         />
                         <FieldErrors errors={fieldErrors.get(field.identifier)} />
+                        {fieldCommentThread(field)}
                       </div>
                     ))}
                   </div>
@@ -934,6 +1028,7 @@ function InstanceDetailView({ instanceId }: { instanceId: string }) {
                   <div className="instance-form">
                     {supportedFields.map((field) => (
                       <Form.Group key={field.identifier} {...fieldSectionProps(field)}>
+                        {fieldCommentsToggle(field)}
                         <InstanceFieldLabel
                           isChanged={changedFieldKeys.has(field.identifier)}
                           tooltip={field.tooltip}
@@ -956,15 +1051,9 @@ function InstanceDetailView({ instanceId }: { instanceId: string }) {
                           {...linkHoverProps(field)}
                         />
                         <FieldErrors errors={fieldErrors.get(field.identifier)} />
+                        {fieldCommentThread(field)}
                       </Form.Group>
                     ))}
-
-                    <InstanceIdentifiers
-                      identifiers={identifiersOf(currentFieldValues)}
-                      saved={isNewInstance ? [] : savedIdentifiers}
-                      isEditMode
-                      onChange={(identifiers) => setFieldValue(IDENTIFIER, identifiers)}
-                    />
 
                     {unsupportedFields.length > 0 && (
                       <UnsupportedFieldsSection
@@ -1021,15 +1110,6 @@ function InstanceDetailView({ instanceId }: { instanceId: string }) {
                       </div>
                     </div>
                   </div>
-                )}
-
-                {!isEditMode && (
-                  <InstanceIdentifiers
-                    identifiers={identifiersOf(currentFieldValues)}
-                    saved={savedIdentifiers}
-                    isEditMode={false}
-                    onChange={() => undefined}
-                  />
                 )}
 
                 {!isEditMode && unsupportedFields.length > 0 && (

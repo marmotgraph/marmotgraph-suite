@@ -269,8 +269,10 @@ public class Instances {
     static {
         PERMISSION_LABELS.put("READ", "View");
         PERMISSION_LABELS.put("WRITE", "Edit");
+        PERMISSION_LABELS.put("COMMENT", "Comment");
         PERMISSION_LABELS.put("INVITE_FOR_REVIEW", "Review");
         PERMISSION_LABELS.put("RELEASE", "Release");
+        PERMISSION_LABELS.put("MANAGE_SPACE", "Manage");
     }
 
     private final TypeCache typeCache;

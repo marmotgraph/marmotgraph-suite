@@ -20,7 +20,9 @@ Source of truth: the CSS below. Use these values when the stylesheet does not al
 | Breadcrumbs | `ui/src/components/Breadcrumbs/Breadcrumbs.css` | `breadcrumbs` |
 | Release | `ui/src/components/InstanceRelease.css` | `release-status` |
 | List and detail status pills | `ui/src/components/InstanceStatusTags.css` (`InstanceStatusTags.tsx`) | `instance-card-status`, `instance-status` |
-| Validation | `ui/src/components/InstanceValidation.css` (`InstanceValidation.tsx`) | `ValidationStatus`, `instance-validation-summary`, `instance-field-validation-*` |
+| Validation | `ui/src/components/InstanceValidation.css` (`InstanceValidation.tsx`) | `ValidationStatus`, `InstanceValidationSection`, `instance-field-validation-*` |
+| Header sections | `ui/src/components/InstanceHeaderSection.css` (`InstanceHeaderSection.tsx`) | `instance-header-sections`, `instance-header-section` |
+| Comments | `ui/src/components/InstanceComments.css` (`InstanceComments.tsx`) | `instance-comments`, `comment-thread`, `comment-item` |
 | Unsaved | `ui/src/components/UnsavedInstancesPanel.css` | `unsaved-instances-panel` |
 | Footer | `ui/src/views/PoweredBy.tsx` | leave the credit line as it is |
 
@@ -107,7 +109,7 @@ The result count (`.instances-result-count`) sits just above the table.
 
 ### Detail
 
-`instance-focus-panel` holds the open instance. Header rows: type kicker on the left and the mode icons on the right; then two columns. The title column (at least 66%) holds the instance name, the id with copy, and the space. The status column holds the link-status icon, the validation pills, then the same release and contribution pills as the list (`InstanceStatusTags`). Then a divider (`#dee2e6`). Validation errors, when any schema failed, sit next: one nested card per schema (schema name, compliance bar, then one row per message). The error count is only on the section kicker. The status pills stay in the header. Then the fields. In edit mode, Delete instance sits on the left and Cancel then Save sit on the right. With nothing to change, both are gray. Delete opens a confirmation: the name, the type with its color, and the id, plus a warning when the instance is released or has links. The confirm is danger. View mode uses `view-label` and `view-value` (value underlined by `#f1f3f5`). Linked values are `view-badge` / `tag-badge` with a type dot. Plain values (dates, notes) stay text. "Unsupported fields (n)" is a disclosure under a `#e9ecef` rule.
+`instance-focus-panel` holds the open instance. Header rows: type kicker on the left and the mode icons on the right; then two columns. The title column (at least 66%) holds the instance name, the id with copy, and the space. The status column holds the link-status icon, then the same release and contribution pills as the list (`InstanceStatusTags`). Below them, what is no property of the instance sits in a gray nested strip (`instance-header-sections`, `InstanceHeaderSection`), one collapsed row per section: "Validation", "Identifiers", and "Comments on this instance". The validation row keeps the error count on its kicker and the schema pills on the right. Expanded, it shows one nested card per failed schema (schema name, compliance bar, then one row per message). Then a divider (`#dee2e6`), then the fields. In edit mode, Delete instance sits on the left and Cancel then Save sit on the right. With nothing to change, both are gray. Delete opens a confirmation: the name, the type with its color, and the id, plus a warning when the instance is released or has links. The confirm is danger. View mode uses `view-label` and `view-value` (value underlined by `#f1f3f5`). Linked values are `view-badge` / `tag-badge` with a type dot. Plain values (dates, notes) stay text. "Unsupported fields (n)" is a disclosure under a `#e9ecef` rule.
 
 The mode switch is the icon row on the type line: read (eye), edit (pencil), raw (code), release. The current mode uses `edit-icon-btn--active`.
 
