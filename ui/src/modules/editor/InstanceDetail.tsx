@@ -95,6 +95,14 @@ const INSTANCE_MODES: Array<{ mode: InstanceMode; icon: IconDefinition }> = [
   { mode: "info", icon: faCircleInfo },
 ];
 
+/** The modes which are kept in the URL (e.g. ?edit=1) - without any of them, the instance is shown in the read mode */
+const URL_MODES: InstanceMode[] = ["raw", "release", "edit", "info", "review"];
+
+const modeFromUrl = (searchParams: URLSearchParams): InstanceMode =>
+  URL_MODES.find((mode) => searchParams.get(mode) === "1") ?? "read";
+
+const modeSearch = (mode: InstanceMode) => (mode === "read" ? "" : `?${mode}=1`);
+
 /** Names the change of an instance edited in the raw mode (e.g. in the unsaved instances) */
 const RAW_JSON_LABEL = "Raw JSON";
 
@@ -162,7 +170,7 @@ function InstanceDetailView({ instanceId }: { instanceId: string }) {
   const { getAccessToken } = useAuth();
   const { addInstance, deleteInstances, instances } = useInstances();
   const { getDraft, upsertDraft, removeDraft } = useUnsavedInstances();
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [baseline, setBaseline] = useState<InstanceFieldValues>(
     emptyInstanceFieldValues,
   );
@@ -176,28 +184,39 @@ function InstanceDetailView({ instanceId }: { instanceId: string }) {
   );
   /** The space the new instance is created in (chosen when it was created for a link) */
   const [newInstanceSpace] = useState(() => getDraft(instanceId)?.space);
-  const openInEditMode = searchParams.get("edit") === "1";
-  const openInRawMode = searchParams.get("raw") === "1" && !isNewInstance;
-  const openInReleaseMode = searchParams.get("release") === "1" && !isNewInstance && !openInRawMode;
-
-  /** Whether the fields are to be edited - they are only while the user may edit the instance (see isEditMode) */
-  const [isEditModeRequested, setIsEditMode] = useState(
-    (isNewInstance || openInEditMode) && !openInRawMode && !openInReleaseMode,
+  /**
+   * The mode asked for by the URL - a new instance always shows its form. It is kept when navigating between instances
+   * and stays even if the user lacks the permission for it on one of them (see mode): the next instance they are allowed
+   * to use it on shows it again.
+   */
+  const requestedMode: InstanceMode = isNewInstance ? "edit" : modeFromUrl(searchParams);
+  const requestMode = useCallback(
+    (target: InstanceMode) => {
+      if (target === requestedMode) {
+        return;
+      }
+      setSearchParams(
+        (previous) => {
+          const next = new URLSearchParams(previous);
+          URL_MODES.forEach((urlMode) => next.delete(urlMode));
+          if (target !== "read") {
+            next.set(target, "1");
+          }
+          return next;
+        },
+        { replace: true },
+      );
+    },
+    [requestedMode, setSearchParams],
   );
-  /** Shows the full JSON of the instance instead of its fields (only available when not editing the fields) */
-  const [isRawMode, setIsRawMode] = useState(openInRawMode);
-  /** Shows the release tree of the instance instead of its fields (only available when not editing the fields) */
-  const [isReleaseModeRequested, setIsReleaseMode] = useState(openInReleaseMode);
-  /** Shows the administrative information of the instance (timestamps, contributors) instead of its fields */
-  const [isInfoMode, setIsInfoMode] = useState(false);
-  /** Shows who is invited to review the instance - and allows to invite more users */
-  const [isReviewMode, setIsReviewMode] = useState(false);
   /** Shows the comments on the instance as a whole */
   const [isInstanceCommentsOpen, setIsInstanceCommentsOpen] = useState(false);
   /** The fields (identifiers) with their comments shown */
   const [openCommentFields, setOpenCommentFields] = useState<ReadonlySet<string>>(new Set());
   const [currentFieldValues, setCurrentFieldValues] =
     useState<InstanceFieldValues>(emptyInstanceFieldValues);
+  /** Whether the values of the loaded instance (or its draft) were taken over - they are empty until then */
+  const [isFieldValuesReady, setIsFieldValuesReady] = useState(false);
   /** The property of the type of the new instance which names its instances */
   const [newInstanceLabelProperty, setNewInstanceLabelProperty] = useState<string>();
 
@@ -219,9 +238,11 @@ function InstanceDetailView({ instanceId }: { instanceId: string }) {
   const canEdit = permissions.includes("Edit");
   /** Whether the user may invite others to review the instance */
   const canReview = permissions.includes("Review");
+  // The invitations are only shown with the right to invite (also when requested by the URL)
+  const isReviewMode = requestedMode === "review" && canReview;
   // A new instance is created by the user - an existing one is only edited with the right to edit it (also when
   // requested by the URL or an unsaved draft)
-  const isEditMode = isEditModeRequested && (isNewInstance || canEdit);
+  const isEditMode = requestedMode === "edit" && (isNewInstance || canEdit);
   const canRelease = permissions.includes("Release");
   /** Whether the user may read and write comments (reviewers and above) */
   const canComment = permissions.includes("Comment");
@@ -234,7 +255,11 @@ function InstanceDetailView({ instanceId }: { instanceId: string }) {
     setOpenCommentFields(new Set());
   }, [instanceId]);
   // The release tree is only shown with the right to release the instance (also when requested by the URL)
-  const isReleaseMode = isReleaseModeRequested && canRelease;
+  const isReleaseMode = requestedMode === "release" && canRelease;
+  const isRawMode = requestedMode === "raw";
+  const isInfoMode = requestedMode === "info";
+  // Falls back to the read mode if the user lacks the permission for the mode requested
+  const mode: InstanceMode = isReviewMode ? "review" : isInfoMode ? "info" : isReleaseMode ? "release" : isRawMode ? "raw" : isEditMode  ? "edit" : "read";
   /** The linked instance hovered - either in the form or in the outgoing links */
   const [hoveredLink, setHoveredLink] = useState<HoveredLink>();
   const [layoutEl, setLayoutEl] = useState<HTMLDivElement | null>(null);
@@ -459,24 +484,23 @@ function InstanceDetailView({ instanceId }: { instanceId: string }) {
 
   const resetToSaved = useCallback(() => {
     setCurrentFieldValues(savedFieldValues);
-    setIsEditMode(false);
-  }, [savedFieldValues]);
+    if (requestedMode === "edit") {
+      requestMode("read");
+    }
+  }, [requestedMode, requestMode, savedFieldValues]);
 
   useEffect(() => {
     if (!instanceId) {
       return;
     }
 
+    setIsFieldValuesReady(instance !== undefined);
     const draft = getDraft(instanceId);
 
     if (draft?.rawJson !== undefined) {
       setCurrentFieldValues(savedFieldValues);
       setBaseline(savedFieldValues);
-      setIsEditMode(false);
-      setIsRawMode(true);
-      setIsReleaseMode(false);
-      setIsInfoMode(false);
-      setIsReviewMode(false);
+      requestMode("raw");
       return;
     }
 
@@ -484,27 +508,16 @@ function InstanceDetailView({ instanceId }: { instanceId: string }) {
       // Drafts kept before the identifiers were editable don't change them
       setCurrentFieldValues({ [IDENTIFIER]: savedFieldValues[IDENTIFIER], ...draft.fieldValues });
       setBaseline(savedFieldValues);
-      setIsEditMode(true);
-      setIsRawMode(false);
-      setIsReleaseMode(false);
-      setIsInfoMode(false);
-      setIsReviewMode(false);
+      requestMode("edit");
       return;
     }
 
     setCurrentFieldValues(savedFieldValues);
     setBaseline(savedFieldValues);
-    setIsEditMode(
-      (isNewInstance || openInEditMode) && !openInRawMode && !openInReleaseMode,
-    );
-    setIsRawMode(openInRawMode);
-    setIsReleaseMode(openInReleaseMode);
-    setIsInfoMode(false);
-    setIsReviewMode(false);
     // Only re-initialize when navigating between instances or once the instance is loaded — not when unrelated
     // drafts are added (getDraft identity changes would exit edit mode otherwise).
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [savedFieldValues, instanceId, isNewInstance, openInEditMode, openInRawMode, openInReleaseMode]);
+  }, [savedFieldValues, instanceId, isNewInstance]);
 
   const changedFieldKeys = useMemo(() => {
     if (!isEditMode) {
@@ -569,7 +582,7 @@ function InstanceDetailView({ instanceId }: { instanceId: string }) {
   ]);
 
   const handleLinkClick = (linkedInstanceId: string) => {
-    navigate(`/editor/instances/${linkedInstanceId}`);
+    navigate(`/editor/instances/${linkedInstanceId}${modeSearch(requestedMode)}`);
   };
 
   const fieldAlternatives = useFieldAlternatives(
@@ -623,8 +636,6 @@ function InstanceDetailView({ instanceId }: { instanceId: string }) {
     reloadInstance();
   };
 
-  const mode: InstanceMode = isReviewMode ? "review" : isInfoMode ? "info" : isReleaseMode ? "release" : isRawMode ? "raw" : isEditMode  ? "edit" : "read";
-
   /** Leaves the current mode - unsaved changes (of the fields or the JSON) are discarded after confirmation. */
   const leaveMode = () => {
     if (
@@ -636,30 +647,18 @@ function InstanceDetailView({ instanceId }: { instanceId: string }) {
       return false;
     }
     removeDraft(instanceId);
-    resetToSaved();
-    setIsRawMode(false);
-    setIsReleaseMode(false);
-    setIsInfoMode(false);
-    setIsReviewMode(false);
+    setCurrentFieldValues(savedFieldValues);
     return true;
   };
 
   const switchMode = (target: InstanceMode) => {
-    if (target === mode || !leaveMode()) {
+    if (target === requestedMode || !leaveMode()) {
       return;
     }
     if (target === "edit") {
       setBaseline(savedFieldValues);
-      setIsEditMode(true);
-    } else if (target === "raw") {
-      setIsRawMode(true);
-    } else if (target === "release") {
-      setIsReleaseMode(true);
-    } else if (target === "info") {
-      setIsInfoMode(true);
-    } else if (target === "review") {
-      setIsReviewMode(true);
     }
+    requestMode(target);
   };
 
   // A failure to load the comments is always shown - the fields can't tell about their comments without them
@@ -733,7 +732,9 @@ function InstanceDetailView({ instanceId }: { instanceId: string }) {
       .then((stored) => {
         removeDraft(instanceId);
         setInstance(stored);
-        setIsEditMode(false);
+        // Stays in the edit mode with nothing unsaved - the saved values must not be kept as a draft again until they
+        // are replaced by the stored ones
+        setBaseline(currentFieldValues);
         if (isNewInstance) {
           setIsNewInstance(false);
           addInstance({
@@ -749,7 +750,7 @@ function InstanceDetailView({ instanceId }: { instanceId: string }) {
             releaseStatus: stored.releaseStatus,
           });
           // The instance is known to the core from now on - it is shown as any other instance
-          navigate(`/editor/instances/${stored.instanceId}`, { replace: true });
+          navigate(`/editor/instances/${stored.instanceId}${modeSearch("edit")}`, { replace: true });
         }
       })
       .catch((e: unknown) => {
@@ -827,7 +828,7 @@ function InstanceDetailView({ instanceId }: { instanceId: string }) {
             if (index === 0) {
               navigate("/editor");
             } else {
-              navigate(`/editor/instances/${item.id}`);
+              navigate(`/editor/instances/${item.id}${modeSearch(requestedMode)}`);
             }
           }}
           className="instance-detail-breadcrumbs"
@@ -935,14 +936,17 @@ function InstanceDetailView({ instanceId }: { instanceId: string }) {
                       fieldLabels={fieldLabels}
                     />
                   )}
-                  {/* Starts over with the mode - the identifiers added before are not to go unnoticed when editing */}
-                  <InstanceIdentifiers
-                    key={`${instanceId}-${mode === "edit"}`}
-                    identifiers={identifiersOf(currentFieldValues)}
-                    saved={isNewInstance ? [] : savedIdentifiers}
-                    isEditMode={mode === "edit"}
-                    onChange={(identifiers) => setFieldValue(IDENTIFIER, identifiers)}
-                  />
+                  {/* Starts over with the mode - the identifiers added before are not to go unnoticed when editing.
+                      Waits for the values since it decides on being expanded when mounted. */}
+                  {isFieldValuesReady && (
+                    <InstanceIdentifiers
+                      key={`${instanceId}-${mode === "edit"}`}
+                      identifiers={identifiersOf(currentFieldValues)}
+                      saved={isNewInstance ? [] : savedIdentifiers}
+                      isEditMode={mode === "edit"}
+                      onChange={(identifiers) => setFieldValue(IDENTIFIER, identifiers)}
+                    />
+                  )}
                   {canComment && !isNewInstance && (
                     <InstanceHeaderSection
                       key={instanceId}

@@ -1003,7 +1003,7 @@ function FavoriteToggle({
 const permissionItems = [
   { key: "View", icon: faEye, search: "", action: "view this instance" },
   { key: "Edit", icon: faPen, search: "?edit=1", action: "edit this instance" },
-  { key: "Review", icon: faClipboardCheck, search: "", action: "invite reviewers for this instance" },
+  { key: "Review", icon: faClipboardCheck, search: "?review=1", action: "invite reviewers for this instance" },
   { key: "Release", icon: faRocket, search: "?release=1", action: "release this instance" },
 ] as const;
 

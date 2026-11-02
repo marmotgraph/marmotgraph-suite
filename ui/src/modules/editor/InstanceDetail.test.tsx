@@ -1,17 +1,19 @@
 import React from "react";
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
-import { MemoryRouter, Route, Routes } from "react-router-dom";
+import { Link, MemoryRouter, Route, Routes, useLocation, useNavigate } from "react-router-dom";
 import InstanceDetail from "./InstanceDetail";
 import {
   createInstance,
   deleteInstance,
   fetchIncomingLinks,
   fetchInstance,
+  fetchInstanceInformation,
   fetchRawInstance,
   fetchReleaseTree,
   IncomingLinks,
   InstanceDetail as InstanceDetailData,
   InstanceField,
+  replaceRawInstance,
   updateInstance,
 } from "../../services/instances";
 import { fetchTypeFields, fetchTypes } from "../../services/types";
@@ -34,12 +36,14 @@ vi.mock("../../services/instances", () => ({
   createInstance: vi.fn(),
   deleteInstance: vi.fn(),
   fetchInstance: vi.fn(),
+  fetchInstanceInformation: vi.fn(),
   fetchIncomingLinks: vi.fn(),
   fetchRawInstance: vi.fn(),
   fetchReleaseTree: vi.fn(),
   releaseInstance: vi.fn(),
   unreleaseInstance: vi.fn(),
   appendIncomingLinks: vi.fn(),
+  replaceRawInstance: vi.fn(),
   updateInstance: vi.fn(),
 }));
 
@@ -55,6 +59,20 @@ vi.mock("../../services/types", async (importOriginal) => ({
   fetchTypes: vi.fn(),
   fetchTypeFields: vi.fn(),
 }));
+
+/** Shows where the router is - and allows to go back like the browser does */
+function RouterProbe() {
+  const location = useLocation();
+  const navigate = useNavigate();
+  return (
+    <>
+      <output aria-label="Location">{`${location.pathname}${location.search}`}</output>
+      <button type="button" onClick={() => navigate(-1)}>
+        Browser back
+      </button>
+    </>
+  );
+}
 
 function renderDetail(
   search = "",
@@ -98,6 +116,23 @@ function renderDetail(
         </Routes>
       </UnsavedInstancesProvider>
     </MemoryRouter>,
+  );
+}
+
+/** Lists the draft before the instance is opened - without the type in the URL */
+function WithDraft({ draft, children }: { draft: UnsavedInstanceDraft; children: React.ReactNode }) {
+  const { drafts, upsertDraft } = useUnsavedInstances();
+  const [seeded, setSeeded] = React.useState(false);
+  React.useEffect(() => {
+    upsertDraft(draft);
+    setSeeded(true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  return (
+    <>
+      <div data-testid="drafts">{drafts.length}</div>
+      {seeded && children}
+    </>
   );
 }
 
@@ -422,9 +457,10 @@ describe("InstanceDetail", () => {
         [serialNumber]: "SN-42",
       }, undefined),
     );
-    // Shown as stored by the core - no longer in the edit mode
+    // Shown as stored by the core - still in the edit mode, with nothing left to save
     expect(await screen.findByText("private-1234")).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "Save" })).not.toBeInTheDocument();
+    await waitFor(() => expect(screen.getByRole("button", { name: "Edit" })).toHaveAttribute("aria-pressed", "true"));
+    expect(screen.getByRole("button", { name: "Save" })).toBeDisabled();
     expect(updateInstance).not.toHaveBeenCalled();
   });
 
@@ -432,23 +468,6 @@ describe("InstanceDetail", () => {
     const device = "https://example.org/types/Device";
     const serialNumber = "https://example.org/serialNumber";
     const instanceId = "7d3c5b52-4d4b-4d0e-9a3e-2f6f2b1c8e02";
-
-    /** Lists the draft before the instance is opened - without the type in the URL */
-    function WithDraft({ draft, children }: { draft: UnsavedInstanceDraft; children: React.ReactNode }) {
-      const { drafts, getDraft, upsertDraft } = useUnsavedInstances();
-      const [seeded, setSeeded] = React.useState(false);
-      React.useEffect(() => {
-        upsertDraft(draft);
-        setSeeded(true);
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-      }, []);
-      return (
-        <>
-          <div data-testid="drafts">{drafts.length}</div>
-          {seeded && getDraft(draft.instanceId) && children}
-        </>
-      );
-    }
 
     function renderDraft(fieldValues: Record<string, unknown>, labelProperty?: string) {
       vi.mocked(fetchTypes).mockResolvedValue([{ identifier: device, name: "Device", labelProperty }]);
@@ -489,6 +508,18 @@ describe("InstanceDetail", () => {
       );
     }
 
+    it("is no longer listed once saved - and stays in the edit mode", async () => {
+      renderDraft({ [serialNumber]: "SN-1" });
+
+      fireEvent.click(await screen.findByRole("button", { name: "Save" }));
+
+      await waitFor(() => expect(screen.getByRole("button", { name: "Edit" })).toHaveAttribute("aria-pressed", "true"));
+      await waitFor(() => expect(screen.getByTestId("drafts")).toHaveTextContent("0"));
+      // Must not come back with the values which were just saved
+      await new Promise((resolve) => setTimeout(resolve, 50));
+      expect(screen.getByTestId("drafts")).toHaveTextContent("0");
+    });
+
     it("is created with its type and in its space", async () => {
       renderDraft({ [serialNumber]: "SN-1" }, serialNumber);
 
@@ -514,6 +545,343 @@ describe("InstanceDetail", () => {
       await waitFor(() =>
         expect(createInstance).toHaveBeenCalledWith("token", instanceId, device, { [serialNumber]: "SN-1" }, "shared"),
       );
+    });
+  });
+
+  describe("the mode when navigating between instances", () => {
+    const modeButton = (name: string) =>
+      within(screen.getByRole("group", { name: "Mode" })).getByRole("button", { name });
+    const instance = (instanceId: string, permissions: string): InstanceDetailData => ({
+      instanceId,
+      type: "Building",
+      instanceName: instanceId,
+      space: "default",
+      permissions,
+      releaseStatus: "released",
+      fields: [],
+      identifiers: ["hq"],
+      directLinks: [],
+    });
+
+    function renderNavigable(search = "", draft?: UnsavedInstanceDraft) {
+      const permissions: Record<string, string> = {
+        editable: "View, Edit, Release, Review",
+        other: "View, Edit, Release, Review",
+        readonly: "View",
+      };
+      vi.mocked(fetchInstance).mockImplementation((_token, id) =>
+        Promise.resolve(instance(id, permissions[id])),
+      );
+      vi.mocked(fetchIncomingLinks).mockResolvedValue([
+        {
+          property: "https://example.org/partOf",
+          label: "Part of",
+          types: [
+            {
+              typeIdentifier: "https://example.org/Building",
+              type: "Building",
+              links: ["other", "readonly", "editable"].map((id) => ({
+                instanceId: id,
+                instanceName: `Link to ${id}`,
+                space: "default",
+              })),
+              total: 3,
+            },
+          ],
+        },
+      ] as never);
+      vi.mocked(fetchRawInstance).mockResolvedValue({});
+      vi.mocked(fetchInstanceInformation).mockResolvedValue({ contributors: [] } as never);
+      vi.mocked(fetchReleaseTree).mockResolvedValue({
+        instanceId: "editable",
+        instanceName: "editable",
+        type: "Building",
+        releaseStatus: "released",
+        canRelease: true,
+        canUnrelease: true,
+        children: [],
+      });
+      const content = (
+        <>
+          <RouterProbe />
+          <Link to="/editor">to list</Link>
+          <Link to="/editor/instances/other">open other from the list</Link>
+          <Routes>
+            <Route path="/editor" element={<div>Instance list</div>} />
+            <Route path="/editor/instances/:instanceId" element={<InstanceDetail />} />
+          </Routes>
+        </>
+      );
+      render(
+        <MemoryRouter initialEntries={[`/editor/instances/editable${search}`]}>
+          <UnsavedInstancesProvider>
+            {draft ? <WithDraft draft={draft}>{content}</WithDraft> : content}
+          </UnsavedInstancesProvider>
+        </MemoryRouter>,
+      );
+    }
+
+    const goTo = async (target: "other" | "readonly" | "editable") => {
+      fireEvent.click(await screen.findByText(`Link to ${target}`));
+      expect(await screen.findByRole("heading", { name: target })).toBeInTheDocument();
+    };
+    const location = () => screen.getByRole("status", { name: "Location" }).textContent;
+
+    it.each(["Edit", "Show and edit the raw JSON", "Release", "Information", "Review"])(
+      "keeps the mode %s",
+      async (name) => {
+        renderNavigable();
+
+        fireEvent.click(await screen.findByRole("button", { name }));
+        expect(modeButton(name)).toHaveAttribute("aria-pressed", "true");
+
+        await goTo("other");
+
+        expect(modeButton(name)).toHaveAttribute("aria-pressed", "true");
+      },
+    );
+
+    it("keeps a mode requested by the URL", async () => {
+      renderNavigable("?edit=1");
+      await screen.findByRole("heading", { name: "editable" });
+
+      await goTo("other");
+
+      expect(modeButton("Edit")).toHaveAttribute("aria-pressed", "true");
+    });
+
+    it.each(["Edit", "Release", "Review"])(
+      "falls back to the read mode without the permission for the mode %s - and returns to it on the next instance",
+      async (name) => {
+        renderNavigable();
+
+        fireEvent.click(await screen.findByRole("button", { name }));
+        await goTo("readonly");
+
+        expect(modeButton("Read")).toHaveAttribute("aria-pressed", "true");
+        expect(modeButton(name)).toBeDisabled();
+
+        await goTo("other");
+
+        expect(modeButton(name)).toHaveAttribute("aria-pressed", "true");
+      },
+    );
+
+    it("keeps the modes which don't need a permission on a read-only instance", async () => {
+      renderNavigable();
+
+      fireEvent.click(await screen.findByRole("button", { name: "Information" }));
+      await goTo("readonly");
+
+      expect(modeButton("Information")).toHaveAttribute("aria-pressed", "true");
+    });
+
+    it("keeps the read mode when the mode was left before navigating", async () => {
+      renderNavigable("?edit=1");
+
+      fireEvent.click(await screen.findByRole("button", { name: "Read" }));
+      await goTo("other");
+
+      expect(modeButton("Read")).toHaveAttribute("aria-pressed", "true");
+    });
+
+    it("keeps the identifiers collapsed in the edit mode - nothing is added to them", async () => {
+      renderNavigable();
+
+      fireEvent.click(await screen.findByRole("button", { name: "Edit" }));
+      await goTo("other");
+
+      const identifiers = screen.getByRole("region", { name: /Identifiers/ });
+      expect(within(identifiers).getByRole("button", { name: "Identifiers (1)" })).toHaveAttribute(
+        "aria-expanded",
+        "false",
+      );
+      expect(within(identifiers).queryByText("Unsaved")).not.toBeInTheDocument();
+    });
+
+    it("keeps the identifiers collapsed when the edit mode is requested by the URL", async () => {
+      renderNavigable("?edit=1");
+
+      const identifiers = await screen.findByRole("region", { name: /Identifiers/ });
+      expect(within(identifiers).getByRole("button", { name: "Identifiers (1)" })).toHaveAttribute(
+        "aria-expanded",
+        "false",
+      );
+    });
+
+    it("expands the identifiers if a draft of the instance navigated to has added some", async () => {
+      renderNavigable("", {
+        instanceId: "other",
+        instanceName: "other",
+        type: "Building",
+        fieldValues: { "http://schema.org/identifier": ["hq", "bern-hq"] },
+        updatedAt: 1,
+      });
+
+      fireEvent.click(await screen.findByRole("button", { name: "Edit" }));
+      await goTo("other");
+
+      const identifiers = await screen.findByRole("region", { name: /Identifiers/ });
+      expect(within(identifiers).getByRole("button", { name: "Identifiers (2)" })).toHaveAttribute(
+        "aria-expanded",
+        "true",
+      );
+      expect(within(identifiers).getByText("Unsaved")).toBeInTheDocument();
+    });
+
+    it.each([
+      ["?edit=1", "Edit"],
+      ["?raw=1", "Show and edit the raw JSON"],
+      ["?release=1", "Release"],
+      ["?info=1", "Information"],
+      ["?review=1", "Review"],
+    ])("opens a deep link %s in its mode", async (search, name) => {
+      renderNavigable(search);
+
+      await screen.findByRole("heading", { name: "editable" });
+      expect(modeButton(name)).toHaveAttribute("aria-pressed", "true");
+    });
+
+    it("reflects the mode in the URL - without adding to the browser history", async () => {
+      renderNavigable();
+      await screen.findByRole("heading", { name: "editable" });
+      expect(location()).toBe("/editor/instances/editable");
+
+      await goTo("other");
+      fireEvent.click(modeButton("Information"));
+      expect(location()).toBe("/editor/instances/other?info=1");
+      fireEvent.click(modeButton("Edit"));
+      expect(location()).toBe("/editor/instances/other?edit=1");
+      fireEvent.click(modeButton("Read"));
+      expect(location()).toBe("/editor/instances/other");
+
+      fireEvent.click(screen.getByRole("button", { name: "Browser back" }));
+      expect(await screen.findByRole("heading", { name: "editable" })).toBeInTheDocument();
+    });
+
+    it("takes the mode along in the URL - also to an instance which can't show it", async () => {
+      renderNavigable("?edit=1");
+
+      await goTo("readonly");
+      expect(location()).toBe("/editor/instances/readonly?edit=1");
+      await goTo("other");
+      expect(location()).toBe("/editor/instances/other?edit=1");
+    });
+
+    it("shows the mode of the URL when going back", async () => {
+      renderNavigable("?edit=1");
+
+      await goTo("other");
+      fireEvent.click(modeButton("Information"));
+      fireEvent.click(screen.getByRole("button", { name: "Browser back" }));
+
+      expect(await screen.findByRole("heading", { name: "editable" })).toBeInTheDocument();
+      expect(modeButton("Edit")).toHaveAttribute("aria-pressed", "true");
+    });
+
+    it("gives up the mode if the read mode is chosen after falling back to it", async () => {
+      renderNavigable("?edit=1");
+
+      await goTo("readonly");
+      fireEvent.click(modeButton("Read"));
+      expect(location()).toBe("/editor/instances/readonly");
+      await goTo("other");
+
+      expect(modeButton("Read")).toHaveAttribute("aria-pressed", "true");
+    });
+
+    it("reflects the mode of a draft in the URL", async () => {
+      renderNavigable("", {
+        instanceId: "other",
+        instanceName: "other",
+        type: "Building",
+        fieldValues: { "http://schema.org/identifier": ["hq", "bern-hq"] },
+        updatedAt: 1,
+      });
+
+      await goTo("other");
+
+      await waitFor(() => expect(location()).toBe("/editor/instances/other?edit=1"));
+      expect(modeButton("Edit")).toHaveAttribute("aria-pressed", "true");
+    });
+
+    it("starts over when coming back from the list", async () => {
+      renderNavigable();
+
+      fireEvent.click(await screen.findByRole("button", { name: "Edit" }));
+      fireEvent.click(screen.getByRole("link", { name: "to list" }));
+      await screen.findByText("Instance list");
+      fireEvent.click(screen.getByRole("link", { name: "open other from the list" }));
+      await screen.findByRole("heading", { name: "other" });
+
+      expect(modeButton("Read")).toHaveAttribute("aria-pressed", "true");
+    });
+
+    it("stays in the raw mode when the JSON is saved", async () => {
+      vi.mocked(replaceRawInstance).mockResolvedValue({});
+      vi.mocked(fetchInstance).mockClear();
+      vi.mocked(fetchInstance).mockImplementation((_token, id) =>
+        Promise.resolve(instance(id, "View, Edit")),
+      );
+      vi.mocked(fetchIncomingLinks).mockResolvedValue([]);
+      vi.mocked(fetchRawInstance).mockResolvedValue({});
+      render(
+        <MemoryRouter initialEntries={["/editor/instances/editable"]}>
+          <UnsavedInstancesProvider>
+            <WithDraft
+              draft={{
+                instanceId: "editable",
+                instanceName: "editable",
+                type: "Building",
+                fieldValues: {},
+                updatedAt: 1,
+                rawJson: '{"a": 1}',
+              }}
+            >
+              <Routes>
+                <Route path="/editor/instances/:instanceId" element={<InstanceDetail />} />
+              </Routes>
+            </WithDraft>
+          </UnsavedInstancesProvider>
+        </MemoryRouter>,
+      );
+
+      fireEvent.click(await screen.findByRole("button", { name: "Save" }));
+
+      await waitFor(() => expect(replaceRawInstance).toHaveBeenCalled());
+      await waitFor(() => expect(fetchInstance).toHaveBeenCalledTimes(2));
+      await waitFor(() => expect(screen.getByRole("button", { name: "Save" })).toBeDisabled());
+      expect(modeButton("Show and edit the raw JSON")).toHaveAttribute("aria-pressed", "true");
+    });
+
+    it("stays in the edit mode when saved - with nothing left unsaved", async () => {
+      const name: InstanceField = {
+        identifier: "name",
+        label: "name",
+        kind: "TEXT",
+        value: "Headquarters",
+        required: false,
+        readOnly: false,
+      };
+      vi.mocked(updateInstance).mockReset();
+      vi.mocked(updateInstance)
+        .mockResolvedValueOnce({ ...instance("inst-1", "View, Edit"), fields: [{ ...name, value: "Renamed" }] })
+        .mockResolvedValueOnce({ ...instance("inst-1", "View, Edit"), fields: [{ ...name, value: "Again" }] });
+      renderDetail("", [name]);
+
+      fireEvent.click(await screen.findByRole("button", { name: "Edit" }));
+      fireEvent.change(await screen.findByDisplayValue("Headquarters"), { target: { value: "Renamed" } });
+      fireEvent.click(screen.getByRole("button", { name: "Save" }));
+
+      await waitFor(() => expect(screen.queryByText("Unsaved")).not.toBeInTheDocument());
+      expect(screen.getByRole("button", { name: "Save" })).toBeDisabled();
+      expect(screen.getByDisplayValue("Renamed")).toBeInTheDocument();
+      expect(modeButton("Edit")).toHaveAttribute("aria-pressed", "true");
+
+      // What was saved is the starting point of the next changes
+      fireEvent.change(screen.getByDisplayValue("Renamed"), { target: { value: "Again" } });
+      fireEvent.click(screen.getByRole("button", { name: "Save" }));
+      await waitFor(() => expect(updateInstance).toHaveBeenLastCalledWith("token", "inst-1", { name: "Again" }));
     });
   });
 
