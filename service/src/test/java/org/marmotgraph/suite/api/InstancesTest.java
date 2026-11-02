@@ -540,6 +540,94 @@ class InstancesTest {
     }
 
     @Test
+    void getProvidesTheValuesContributedToTheFieldsInTheShapeOfTheirKind() throws Exception {
+        String rack = "https://example.org/types/ContributedRack";
+        String blade = "https://example.org/types/Blade";
+        String room = "https://example.org/room";
+        String notes = "https://example.org/notes";
+        String currentRoom = "11111111-2222-4333-8444-555555555555";
+        String otherRoom = "22222222-3333-4444-8555-666666666666";
+        String deletedRoom = "33333333-4444-4555-8666-777777777777";
+        Map<String, Object> jane = Map.of("id", "u1", "userName", "jane", "name", "Jane Doe");
+        Map<String, Object> joe = new HashMap<>(Map.of("id", "u2", "userName", "joe"));
+        joe.put("name", null);
+        when(instancesResource.get(any(UUID.class), any(), any())).thenReturn(instance(RELEASED_ID, rack, Map.of(
+                NAME, "Rack-1",
+                room, Map.of("@id", currentRoom, "@type", blade, "_linkStatus", "resolved", "_resolvedId", currentRoom, "_label", "Room A", "_space", "myspace"),
+                "_alternative", Map.of(
+                        NAME, List.of(
+                                Map.of("value", "Rack-One", "selected", false, "user", List.of(joe)),
+                                Map.of("value", "Rack-1", "selected", true, "user", List.of(jane, joe))),
+                        room, List.of(
+                                Map.of("value", Map.of("@id", currentRoom), "selected", true, "user", List.of(jane)),
+                                Map.of("value", Map.of("@id", otherRoom), "selected", false, "user", List.of(joe)),
+                                Map.of("value", Map.of("@id", deletedRoom), "selected", false, "user", List.of(joe)),
+                                Map.of("value", "{@id=" + otherRoom + "}", "selected", false, "user", List.of(joe))),
+                        "https://example.org/notAField", List.of(Map.of("value", "ignored", "selected", true, "user", List.of(jane))),
+                        notes, List.of()))));
+        when(instancesResource.getByIds(List.of(otherRoom, deletedRoom), Stage.IN_PROGRESS, ResponseOptions.DEFAULT))
+                .thenReturn(Map.of(otherRoom, instance(UUID.fromString(otherRoom), blade, Map.of(NAME, "Room B"))));
+        when(typesResource.getByNames(List.of(rack), Stage.IN_PROGRESS, null, false, false))
+                .thenReturn(Map.of(rack, new TypeInformation(rack, null, "Rack", "#4caf50", NAME, null, null, List.of(), List.of(), List.of())));
+        when(typesResource.getByNames(List.of(blade), Stage.IN_PROGRESS, null, false, false))
+                .thenReturn(Map.of(blade, new TypeInformation(blade, null, "Blade", "#2196f3", NAME, null, null, List.of(), List.of(), List.of())));
+        when(typesResource.getByNames(List.of(rack), Stage.IN_PROGRESS, null, true, false))
+                .thenReturn(Map.of(rack, new TypeInformation(rack, null, "Rack", "#4caf50", NAME, null, null, List.of(), List.of(
+                        new Property(NAME, "name", null, "InputText", null, null, null, 1, null, List.of()),
+                        new Property(room, "room", null, "SimpleDropdown", null, null, null, 2, null, List.of()),
+                        new Property(notes, "notes", null, "InputText", null, null, null, 3, null, List.of())
+                ), List.of())));
+        when(instancesResource.releaseStatus(RELEASED_ID, ReleaseTreeScope.TOP_INSTANCE_ONLY)).thenReturn(ReleaseStatus.RELEASED);
+
+        mockMvc.perform(get("/instances/" + RELEASED_ID).header(HttpHeaders.AUTHORIZATION, "Bearer theToken"))
+                .andExpect(status().isOk())
+                // only the fields with contributions are listed
+                .andExpect(jsonPath("$.alternatives.length()").value(2))
+                // the current value comes first, the name falls back to the username
+                .andExpect(jsonPath("$.alternatives['" + NAME + "'][0].value").value("Rack-1"))
+                .andExpect(jsonPath("$.alternatives['" + NAME + "'][0].selected").value(true))
+                .andExpect(jsonPath("$.alternatives['" + NAME + "'][0].users[0].name").value("Jane Doe"))
+                .andExpect(jsonPath("$.alternatives['" + NAME + "'][0].users[1].name").value("joe"))
+                .andExpect(jsonPath("$.alternatives['" + NAME + "'][1].value").value("Rack-One"))
+                .andExpect(jsonPath("$.alternatives['" + NAME + "'][1].selected").value(false))
+                // the target of the current link is known from the summary, the others are read
+                .andExpect(jsonPath("$.alternatives['" + room + "'][0].value.instanceName").value("Room A"))
+                .andExpect(jsonPath("$.alternatives['" + room + "'][1].value.instanceName").value("Room B"))
+                .andExpect(jsonPath("$.alternatives['" + room + "'][1].value.type").value("Blade"))
+                .andExpect(jsonPath("$.alternatives['" + room + "'][1].value.linkStatus").value("resolved"))
+                .andExpect(jsonPath("$.alternatives['" + room + "'][2].value.linkStatus").value("unresolved"))
+                // a stringified contribution can't be provided in the shape of the field
+                .andExpect(jsonPath("$.alternatives['" + room + "'][3].value").doesNotExist())
+                .andExpect(jsonPath("$.alternatives['" + room + "'][3].text").value("{@id=" + otherRoom + "}"));
+
+        ArgumentCaptor<ResponseOptions> options = ArgumentCaptor.forClass(ResponseOptions.class);
+        verify(instancesResource).get(Mockito.eq(RELEASED_ID), Mockito.eq(Stage.IN_PROGRESS), options.capture());
+        assertTrue(options.getValue().returnAlternatives());
+    }
+
+    @Test
+    void getShowsTheInstanceEvenIfTheTargetsOfItsAlternativesCantBeRead() throws Exception {
+        String rack = "https://example.org/types/UnreadableTargetsRack";
+        String room = "https://example.org/room";
+        String otherRoom = "22222222-3333-4444-8555-666666666666";
+        when(instancesResource.get(any(UUID.class), any(), any())).thenReturn(instance(RELEASED_ID, rack, Map.of(
+                "_alternative", Map.of(room, List.of(Map.of("value", Map.of("@id", otherRoom), "selected", true, "user", List.of()))))));
+        when(instancesResource.getByIds(any(), any(), any())).thenThrow(new MarmotGraphApiException(403, "Forbidden", null, null));
+        when(typesResource.getByNames(List.of(rack), Stage.IN_PROGRESS, null, false, false))
+                .thenReturn(Map.of(rack, new TypeInformation(rack, null, "Rack", "#4caf50", NAME, null, null, List.of(), List.of(), List.of())));
+        when(typesResource.getByNames(List.of(rack), Stage.IN_PROGRESS, null, true, false))
+                .thenReturn(Map.of(rack, new TypeInformation(rack, null, "Rack", "#4caf50", NAME, null, null, List.of(), List.of(
+                        new Property(room, "room", null, "SimpleDropdown", null, null, null, 1, null, List.of())
+                ), List.of())));
+        when(instancesResource.releaseStatus(RELEASED_ID, ReleaseTreeScope.TOP_INSTANCE_ONLY)).thenReturn(ReleaseStatus.RELEASED);
+
+        mockMvc.perform(get("/instances/" + RELEASED_ID).header(HttpHeaders.AUTHORIZATION, "Bearer theToken"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.alternatives['" + room + "'][0].value.instanceId").value(otherRoom))
+                .andExpect(jsonPath("$.alternatives['" + room + "'][0].value.linkStatus").value("unresolved"));
+    }
+
+    @Test
     void getProvidesTheValidationResultsWithTheErrorsAttributedToTheFields() throws Exception {
         String rack = "https://example.org/types/Rack";
         String height = "https://example.org/height";

@@ -3,6 +3,7 @@ package org.marmotgraph.suite.api;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.AllArgsConstructor;
+import org.marmotgraph.sdk.MarmotGraphApiException;
 import org.marmotgraph.sdk.MarmotGraphClient;
 import org.marmotgraph.sdk.model.InstanceSortBy;
 import org.marmotgraph.sdk.model.InstanceTimestamps;
@@ -41,6 +42,7 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
@@ -170,9 +172,18 @@ public class Instances {
 
     /**
      * Looks up the definitions needed to translate the values of the fields: the types (of linked and embedded
-     * instances) and the fields of the embedded instances by the identifier of their type.
+     * instances), the fields of the embedded instances by the identifier of their type and the targets of the links
+     * the core provides no summary for (by the identifier they are linked with).
      */
-    record Definitions(Function<String, TypeDefinition> type, Function<String, List<FieldDefinition>> fields) {
+    record Definitions(Function<String, TypeDefinition> type, Function<String, List<FieldDefinition>> fields, Function<String, LinkedInstance> linkTarget) {
+
+        Definitions(Function<String, TypeDefinition> type, Function<String, List<FieldDefinition>> fields) {
+            this(type, fields, id -> null);
+        }
+
+        Definitions withLinkTargets(Map<String, LinkedInstance> targets) {
+            return new Definitions(type, fields, targets::get);
+        }
 
         /** For empty values - nothing has to be looked up */
         static final Definitions NONE = new Definitions(t -> null, t -> List.of());
@@ -184,12 +195,23 @@ public class Instances {
      * by, in the order of the fields). The incoming links are provided separately (see {@link #incomingLinks}) since they are paginated.
      * The validation holds the results of the last validation per validation schema of the type - with their errors.
      * contributed tells whether the current user has contributed to the instance. The identifiers are the values of
-     * the {@link FieldCache#IDENTIFIER} - they are no field (they can only be added, see {@link #update}).
+     * the {@link FieldCache#IDENTIFIER} - they are no field (they can only be added, see {@link #update}). The
+     * alternatives are the values contributed to the fields - by the identifier of the field.
      */
     @JsonInclude(JsonInclude.Include.NON_NULL)
     public record InstanceDetail(String instanceId, String type, String typeDescription, String typeColor, String instanceName,
                                  String space, String permissions, String releaseStatus, boolean contributed, List<Field> fields,
-                                 List<String> identifiers, List<LinkedInstance> directLinks, List<Validation> validation) {
+                                 List<String> identifiers, List<LinkedInstance> directLinks, List<Validation> validation,
+                                 Map<String, List<Alternative>> alternatives) {
+    }
+
+    /**
+     * A value contributed to a field and the users who contributed it - selected tells whether it is the current value
+     * of the field. The value is in the shape of the kind of the field. The text is only set if the contribution can't
+     * be provided in this shape (e.g. since the core stored it in its string form) - it is the contribution as is.
+     */
+    @JsonInclude(JsonInclude.Include.NON_NULL)
+    public record Alternative(Object value, String text, boolean selected, List<Contributor> users) {
     }
 
     /**
@@ -342,7 +364,7 @@ public class Instances {
     @GetMapping("/{id}")
     public InstanceDetail get(@AuthenticatedClient MarmotGraphClient client, @PathVariable UUID id) {
         org.marmotgraph.sdk.model.Instance instance = client.instances().get(id, Stage.IN_PROGRESS,
-                ResponseOptions.builder().returnPermissions(true).returnSummaryOfOutgoingLinks(true)
+                ResponseOptions.builder().returnPermissions(true).returnSummaryOfOutgoingLinks(true).returnAlternatives(true)
                         .returnValidationResults(true).returnHasContributed(true).build());
         String instanceId = instance.getUuid().map(UUID::toString).orElse(id.toString());
         String typeName = instance.getType();
@@ -353,7 +375,97 @@ public class Instances {
                 instanceName(instance, type, instanceId), instance.getSpace(), permissions(instance.getPermissions()),
                 releaseStatus(releaseStatus), Boolean.TRUE.equals(instance.hasContributed()), fields,
                 identifiers(instance.get(FieldCache.IDENTIFIER)), directLinks(fields),
-                instance.getValidation().stream().map(v -> Validation.of(v, fields)).toList());
+                instance.getValidation().stream().map(v -> Validation.of(v, fields)).toList(),
+                alternatives(client, instance, typeName, directLinks(fields)));
+    }
+
+    /**
+     * The values contributed to the fields of the instance (fields without any are left out). The links of the
+     * contributions are plain references: their targets are taken from the given links of the instance if possible (so
+     * usually nothing has to be read since most contributions match the current value) - the others are read from the core.
+     */
+    private Map<String, List<Alternative>> alternatives(MarmotGraphClient client, org.marmotgraph.sdk.model.Instance instance, String typeName, List<LinkedInstance> links) {
+        Map<String, Object> contributions = instance.getAlternative();
+        List<FieldDefinition> definitions = typeName != null && !contributions.isEmpty() ? fieldCache.get(client, typeName) : List.of();
+        Set<String> linkedTypeNames = new LinkedHashSet<>();
+        Set<String> embeddedTypeNames = new LinkedHashSet<>();
+        definitions.forEach(d -> collectTypes(contributions.get(d.identifier()), linkedTypeNames, embeddedTypeNames));
+        Definitions lookup = definitions.isEmpty() ? Definitions.NONE : definitions(client, linkedTypeNames, embeddedTypeNames);
+
+        Map<String, LinkedInstance> targets = new HashMap<>();
+        links.forEach(l -> targets.putIfAbsent(l.instanceId(), l));
+        Set<String> unknownTargets = definitions.stream().flatMap(d -> alternatives(d, contributions.get(d.identifier()), lookup).stream())
+                .flatMap(a -> linkedInstances(a.value())).map(LinkedInstance::instanceId).filter(id -> !targets.containsKey(id))
+                .collect(Collectors.toCollection(LinkedHashSet::new));
+        targets.putAll(linkTargets(client, unknownTargets));
+
+        Definitions withTargets = lookup.withLinkTargets(targets);
+        Map<String, List<Alternative>> result = new LinkedHashMap<>();
+        definitions.forEach(d -> {
+            List<Alternative> alternatives = alternatives(d, contributions.get(d.identifier()), withTargets);
+            if (!alternatives.isEmpty()) {
+                result.put(d.identifier(), alternatives);
+            }
+        });
+        return result;
+    }
+
+    /**
+     * Translates the alternatives of a property as provided by the core into the shape of the field - the selected one first.
+     */
+    static List<Alternative> alternatives(FieldDefinition definition, Object contributions, Definitions definitions) {
+        return values(contributions).stream().filter(Map.class::isInstance).map(c -> alternative(definition, (Map<?, ?>) c, definitions))
+                .sorted(Comparator.comparing(a -> !a.selected())).toList();
+    }
+
+    private static Alternative alternative(FieldDefinition definition, Map<?, ?> contribution, Definitions definitions) {
+        Object contributed = contribution.get("value");
+        Object value = fieldValue(definition, contributed, definitions);
+        boolean translated = value != null && !(value instanceof List<?> list && list.isEmpty());
+        List<Contributor> users = values(contribution.get("user")).stream().filter(Map.class::isInstance).map(u -> contributor((Map<?, ?>) u)).distinct().toList();
+        return new Alternative(translated ? value : null, translated || contributed == null ? null : contributed.toString(),
+                Boolean.TRUE.equals(contribution.get("selected")), users);
+    }
+
+    private static Contributor contributor(Map<?, ?> user) {
+        String username = firstString(user.get("userName"));
+        String name = firstString(user.get("name"));
+        return new Contributor(username, name != null && !name.isBlank() ? name : username);
+    }
+
+    /**
+     * The instances with the given ids as targets of a link - instances which can't be read are left out (their links
+     * are shown as unresolved, also if they can't be read at all: this must not prevent the instance from being shown).
+     */
+    private Map<String, LinkedInstance> linkTargets(MarmotGraphClient client, Set<String> ids) {
+        List<String> uuids = ids.stream().filter(Instances::isUuid).toList();
+        if (uuids.isEmpty()) {
+            return Map.of();
+        }
+        Map<String, org.marmotgraph.sdk.model.Instance> instances;
+        try {
+            instances = client.instances().getByIds(uuids, Stage.IN_PROGRESS, ResponseOptions.DEFAULT);
+        } catch (MarmotGraphApiException e) {
+            return Map.of();
+        }
+        List<String> typeNames = instances.values().stream().map(org.marmotgraph.sdk.model.Instance::getType).filter(Objects::nonNull).distinct().toList();
+        Map<String, TypeDefinition> types = typeNames.isEmpty() ? Map.of() : typeCache.get(client, typeNames);
+        Map<String, LinkedInstance> targets = new HashMap<>();
+        instances.forEach((id, target) -> {
+            TypeDefinition type = target.getType() != null ? types.get(target.getType()) : null;
+            targets.put(id, new LinkedInstance(id, instanceName(target, type, id), typeLabel(target.getType(), type), type != null ? type.color() : null,
+                    Objects.requireNonNullElse(target.getSpace(), ""), null, null, true, LinkStatus.RESOLVED));
+        });
+        return targets;
+    }
+
+    private static boolean isUuid(String id) {
+        try {
+            UUID.fromString(id);
+            return true;
+        } catch (IllegalArgumentException e) {
+            return false;
+        }
     }
 
     /**
@@ -796,13 +908,17 @@ public class Instances {
     }
 
     private static Stream<LinkedInstance> linkedInstances(Field field) {
-        if (field.kind().isLink()) {
-            return values(field.value()).stream().map(l -> (LinkedInstance) l);
-        }
-        if (field.kind().isNested()) {
-            return values(field.value()).stream().flatMap(e -> ((EmbeddedInstance) e).fields().stream().flatMap(Instances::linkedInstances));
-        }
-        return Stream.empty();
+        return field.kind().isLink() || field.kind().isNested() ? linkedInstances(field.value()) : Stream.empty();
+    }
+
+    /** The instances linked by a value in the shape of a field (including those linked by embedded instances). */
+    private static Stream<LinkedInstance> linkedInstances(Object value) {
+        return values(value).stream().flatMap(v -> {
+            if (v instanceof LinkedInstance link) {
+                return Stream.of(link);
+            }
+            return v instanceof EmbeddedInstance embedded ? embedded.fields().stream().flatMap(Instances::linkedInstances) : Stream.empty();
+        });
     }
 
     /**
@@ -940,6 +1056,10 @@ public class Instances {
         String identifier = firstString(link.get("@id"));
         if (identifier == null || identifier.isBlank()) {
             return null;
+        }
+        LinkedInstance target = link.containsKey(LINK_STATUS) ? null : definitions.linkTarget().apply(identifier);
+        if (target != null) {
+            return target;
         }
         String resolvedId = firstString(link.get(LINK_RESOLVED_ID));
         String id = resolvedId != null ? new org.marmotgraph.sdk.model.Instance(Map.of("@id", resolvedId)).getUuid().map(UUID::toString).orElse(null) : null;

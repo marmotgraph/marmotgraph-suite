@@ -55,6 +55,23 @@ export interface EmbeddedInstance {
   fields: InstanceField[];
 }
 
+/** A user who contributed a value to a field - the name falls back to the username. */
+export interface AlternativeContributor {
+  username: string;
+  name: string;
+}
+
+/** A value contributed to a field and the users who contributed it. */
+export interface FieldAlternative {
+  /** The value in the shape required by the kind of the field */
+  value?: unknown;
+  /** The contribution as is - if it can't be provided in the shape of the field */
+  text?: string;
+  /** Whether it is the current value of the field */
+  selected: boolean;
+  users: AlternativeContributor[];
+}
+
 /** A single instance as shown in its detail view. */
 export interface InstanceDetail {
   instanceId: string;
@@ -75,6 +92,8 @@ export interface InstanceDetail {
   directLinks?: LinkedInstance[];
   /** The results of the last validation per validation schema of the type - with their errors */
   validation?: InstanceValidation[];
+  /** The values contributed to the fields - by the identifier of the field (the current value first) */
+  alternatives?: Record<string, FieldAlternative[]>;
 }
 
 /** An instance linking to another one - its type is given by the group it is listed in. */

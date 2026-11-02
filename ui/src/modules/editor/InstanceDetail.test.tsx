@@ -102,6 +102,122 @@ function renderDetail(
 }
 
 describe("InstanceDetail", () => {
+  describe("contributions to a field", () => {
+    const nameField: InstanceField = {
+      identifier: "https://example.org/name",
+      label: "Name",
+      kind: "TEXT",
+      value: "Headquarters",
+      required: false,
+      readOnly: false,
+    };
+    const roomField: InstanceField = {
+      identifier: "https://example.org/room",
+      label: "Room",
+      kind: "LINK",
+      required: false,
+      readOnly: false,
+    };
+    const jane = { username: "jane", name: "Jane Doe" };
+    const joe = { username: "joe", name: "Joe Bloggs" };
+
+    it("shows on demand who has contributed which value", async () => {
+      renderDetail("", [nameField], "inst-1", {
+        alternatives: {
+          [nameField.identifier]: [
+            { value: "Headquarters", selected: true, users: [jane, joe] },
+            { value: "Main office", selected: false, users: [joe] },
+          ],
+        },
+      });
+
+      const toggle = await screen.findByRole("button", { name: "Contributions to Name (2 different values)" });
+      expect(toggle).toHaveAttribute("aria-expanded", "false");
+      expect(screen.queryByText("Main office")).not.toBeInTheDocument();
+
+      fireEvent.click(toggle);
+
+      const panel = screen.getByRole("group", { name: "Contributions to Name" });
+      const [current, other] = within(panel).getAllByRole("listitem");
+      expect(within(current).getByText("Headquarters")).toBeInTheDocument();
+      expect(within(current).getByText("Current")).toBeInTheDocument();
+      expect(within(current).getByText("Jane Doe, Joe Bloggs")).toBeInTheDocument();
+      expect(within(other).getByText("Main office")).toBeInTheDocument();
+      expect(within(other).queryByText("Current")).not.toBeInTheDocument();
+      expect(within(other).getByText("Joe Bloggs")).toBeInTheDocument();
+
+      fireEvent.click(toggle);
+      expect(screen.queryByRole("group", { name: "Contributions to Name" })).not.toBeInTheDocument();
+    });
+
+    it("tells who has defined a value nobody disagrees with - without a count", async () => {
+      renderDetail("", [nameField], "inst-1", {
+        alternatives: { [nameField.identifier]: [{ value: "Headquarters", selected: true, users: [jane] }] },
+      });
+
+      fireEvent.click(await screen.findByRole("button", { name: "Contributions to Name" }));
+
+      expect(within(screen.getByRole("group", { name: "Contributions to Name" })).getByText("Jane Doe")).toBeInTheDocument();
+    });
+
+    it("offers nothing for fields without contributions", async () => {
+      renderDetail("", [nameField]);
+
+      await screen.findAllByText("Headquarters");
+      expect(screen.queryByRole("button", { name: /Contributions to/ })).not.toBeInTheDocument();
+    });
+
+    it("shows linked values as links and contributions which can't be shown as a link as they are", async () => {
+      renderDetail("", [roomField], "inst-1", {
+        alternatives: {
+          [roomField.identifier]: [
+            {
+              value: { instanceId: "room-2", instanceName: "Room B", type: "Room", space: "default", linkStatus: "resolved" },
+              selected: true,
+              users: [jane],
+            },
+            { text: "{@id=room-3}", selected: false, users: [] },
+          ],
+        },
+      });
+
+      fireEvent.click(await screen.findByRole("button", { name: "Contributions to Room (2 different values)" }));
+
+      const panel = screen.getByRole("group", { name: "Contributions to Room" });
+      expect(within(panel).getByRole("button", { name: "Room B" })).toBeInTheDocument();
+      expect(within(panel).getByText("{@id=room-3}")).toBeInTheDocument();
+      expect(within(panel).getByText("Unknown contributor")).toBeInTheDocument();
+    });
+
+    it("tells when the latest contribution removed the value", async () => {
+      renderDetail("", [{ ...nameField, value: undefined }], "inst-1", {
+        alternatives: { [nameField.identifier]: [{ value: "Main office", selected: false, users: [joe] }] },
+      });
+
+      fireEvent.click(await screen.findByRole("button", { name: "Contributions to Name" }));
+
+      expect(screen.getByText("The latest contribution removed the value of this field.")).toBeInTheDocument();
+    });
+
+    it("is available while editing - without being part of the form", async () => {
+      renderDetail("?edit=1", [nameField], "inst-1", {
+        alternatives: {
+          [nameField.identifier]: [
+            { value: "Headquarters", selected: true, users: [jane] },
+            { value: "Main office", selected: false, users: [joe] },
+          ],
+        },
+      });
+
+      fireEvent.click(await screen.findByRole("button", { name: "Contributions to Name (2 different values)" }));
+
+      const panel = screen.getByRole("group", { name: "Contributions to Name" });
+      expect(within(panel).getByText("Main office")).toBeInTheDocument();
+      expect(within(panel).queryByRole("textbox")).not.toBeInTheDocument();
+      expect(screen.getByDisplayValue("Headquarters")).toBeInTheDocument();
+    });
+  });
+
   it("fills in a new instance with the empty fields of its type", async () => {
     const device = "https://example.org/types/Device";
     vi.mocked(fetchTypes).mockResolvedValue([

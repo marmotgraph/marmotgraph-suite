@@ -23,6 +23,7 @@ Source of truth: the CSS below. Use these values when the stylesheet does not al
 | Validation | `ui/src/components/InstanceValidation.css` (`InstanceValidation.tsx`) | `ValidationStatus`, `InstanceValidationSection`, `instance-field-validation-*` |
 | Header sections | `ui/src/components/InstanceHeaderSection.css` (`InstanceHeaderSection.tsx`) | `instance-header-sections`, `instance-header-section` |
 | Comments | `ui/src/components/InstanceComments.css` (`InstanceComments.tsx`) | `instance-comments`, `comment-thread`, `comment-item` |
+| Contributed values | `ui/src/components/InstanceAlternatives.css` (`InstanceAlternatives.tsx`) | `instance-alternatives`, `instance-alternative` |
 | Unsaved | `ui/src/components/UnsavedInstancesPanel.css` | `unsaved-instances-panel` |
 | Footer | `ui/src/views/PoweredBy.tsx` | leave the credit line as it is |
 
