@@ -2,7 +2,6 @@ import React, { useId, useState } from "react";
 import { Button, Collapse } from "react-bootstrap";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faChevronDown, faChevronUp } from "@fortawesome/free-solid-svg-icons";
-import { DisabledHint } from "./DisabledHint";
 import "./InstanceHeaderSection.css";
 
 /**
@@ -16,7 +15,6 @@ export default function InstanceHeaderSection({
   defaultExpanded = false,
   expanded,
   onToggle,
-  disabledReason,
   mountOnExpand = false,
   children,
 }: {
@@ -29,8 +27,6 @@ export default function InstanceHeaderSection({
   /** Whether the section is expanded - if decided by the parent (together with onToggle) */
   expanded?: boolean;
   onToggle?: () => void;
-  /** Why the section can't be expanded - it stays visible, with the reason as the tooltip of its toggle */
-  disabledReason?: string;
   /** Only mounts the content while expanded - it doesn't keep its state then */
   mountOnExpand?: boolean;
   children?: React.ReactNode;
@@ -43,25 +39,22 @@ export default function InstanceHeaderSection({
       <div className="instance-header-section-row">
         <h3 className="instance-header-section-title">
           {children ? (
-            <DisabledHint reason={disabledReason}>
-              <Button
-                type="button"
-                variant="link"
-                size="sm"
-                className="instance-header-section-toggle p-0"
-                onClick={onToggle ?? (() => setIsExpanded((previous) => !previous))}
-                disabled={disabledReason !== undefined}
-                aria-expanded={isExpanded}
-                aria-controls={contentId}
-              >
-                {title} {count}
-                <FontAwesomeIcon
-                  icon={isExpanded ? faChevronUp : faChevronDown}
-                  className="ms-2 instance-header-section-toggle-icon"
-                  aria-hidden="true"
-                />
-              </Button>
-            </DisabledHint>
+            <Button
+              type="button"
+              variant="link"
+              size="sm"
+              className="instance-header-section-toggle p-0"
+              onClick={onToggle ?? (() => setIsExpanded((previous) => !previous))}
+              aria-expanded={isExpanded}
+              aria-controls={contentId}
+            >
+              {title} {count}
+              <FontAwesomeIcon
+                icon={isExpanded ? faChevronUp : faChevronDown}
+                className="ms-2 instance-header-section-toggle-icon"
+                aria-hidden="true"
+              />
+            </Button>
           ) : (
             <>
               {title} {count}

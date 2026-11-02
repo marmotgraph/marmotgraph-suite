@@ -236,10 +236,9 @@ describe("InstanceDetail", () => {
     it("are neither loaded nor reachable without the permission to comment", async () => {
       renderDetail("", [NAME], "inst-1", { permissions: "View" });
 
-      const button = await screen.findByRole("button", { name: "Comments on this instance" });
-      expect(button).toBeDisabled();
-      expect(button.parentElement).toHaveAttribute("title", "You don't have the permission to comment on this instance");
-      expect(screen.queryByRole("button", { name: /Comments on Name/ })).not.toBeInTheDocument();
+      await screen.findByRole("heading", { level: 2 });
+      expect(screen.queryByRole("region", { name: /Comments on this instance/ })).not.toBeInTheDocument();
+      expect(screen.queryByRole("button", { name: /Comments on/ })).not.toBeInTheDocument();
       expect(fetchComments).not.toHaveBeenCalled();
     });
 
@@ -348,14 +347,14 @@ describe("InstanceDetail", () => {
       expect(updateInstance).not.toHaveBeenCalled();
     });
 
-    it("are only available in the read and the edit mode", async () => {
-      render([]);
+    it("on the instance are available in the other modes as well", async () => {
+      render([comment({ text: "About the instance" })]);
 
       await open(/^Raw|raw JSON/);
+      expect(screen.getByRole("button", { name: /raw JSON/ })).toHaveAttribute("aria-pressed", "true");
+      await open(/Comments on this instance \(1\)/);
 
-      const toggle = await screen.findByRole("button", { name: "Comments on this instance" });
-      expect(toggle).toBeDisabled();
-      expect(toggle.parentElement).toHaveAttribute("title", "Comments are available in the read and the edit mode");
+      expect(screen.getByText("About the instance")).toBeInTheDocument();
     });
 
     it("keep the text if adding fails", async () => {

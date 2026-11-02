@@ -187,7 +187,7 @@ function InstanceDetailView({ instanceId }: { instanceId: string }) {
   const [isInfoMode, setIsInfoMode] = useState(false);
   /** Shows who is invited to review the instance - and allows to invite more users */
   const [isReviewMode, setIsReviewMode] = useState(false);
-  /** Shows the comments on the instance as a whole (the comments are available in the read and the edit mode) */
+  /** Shows the comments on the instance as a whole */
   const [isInstanceCommentsOpen, setIsInstanceCommentsOpen] = useState(false);
   /** The fields (identifiers) with their comments shown */
   const [openCommentFields, setOpenCommentFields] = useState<ReadonlySet<string>>(new Set());
@@ -640,14 +640,8 @@ function InstanceDetailView({ instanceId }: { instanceId: string }) {
     }
   };
 
-  // The comments are shown together with the fields - so in the read and the edit mode only
-  const commentsDisabledReason = !canComment
-    ? noPermission("comment on this instance")
-    : mode !== "read" && mode !== "edit"
-      ? "Comments are available in the read and the edit mode"
-      : undefined;
   // A failure to load the comments is always shown - the fields can't tell about their comments without them
-  const showInstanceComments = commentsDisabledReason === undefined && (isInstanceCommentsOpen || comments.loadError !== undefined);
+  const showInstanceComments = isInstanceCommentsOpen || comments.loadError !== undefined;
   /** The comments listed at the instance: those on the instance itself and on properties which aren't shown as fields */
   const instanceCommentCount = comments.comments.filter(
     (comment) => !comment.property || !fieldProperties.has(comment.property),
@@ -931,7 +925,7 @@ function InstanceDetailView({ instanceId }: { instanceId: string }) {
                     isEditMode={mode === "edit"}
                     onChange={(identifiers) => setFieldValue(IDENTIFIER, identifiers)}
                   />
-                  {!isNewInstance && (
+                  {canComment && !isNewInstance && (
                     <InstanceHeaderSection
                       key={instanceId}
                       title="Comments on this instance"
@@ -942,7 +936,6 @@ function InstanceDetailView({ instanceId }: { instanceId: string }) {
                       }
                       expanded={showInstanceComments}
                       onToggle={() => setIsInstanceCommentsOpen((open) => !open)}
-                      disabledReason={commentsDisabledReason}
                       mountOnExpand
                     >
                       <InstanceCommentsOverview
