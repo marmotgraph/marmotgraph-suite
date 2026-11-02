@@ -1,9 +1,10 @@
 import React, { useState } from "react";
 import { Button } from "react-bootstrap";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { faCheck, faUsers } from "@fortawesome/free-solid-svg-icons";
+import { faCheck, faTurnUp, faUsers } from "@fortawesome/free-solid-svg-icons";
 import InstanceFieldControl from "./InstanceFieldControl";
 import { FieldAlternative, InstanceField } from "../services/instances";
+import { InstanceFieldValues, isInstanceFieldValueEqual } from "../modules/editor/editorMockData";
 import "./InstanceAlternatives.css";
 
 const noChange = () => undefined;
@@ -68,39 +69,79 @@ function AlternativeValue({
   );
 }
 
+/** Whether the contribution can be taken over - it has to be a value in the shape of a field which can be edited. */
+function canCopy(field: InstanceField, alternative: FieldAlternative) {
+  return !field.readOnly && alternative.text === undefined && !isEmpty(alternative.value);
+}
+
+/** Copies a contributed value into the field - it tells if the field holds the value already. */
+function CopyToFieldButton({ isInField, onClick }: { isInField: boolean; onClick: () => void }) {
+  return (
+    <Button
+      type="button"
+      variant="link"
+      className="edit-icon-btn instance-alternative-copy"
+      disabled={isInField}
+      onClick={onClick}
+    >
+      {isInField ? (
+        "In field"
+      ) : (
+        <>
+          <FontAwesomeIcon icon={faTurnUp} aria-hidden="true" /> Copy to field
+        </>
+      )}
+    </Button>
+  );
+}
+
 /** The values contributed to a field: who has defined which value, and which of them is the current one. */
 function AlternativesPanel({
   field,
   alternatives,
   onInstanceClick,
+  value,
+  onCopy,
 }: {
   field: InstanceField;
   alternatives: FieldAlternative[];
   onInstanceClick: (instanceId: string) => void;
+  /** The value in the field right now (it may not be saved yet) */
+  value: unknown;
+  onCopy: (value: unknown) => void;
 }) {
   return (
     <div className="instance-alternatives" role="group" aria-label={`Contributions to ${field.label}`}>
+      <p className="instance-alternatives-title">Contributions</p>
       {!alternatives.some((alternative) => alternative.selected) && (
         <p className="instance-alternatives-note">The latest contribution removed the value of this field.</p>
       )}
       <ul className="instance-alternatives-list">
         {alternatives.map((alternative, index) => (
           <li key={index} className="instance-alternative">
-            <div className="instance-alternative-value">
-              <AlternativeValue field={field} alternative={alternative} onInstanceClick={onInstanceClick} />
-            </div>
-            <div className="instance-alternative-meta">
-              {alternative.selected && (
-                <span className="instance-alternative-current">
-                  <FontAwesomeIcon icon={faCheck} aria-hidden="true" /> Current
+            <div className="instance-alternative-content">
+              <div className="instance-alternative-value">
+                <AlternativeValue field={field} alternative={alternative} onInstanceClick={onInstanceClick} />
+              </div>
+              <div className="instance-alternative-meta">
+                {alternative.selected && (
+                  <span className="instance-alternative-current">
+                    <FontAwesomeIcon icon={faCheck} aria-hidden="true" /> Current
+                  </span>
+                )}
+                <span className="instance-alternative-users">
+                  {alternative.users.length > 0
+                    ? alternative.users.map((user) => user.name).join(", ")
+                    : "Unknown contributor"}
                 </span>
-              )}
-              <span className="instance-alternative-users">
-                {alternative.users.length > 0
-                  ? alternative.users.map((user) => user.name).join(", ")
-                  : "Unknown contributor"}
-              </span>
+              </div>
             </div>
+            {canCopy(field, alternative) && (
+              <CopyToFieldButton
+                isInField={isInstanceFieldValueEqual(alternative.value, value)}
+                onClick={() => onCopy(alternative.value)}
+              />
+            )}
           </li>
         ))}
       </ul>
@@ -119,6 +160,8 @@ export type FieldAlternativesControls = {
 export function useFieldAlternatives(
   alternatives: Record<string, FieldAlternative[]> | undefined,
   onInstanceClick: (instanceId: string) => void,
+  values: InstanceFieldValues,
+  onCopy: (identifier: string, value: unknown) => void,
 ): FieldAlternativesControls {
   const [openFields, setOpenFields] = useState<ReadonlySet<string>>(new Set());
 
@@ -146,7 +189,13 @@ export function useFieldAlternatives(
     panel: (field) => {
       const fieldAlternatives = alternatives?.[field.identifier];
       return fieldAlternatives && openFields.has(field.identifier) ? (
-        <AlternativesPanel field={field} alternatives={fieldAlternatives} onInstanceClick={onInstanceClick} />
+        <AlternativesPanel
+          field={field}
+          alternatives={fieldAlternatives}
+          onInstanceClick={onInstanceClick}
+          value={values[field.identifier]}
+          onCopy={(value) => onCopy(field.identifier, value)}
+        />
       ) : null;
     },
   };

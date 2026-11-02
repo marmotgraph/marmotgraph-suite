@@ -120,6 +120,8 @@ describe("InstanceDetail", () => {
     };
     const jane = { username: "jane", name: "Jane Doe" };
     const joe = { username: "joe", name: "Joe Bloggs" };
+    const unsavedBadge = (label: string) =>
+      within(screen.getByText(label, { selector: "label" })).queryByText("Unsaved");
 
     it("shows on demand who has contributed which value", async () => {
       renderDetail("?edit=1", [nameField], "inst-1", {
@@ -198,6 +200,86 @@ describe("InstanceDetail", () => {
       fireEvent.click(await screen.findByRole("button", { name: "Contributions to Name" }));
 
       expect(screen.getByText("The latest contribution removed the value of this field.")).toBeInTheDocument();
+    });
+
+    it("copies a contributed value into the field - and back", async () => {
+      renderDetail("?edit=1", [nameField], "inst-1", {
+        alternatives: {
+          [nameField.identifier]: [
+            { value: "Headquarters", selected: true, users: [jane] },
+            { value: "Main office", selected: false, users: [joe] },
+          ],
+        },
+      });
+
+      fireEvent.click(await screen.findByRole("button", { name: "Contributions to Name (2 different values)" }));
+      const [current, other] = within(screen.getByRole("group", { name: "Contributions to Name" })).getAllByRole("listitem");
+      expect(within(current).getByRole("button", { name: "In field" })).toBeDisabled();
+
+      fireEvent.click(within(other).getByRole("button", { name: "Copy to field" }));
+
+      expect(screen.getByDisplayValue("Main office")).toBeInTheDocument();
+      expect(unsavedBadge("Name")).toBeInTheDocument();
+      expect(within(other).getByRole("button", { name: "In field" })).toBeDisabled();
+
+      fireEvent.click(within(current).getByRole("button", { name: "Copy to field" }));
+
+      expect(screen.getByDisplayValue("Headquarters")).toBeInTheDocument();
+      expect(unsavedBadge("Name")).not.toBeInTheDocument();
+    });
+
+    it("notices that a value typed into the field matches a contribution", async () => {
+      renderDetail("?edit=1", [nameField], "inst-1", {
+        alternatives: { [nameField.identifier]: [{ value: "Main office", selected: false, users: [joe] }] },
+      });
+
+      fireEvent.click(await screen.findByRole("button", { name: "Contributions to Name" }));
+      fireEvent.change(screen.getByDisplayValue("Headquarters"), { target: { value: "Main office" } });
+
+      expect(screen.getByRole("button", { name: "In field" })).toBeDisabled();
+    });
+
+    it("copies a contributed link into the field", async () => {
+      vi.mocked(fetchTypes).mockResolvedValue([]);
+      const roomA = { instanceId: "room-1", instanceName: "Room A", type: "Room", space: "default", linkStatus: "resolved" };
+      const roomB = { instanceId: "room-2", instanceName: "Room B", type: "Room", space: "default", linkStatus: "resolved" };
+      renderDetail("?edit=1", [{ ...roomField, value: roomA }], "inst-1", {
+        alternatives: {
+          [roomField.identifier]: [
+            { value: roomA, selected: true, users: [jane] },
+            { value: roomB, selected: false, users: [joe] },
+          ],
+        },
+      });
+
+      fireEvent.click(await screen.findByRole("button", { name: "Contributions to Room (2 different values)" }));
+      const panel = screen.getByRole("group", { name: "Contributions to Room" });
+      const [current, other] = within(panel).getAllByRole("listitem");
+      fireEvent.click(within(other).getByRole("button", { name: "Copy to field" }));
+
+      expect(within(other).getByRole("button", { name: "In field" })).toBeDisabled();
+      expect(within(current).getByRole("button", { name: "Copy to field" })).toBeInTheDocument();
+      expect(unsavedBadge("Room")).toBeInTheDocument();
+    });
+
+    it("doesn't offer to copy what can't be copied", async () => {
+      vi.mocked(fetchTypes).mockResolvedValue([]);
+      const alternatives = {
+        [nameField.identifier]: [{ value: "Main office", selected: false, users: [joe] }],
+        [roomField.identifier]: [
+          { text: "{@id=room-3}", selected: false, users: [] },
+          { selected: false, users: [joe] },
+        ],
+      };
+      renderDetail("?edit=1", [{ ...nameField, readOnly: true }, roomField], "inst-1", { alternatives });
+
+      fireEvent.click(await screen.findByRole("button", { name: "Contributions to Name" }));
+      fireEvent.click(screen.getByRole("button", { name: "Contributions to Room (2 different values)" }));
+
+      expect(within(screen.getByRole("group", { name: "Contributions to Room" })).getByText("{@id=room-3}")).toBeInTheDocument();
+      expect(screen.getByText("Main office")).toBeInTheDocument();
+      expect(screen.queryByRole("button", { name: "Copy to field" })).not.toBeInTheDocument();
+      expect(screen.queryByRole("button", { name: "In field" })).not.toBeInTheDocument();
     });
 
     it("is part of the edit mode only - without being part of the form", async () => {
@@ -609,7 +691,7 @@ describe("InstanceDetail", () => {
       fireEvent.click(screen.getByRole("button", { name: "Save comment" }));
 
       expect(await screen.findByText("(edited)")).toBeInTheDocument();
-      expect(screen.getByText("Changed")).toBeInTheDocument();
+      expect(screen.getByText("Unsaved")).toBeInTheDocument();
       expect(updateComment).toHaveBeenCalledWith("token", "inst-1", "c1", "Changed");
     });
 

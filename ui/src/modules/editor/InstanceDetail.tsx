@@ -572,7 +572,12 @@ function InstanceDetailView({ instanceId }: { instanceId: string }) {
     navigate(`/editor/instances/${linkedInstanceId}`);
   };
 
-  const fieldAlternatives = useFieldAlternatives(instance?.alternatives, handleLinkClick);
+  const fieldAlternatives = useFieldAlternatives(
+    instance?.alternatives,
+    handleLinkClick,
+    currentFieldValues,
+    setFieldValue,
+  );
 
   if (loading) {
     return (

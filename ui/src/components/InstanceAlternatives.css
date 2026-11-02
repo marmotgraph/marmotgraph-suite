@@ -13,8 +13,22 @@
     font-variant-numeric: tabular-nums;
 }
 
+/* What others contributed is no value of the field - set apart from it like the header sections from the fields */
 .instance-alternatives {
     margin-top: 8px;
+    padding: 8px 12px 12px;
+    border: 1px solid #e4e7eb;
+    border-radius: 8px;
+    background-color: #f8f9fa;
+}
+
+.instance-alternatives-title {
+    margin: 0 0 8px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: #6c757d;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
 }
 
 .instance-alternatives-note {
@@ -33,10 +47,37 @@
 }
 
 .instance-alternative {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-start;
+    gap: 4px 12px;
     padding: 8px 12px;
     background: #fff;
     border: 1px solid #e4e7eb;
     border-radius: 8px;
+}
+
+/* The action moves below the value if the value needs the width */
+.instance-alternative-content {
+    flex: 1 1 240px;
+    min-width: 0;
+}
+
+.instance-alternative-copy.btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    min-height: 32px;
+    margin-left: auto;
+    padding: 4px 8px !important;
+    font-size: 0.8rem;
+    white-space: nowrap;
+}
+
+.instance-alternative-copy.btn:focus-visible {
+    outline: 2px solid #6c8ebf;
+    outline-offset: 2px;
+    box-shadow: none;
 }
 
 .instance-alternative-value {

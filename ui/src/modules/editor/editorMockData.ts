@@ -156,7 +156,7 @@ function normalizeFieldValue(value: unknown): unknown {
   return value === undefined || value === "" || (Array.isArray(value) && value.length === 0) ? null : value;
 }
 
-function isInstanceFieldValueEqual(left: unknown, right: unknown): boolean {
+export function isInstanceFieldValueEqual(left: unknown, right: unknown): boolean {
   const normalizedLeft = normalizeFieldValue(left);
   const normalizedRight = normalizeFieldValue(right);
 
