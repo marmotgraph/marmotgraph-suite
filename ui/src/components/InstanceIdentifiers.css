@@ -1,0 +1,155 @@
+/* The identifiers of an instance - apart from its fields */
+.instance-identifiers {
+    margin-top: 16px;
+    padding-top: 12px;
+    border-top: 1px solid #e9ecef;
+}
+
+.instance-identifiers-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.instance-identifiers-header + .collapse > div,
+.instance-identifiers-header + .collapsing > div {
+    padding-top: 8px;
+}
+
+.instance-identifiers-title {
+    margin: 0;
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: #495057;
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+}
+
+.instance-identifiers-toggle.btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    min-height: 32px;
+    font: inherit;
+    letter-spacing: inherit;
+    text-transform: inherit;
+    color: inherit !important;
+    text-decoration: none !important;
+}
+
+.instance-identifiers-toggle.btn:hover {
+    color: #212529 !important;
+}
+
+.instance-identifiers-toggle.btn:focus-visible {
+    outline: 2px solid #6c8ebf;
+    outline-offset: 2px;
+    box-shadow: none;
+}
+
+.instance-identifiers-toggle-icon {
+    font-size: 0.7rem;
+    color: #868e96;
+}
+
+.instance-identifiers-count {
+    font-weight: 500;
+    color: #868e96;
+    font-variant-numeric: tabular-nums;
+}
+
+.instance-identifiers-empty {
+    margin: 0 0 8px;
+    font-size: 0.9rem;
+    color: #6c757d;
+}
+
+.instance-identifiers-list {
+    list-style: none;
+    margin: 0 0 8px;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.instance-identifier {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    min-width: 0;
+    min-height: 32px;
+    padding: 0 4px 0 10px;
+    border: 1px solid #dee2e6;
+    border-radius: 8px;
+    background: #fff;
+}
+
+.instance-identifier--added {
+    background: #fff8e6;
+    border-color: #ffe08a;
+}
+
+.instance-identifier-value {
+    flex: 1 1 auto;
+    min-width: 0;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: 0.75rem;
+    color: #495057;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.instance-identifier-new {
+    flex: none;
+    font-size: 0.62rem;
+    font-weight: 700;
+    line-height: 1.2;
+    color: #856404;
+    text-transform: uppercase;
+    letter-spacing: 0.02em;
+}
+
+.instance-identifier-action.edit-icon-btn {
+    padding: 6px !important;
+    min-width: 32px;
+    min-height: 32px;
+}
+
+.instance-identifier-action.edit-icon-btn:hover {
+    background-color: #f1f3f5;
+    color: #212529 !important;
+}
+
+.instance-identifier-action.edit-icon-btn:focus-visible {
+    outline: 2px solid #6c8ebf;
+    outline-offset: 1px;
+    box-shadow: none;
+}
+
+.instance-identifiers-add-row {
+    display: flex;
+    gap: 8px;
+}
+
+.instance-identifiers-add-row .form-control {
+    flex: 1 1 auto;
+    min-width: 0;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+
+.instance-identifiers-add-row .btn {
+    flex: none;
+    white-space: nowrap;
+}
+
+.instance-identifiers-help {
+    color: #6c757d;
+}
+
+@media (max-width: 767.98px) {
+    .instance-identifiers-add-row {
+        flex-direction: column;
+    }
+}
