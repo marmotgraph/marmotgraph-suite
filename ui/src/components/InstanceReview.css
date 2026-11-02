@@ -108,28 +108,7 @@
     color: #a3410a;
 }
 
-/* The invitation link is always the last option - set apart from the users found */
-.instance-review-list > li.instance-review-list-link {
-    border-top-color: #e4e7eb;
-    background-color: #f8f9fb;
-}
-
-.instance-review-list-link .instance-review-name strong {
-    font-weight: 600;
-}
-
-.instance-review-candidate:disabled {
-    color: #868e96;
-    cursor: not-allowed;
-}
-
-.instance-review-candidate:disabled:hover {
-    background-color: transparent;
-    border-left-color: transparent;
-}
-
-.instance-review-row,
-.instance-review-candidate {
+.instance-review-row {
     display: flex;
     align-items: center;
     gap: 10px;
@@ -151,26 +130,6 @@
     gap: 4px;
     min-width: 0;
     flex: 1 1 auto;
-}
-
-.instance-review-candidate {
-    width: 100%;
-    border: 0;
-    border-left: 4px solid transparent;
-    background: transparent;
-    text-align: left;
-    color: inherit;
-    transition: background-color 0.15s ease;
-}
-
-.instance-review-candidate:hover {
-    background-color: #e8e9f3;
-    border-left-color: #5b5fc7;
-}
-
-.instance-review-candidate:focus-visible {
-    outline: 2px solid #5b5fc7;
-    outline-offset: -2px;
 }
 
 .instance-review-user-icon {
@@ -335,7 +294,6 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-    .instance-review-candidate,
     .instance-review-disclosure {
         transition: none;
     }

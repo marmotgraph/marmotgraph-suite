@@ -187,7 +187,7 @@ describe("InstanceReview", () => {
     expect(screen.getByText("No scope selected - the invitation covers this instance only.")).toBeInTheDocument();
 
     fireEvent.change(screen.getByLabelText("User or invitation label"), { target: { value: "Ma" } });
-    fireEvent.click(screen.getByRole("button", { name: /Create an invitation link labeled Ma/ }));
+    fireEvent.click(screen.getByRole("button", { name: /Create invitation link labeled Ma/ }));
 
     await waitFor(() => expect(createInvitationLink).toHaveBeenCalledWith("token", "abc", "Ma", []));
   });
@@ -196,11 +196,12 @@ describe("InstanceReview", () => {
     vi.mocked(searchInvitationCandidates).mockResolvedValue([]);
     render(<InstanceReview instanceId="abc" />);
 
-    expect(screen.queryByRole("button", { name: /Create an invitation link/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Create invitation link/ })).not.toBeInTheDocument();
     fireEvent.change(await screen.findByLabelText("User or invitation label"), { target: { value: "Max Muster" } });
 
     expect(await screen.findByText("No users found.")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Create an invitation link labeled Max Muster" })).toBeInTheDocument();
+    expect(screen.getByText("Invite user 'Max Muster'")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Create invitation link labeled Max Muster" })).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /^Invite / })).not.toBeInTheDocument();
   });
 
@@ -216,7 +217,7 @@ describe("InstanceReview", () => {
     render(<InstanceReview instanceId="abc" />);
 
     fireEvent.change(await screen.findByLabelText("User or invitation label"), { target: { value: "  For Max " } });
-    fireEvent.click(screen.getByRole("button", { name: /Create an invitation link labeled For Max/ }));
+    fireEvent.click(screen.getByRole("button", { name: /Create invitation link labeled For Max/ }));
 
     const link = await screen.findByLabelText("Invitation link", { selector: "input[readonly]" });
     expect(link).toHaveValue(`${window.location.origin}/invitations/secret%2Ftoken`);

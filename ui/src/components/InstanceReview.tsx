@@ -387,27 +387,27 @@ function InviteeSearch({
                 );
               })
             )}
-            <li className="instance-review-list-link">
-              <button
-                type="button"
-                className="instance-review-candidate"
+            <li className="instance-review-row">
+              <FontAwesomeIcon icon={faLink} className="instance-review-user-icon" aria-hidden="true" />
+              <div className="instance-review-row-main">
+                <span className="instance-review-name">Invite user &apos;{term}&apos;</span>
+                {tooLongForLabel && (
+                  <span className="instance-review-invalid">
+                    A label can have at most {MAX_INVITATION_LABEL_LENGTH} characters.
+                  </span>
+                )}
+              </div>
+              <Button
+                size="sm"
+                variant="outline-dark"
+                className="instance-review-invite"
                 disabled={tooLongForLabel || Boolean(submitting)}
                 onClick={() => onInvite({ kind: "link" })}
+                aria-label={`Create invitation link labeled ${term}`}
               >
-                {creatingLink ? (
-                  <Spinner animation="border" size="sm" className="instance-review-user-icon" />
-                ) : (
-                  <FontAwesomeIcon icon={faLink} className="instance-review-user-icon" aria-hidden="true" />
-                )}
-                <span className="instance-review-name">
-                  Create an invitation link labeled <strong>{term}</strong>
-                </span>
-              </button>
-              {tooLongForLabel && (
-                <div className="instance-review-invalid px-3 pb-2">
-                  A label can have at most {MAX_INVITATION_LABEL_LENGTH} characters.
-                </div>
-              )}
+                {creatingLink && <Spinner animation="border" size="sm" className="me-2" />}
+                Create invitation link
+              </Button>
             </li>
           </ul>
         </div>
