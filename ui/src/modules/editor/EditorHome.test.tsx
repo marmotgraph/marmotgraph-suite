@@ -1,12 +1,12 @@
 import React from "react";
-import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { MemoryRouter, Route, Routes, useLocation } from "react-router-dom";
 import EditorHome from "./EditorHome";
 import { useInstances } from "../../contexts/InstancesContext";
 import { useTypes } from "../../hooks/useTypes";
 import { useSpaces } from "../../hooks/useSpaces";
 import { InstanceSummary } from "./editorMockData";
-import { fetchInstance } from "../../services/instances";
+import { deleteInstance, fetchInstance } from "../../services/instances";
 
 vi.mock("../../contexts/InstancesContext", () => ({ useInstances: vi.fn() }));
 vi.mock("../../hooks/useTypes", () => ({ useTypes: vi.fn() }));
@@ -15,7 +15,11 @@ vi.mock("../../contexts/AuthContext", () => {
   const getAccessToken = () => Promise.resolve("token");
   return { useAuth: () => ({ getAccessToken }) };
 });
-vi.mock("../../services/instances", () => ({ fetchInstance: vi.fn() }));
+vi.mock("../../services/instances", () => ({ deleteInstance: vi.fn(), fetchInstance: vi.fn() }));
+const { removeDraft } = vi.hoisted(() => ({ removeDraft: vi.fn() }));
+vi.mock("../../contexts/UnsavedInstancesContext", () => ({
+  useUnsavedInstances: () => ({ removeDraft }),
+}));
 
 const instance: InstanceSummary = {
   id: 1,
@@ -532,6 +536,163 @@ describe("EditorHome", () => {
     renderHome([instance], 1, { sort: { by: "NAME", direction: "DESC" }, setSort });
     fireEvent.click(screen.getByRole("columnheader", { name: /Instance Name/ }));
     expect(setSort).toHaveBeenLastCalledWith(null);
+  });
+
+  describe("deleting the selection", () => {
+    const headquarters: InstanceSummary = { ...instance, releaseStatus: "in progress" };
+    const annex: InstanceSummary = { ...headquarters, id: 2, instanceId: "inst-2", instanceName: "Annex" };
+    const releasedAnnex: InstanceSummary = { ...annex, releaseStatus: "released", permissions: "View, Edit, Release" };
+    const RELEASED_OPTION = /Also delete released instances/;
+
+    const openDeleteDialog = () => {
+      fireEvent.click(screen.getByRole("checkbox", { name: "Select Headquarters" }));
+      fireEvent.click(screen.getByRole("checkbox", { name: "Select Annex" }));
+      fireEvent.click(screen.getByRole("button", { name: "Delete Selected" }));
+      return screen.getByRole("dialog");
+    };
+
+    beforeEach(() => {
+      vi.mocked(deleteInstance).mockReset();
+      removeDraft.mockClear();
+    });
+
+    it("deletes the instances on the backend and closes the dialog", async () => {
+      vi.mocked(deleteInstance).mockResolvedValue(undefined);
+      const deleteInstances = vi.fn();
+      renderHome([headquarters, annex], 2, { deleteInstances });
+
+      const dialog = openDeleteDialog();
+      expect(deleteInstance).not.toHaveBeenCalled();
+      fireEvent.click(within(dialog).getByRole("button", { name: "Delete" }));
+
+      await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+      expect(deleteInstance).toHaveBeenCalledWith("token", "inst-1");
+      expect(deleteInstance).toHaveBeenCalledWith("token", "inst-2");
+      expect(deleteInstances).toHaveBeenCalledWith(["inst-1", "inst-2"]);
+      expect(removeDraft).toHaveBeenCalledWith("inst-1");
+      expect(removeDraft).toHaveBeenCalledWith("inst-2");
+      expect(screen.queryByRole("button", { name: "Delete Selected" })).not.toBeInTheDocument();
+    });
+
+    it("only deletes what is left on the list of the dialog", async () => {
+      vi.mocked(deleteInstance).mockResolvedValue(undefined);
+      const deleteInstances = vi.fn();
+      renderHome([headquarters, annex], 2, { deleteInstances });
+
+      const dialog = openDeleteDialog();
+      fireEvent.click(within(dialog).getByText("Annex"));
+      fireEvent.click(within(dialog).getByRole("button", { name: "Delete" }));
+
+      await waitFor(() => expect(deleteInstances).toHaveBeenCalledWith(["inst-1"]));
+      expect(deleteInstance).toHaveBeenCalledTimes(1);
+    });
+
+    it("keeps what the backend rejected selected and reports the failure", async () => {
+      vi.mocked(deleteInstance).mockImplementation((_, id) =>
+        id === "inst-2"
+          ? Promise.reject(new Error("Failed to delete the instance (403 Forbidden)"))
+          : Promise.resolve(),
+      );
+      const deleteInstances = vi.fn();
+      renderHome([headquarters, annex], 2, { deleteInstances });
+
+      const dialog = openDeleteDialog();
+      fireEvent.click(within(dialog).getByRole("button", { name: "Delete" }));
+
+      expect(await within(dialog).findByRole("alert")).toHaveTextContent(
+        "1 of 2 could not be deleted: Failed to delete the instance (403 Forbidden)",
+      );
+      expect(deleteInstances).toHaveBeenCalledWith(["inst-1"]);
+      expect(removeDraft).toHaveBeenCalledTimes(1);
+      expect(removeDraft).toHaveBeenCalledWith("inst-1");
+      expect(within(dialog).getByText("Annex")).toBeInTheDocument();
+      expect(within(dialog).queryByText("Headquarters")).not.toBeInTheDocument();
+    });
+
+    it("leaves the released instances out unless the user opts in", async () => {
+      vi.mocked(deleteInstance).mockResolvedValue(undefined);
+      const deleteInstances = vi.fn();
+      renderHome([headquarters, releasedAnnex], 2, { deleteInstances });
+
+      const dialog = openDeleteDialog();
+      expect(within(dialog).getByRole("checkbox", { name: RELEASED_OPTION })).not.toBeChecked();
+      expect(within(dialog).getByText("Will not be deleted")).toBeInTheDocument();
+      fireEvent.click(within(dialog).getByRole("button", { name: "Delete" }));
+
+      await waitFor(() => expect(deleteInstances).toHaveBeenCalledWith(["inst-1"]));
+      expect(deleteInstance).toHaveBeenCalledTimes(1);
+      expect(screen.queryByRole("button", { name: "Delete Selected" })).not.toBeInTheDocument();
+    });
+
+    it("also deletes the released instances if the user opts in", async () => {
+      vi.mocked(deleteInstance).mockResolvedValue(undefined);
+      const deleteInstances = vi.fn();
+      renderHome([headquarters, releasedAnnex], 2, { deleteInstances });
+
+      const dialog = openDeleteDialog();
+      fireEvent.click(within(dialog).getByRole("checkbox", { name: RELEASED_OPTION }));
+      expect(within(dialog).queryByText("Will not be deleted")).not.toBeInTheDocument();
+      fireEvent.click(within(dialog).getByRole("button", { name: "Delete" }));
+
+      await waitFor(() => expect(deleteInstances).toHaveBeenCalledWith(["inst-1", "inst-2"]));
+    });
+
+    it("treats an instance changed since its release as released", () => {
+      renderHome([headquarters, { ...releasedAnnex, releaseStatus: "has changed" }], 2);
+
+      const dialog = openDeleteDialog();
+
+      expect(within(dialog).getByRole("checkbox", { name: RELEASED_OPTION })).toBeInTheDocument();
+    });
+
+    it("starts unselected again when reopened", () => {
+      renderHome([headquarters, releasedAnnex], 2);
+
+      const dialog = openDeleteDialog();
+      fireEvent.click(within(dialog).getByRole("checkbox", { name: RELEASED_OPTION }));
+      fireEvent.click(within(dialog).getByRole("button", { name: "Cancel" }));
+      fireEvent.click(screen.getByRole("button", { name: "Delete Selected" }));
+
+      expect(screen.getByRole("checkbox", { name: RELEASED_OPTION })).not.toBeChecked();
+    });
+
+    it("only deletes the remaining ones without the Release permission", async () => {
+      vi.mocked(deleteInstance).mockResolvedValue(undefined);
+      const deleteInstances = vi.fn();
+      renderHome([headquarters, { ...annex, releaseStatus: "released" }], 2, { deleteInstances });
+
+      const dialog = openDeleteDialog();
+      expect(within(dialog).queryByRole("checkbox", { name: RELEASED_OPTION })).not.toBeInTheDocument();
+      expect(dialog).toHaveTextContent(
+        "1 selected instance is released and can't be deleted without the Release permission. Only the remaining ones are deleted.",
+      );
+      fireEvent.click(within(dialog).getByRole("button", { name: "Delete" }));
+
+      await waitFor(() => expect(deleteInstances).toHaveBeenCalledWith(["inst-1"]));
+      expect(deleteInstance).toHaveBeenCalledTimes(1);
+    });
+
+    it("has nothing to confirm if only released instances are selected without the Release permission", () => {
+      renderHome([instance, { ...annex, releaseStatus: "released" }], 2);
+
+      const dialog = openDeleteDialog();
+
+      expect(dialog).toHaveTextContent(
+        "2 selected instances are released and can't be deleted without the Release permission.",
+      );
+      expect(dialog).not.toHaveTextContent("Only the remaining ones");
+      expect(within(dialog).getByRole("button", { name: "Delete" })).toBeDisabled();
+    });
+
+    it("cannot be confirmed with an empty list", () => {
+      renderHome([headquarters, annex], 2);
+
+      const dialog = openDeleteDialog();
+      fireEvent.click(within(dialog).getByText("Annex"));
+      fireEvent.click(within(dialog).getByText("Headquarters"));
+
+      expect(within(dialog).getByRole("button", { name: "Delete" })).toBeDisabled();
+    });
   });
 
   it("closes the preview", () => {

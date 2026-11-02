@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { Button, Col, Collapse, Form, Modal, Row, Spinner, Table } from "react-bootstrap";
+import { Alert, Button, Col, Collapse, Form, Modal, Row, Spinner, Table } from "react-bootstrap";
 import { useNavigate } from "react-router-dom";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
@@ -17,11 +17,13 @@ import {
   faSortDown,
   faSortUp,
   faStar as faStarSolid,
+  faTriangleExclamation,
   faXmark,
 } from "@fortawesome/free-solid-svg-icons";
 import { faStar as faStarRegular } from "@fortawesome/free-regular-svg-icons";
 import { useAuth } from "../../contexts/AuthContext";
 import { useInstances } from "../../contexts/InstancesContext";
+import { useUnsavedInstances } from "../../contexts/UnsavedInstancesContext";
 import { SearchBar } from "../../components/SearchBar";
 import { InstanceFilterPanel } from "../../components/InstanceFilterPanel";
 import { FilterPill } from "../../components/FilterPill";
@@ -31,6 +33,7 @@ import { useTypes } from "../../hooks/useTypes";
 import { useSpaces } from "../../hooks/useSpaces";
 import { typeLabel } from "../../services/types";
 import {
+  deleteInstance,
   fetchInstance,
   InstanceDetail,
   InstanceField,
@@ -90,6 +93,8 @@ export default function EditorHome() {
     toggleFavorite,
     deleteInstances,
   } = useInstances({ load: true });
+  const { getAccessToken } = useAuth();
+  const { removeDraft } = useUnsavedInstances();
   const types = useTypes();
   const spaces = useSpaces();
   const [searchQuery, setSearchQuery] = useState<string>(searchTerm);
@@ -105,6 +110,9 @@ export default function EditorHome() {
   );
   const isMobile = useMediaQuery(MOBILE_VIEWPORT_QUERY);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState<string>();
+  const [deleteReleased, setDeleteReleased] = useState(false);
   const [showMobileFilters, setShowMobileFilters] = useState(false);
   const [localFilters, setLocalFilters] = useState<
     Pick<InstanceFilters, "permissions">
@@ -259,16 +267,59 @@ export default function EditorHome() {
     });
   };
 
+  const selectedSummaries = instances.filter((inst) =>
+    selectedInstances.has(inst.instanceId),
+  );
+  const releasedDeletable = selectedSummaries.filter(
+    (inst) => isReleased(inst) && canDeleteReleased(inst),
+  );
+  const releasedBlocked = selectedSummaries.filter(
+    (inst) => isReleased(inst) && !canDeleteReleased(inst),
+  );
+  const instancesToDelete = selectedSummaries.filter(
+    (inst) => !isReleased(inst) || (deleteReleased && canDeleteReleased(inst)),
+  );
+
   const handleDeleteClick = () => {
     if (selectedInstances.size > 0 && canDeleteSelected()) {
+      setDeleteError(undefined);
+      setDeleteReleased(false);
       setShowDeleteModal(true);
     }
   };
 
-  const handleConfirmDelete = () => {
-    deleteInstances(Array.from(selectedInstances));
-    setSelectedInstances(new Set());
-    setShowDeleteModal(false);
+  /**
+   * Deletes the selection without the released instances which are left out. What the backend rejects stays selected,
+   * so the dialog offers it for another attempt.
+   */
+  const handleConfirmDelete = async () => {
+    const ids = instancesToDelete.map((inst) => inst.instanceId);
+    setDeleting(true);
+    setDeleteError(undefined);
+    try {
+      const token = await getAccessToken();
+      const results = await Promise.allSettled(
+        ids.map((id) => deleteInstance(token, id)),
+      );
+      const deleted = ids.filter((_, index) => results[index].status === "fulfilled");
+      deleted.forEach((id) => removeDraft(id));
+      deleteInstances(deleted);
+      const failedIds = ids.filter((_, index) => results[index].status === "rejected");
+      setSelectedInstances(new Set(failedIds));
+      const failure = results.find(
+        (result): result is PromiseRejectedResult => result.status === "rejected",
+      );
+      if (failure) {
+        const reason = failure.reason instanceof Error ? failure.reason.message : String(failure.reason);
+        setDeleteError(`${failedIds.length} of ${ids.length} could not be deleted: ${reason}`);
+      } else {
+        setShowDeleteModal(false);
+      }
+    } catch (e) {
+      setDeleteError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setDeleting(false);
+    }
   };
 
   const getSortIcon = (field: InstanceSortBy) => {
@@ -666,6 +717,7 @@ export default function EditorHome() {
                         <td onClick={(e) => e.stopPropagation()}>
                           <Form.Check
                             type="checkbox"
+                            aria-label={`Select ${instance.instanceName}`}
                             checked={selectedInstances.has(instance.instanceId)}
                             onChange={() =>
                               handleSelectInstance(instance.instanceId)
@@ -775,10 +827,16 @@ export default function EditorHome() {
       {/* Delete Confirmation Modal */}
       <Modal
         show={showDeleteModal}
-        onHide={() => setShowDeleteModal(false)}
+        onHide={() => {
+          if (!deleting) {
+            setShowDeleteModal(false);
+          }
+        }}
+        keyboard={!deleting}
+        backdrop={deleting ? "static" : true}
         centered
       >
-        <Modal.Header closeButton>
+        <Modal.Header closeButton={!deleting}>
           <Modal.Title>Confirm Delete</Modal.Title>
         </Modal.Header>
         <Modal.Body>
@@ -792,13 +850,19 @@ export default function EditorHome() {
           <ul className="list-unstyled mb-0">
             {Array.from(selectedInstances).map((id) => {
               const inst = instances.find((i) => i.instanceId === id);
+              const kept =
+                inst && isReleased(inst) && !instancesToDelete.includes(inst);
               return inst ? (
                 <li
                   key={id}
                   className="delete-modal-item"
-                  onClick={() => handleSelectInstance(id)}
+                  onClick={() => {
+                    if (!deleting) {
+                      handleSelectInstance(id);
+                    }
+                  }}
                   style={{
-                    cursor: "pointer",
+                    cursor: deleting ? "default" : "pointer",
                     padding: "8px 12px",
                     marginBottom: "4px",
                     backgroundColor: "#f8f9fa",
@@ -817,6 +881,14 @@ export default function EditorHome() {
                 >
                   <strong>{inst.instanceName}</strong> ({inst.type})
                   <span className="ms-2 text-muted small">✕</span>
+                  {isReleased(inst) && (
+                    <div className="delete-modal-item-status">
+                      <InstanceStatusTags releaseStatus={inst.releaseStatus} />
+                      {kept && (
+                        <span className="text-muted small">Will not be deleted</span>
+                      )}
+                    </div>
+                  )}
                 </li>
               ) : null;
             })}
@@ -826,21 +898,69 @@ export default function EditorHome() {
               No instances selected for deletion.
             </p>
           )}
+          {releasedBlocked.length > 0 && (
+            <p className="delete-modal-warning">
+              <FontAwesomeIcon icon={faTriangleExclamation} aria-hidden="true" />
+              <span>
+                {releasedBlocked.length === 1
+                  ? "1 selected instance is released and can't be deleted"
+                  : `${releasedBlocked.length} selected instances are released and can't be deleted`}
+                {" "}without the Release permission.
+                {selectedSummaries.length > releasedBlocked.length &&
+                  " Only the remaining ones are deleted."}
+              </span>
+            </p>
+          )}
+          {releasedDeletable.length > 0 && (
+            <Form.Check
+              type="checkbox"
+              id="delete-released-instances"
+              className="delete-modal-released-option"
+              label={`Also delete released instances (${releasedDeletable.length}) - this removes them from search as well`}
+              checked={deleteReleased}
+              disabled={deleting}
+              onChange={(e) => setDeleteReleased(e.target.checked)}
+            />
+          )}
+          {deleteError && (
+            <Alert variant="danger" className="mt-3 mb-0">
+              {deleteError}
+            </Alert>
+          )}
         </Modal.Body>
         <Modal.Footer>
           <Button
             variant="outline-secondary"
             onClick={() => setShowDeleteModal(false)}
+            disabled={deleting}
           >
             Cancel
           </Button>
-          <Button variant="danger" onClick={handleConfirmDelete}>
-            Delete
+          <Button
+            variant="danger"
+            onClick={handleConfirmDelete}
+            disabled={deleting || instancesToDelete.length === 0}
+            aria-busy={deleting}
+          >
+            {deleting && (
+              <Spinner animation="border" size="sm" className="me-2" aria-hidden="true" />
+            )}
+            {deleting ? "Deleting…" : "Delete"}
           </Button>
         </Modal.Footer>
       </Modal>
     </div>
   );
+}
+
+/** Whether the instance has a released version - also if it has changed since. */
+function isReleased(instance: InstanceSummary) {
+  return instance.releaseStatus === "released" || instance.releaseStatus === "has changed";
+}
+
+/** Deleting a released instance takes it out of search as well, which is up to those who may release it. */
+function canDeleteReleased(instance: InstanceSummary) {
+  return instance.permissions.includes("Release");
 }
 
 /** The star flagging an instance as favorite of the user - toggles the flag without opening the instance. */

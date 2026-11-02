@@ -541,6 +541,37 @@
     margin-bottom: 16px;
 }
 
+.delete-modal-item-status {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+    margin-top: 4px;
+}
+
+.delete-modal-warning {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    margin: 12px 0 0;
+    padding: 10px 12px;
+    color: #856404;
+    background: #fff8e6;
+    border: 1px solid #ffe08a;
+    border-radius: 6px;
+    font-size: 0.9rem;
+}
+
+.delete-modal-warning svg {
+    margin-top: 3px;
+    flex: none;
+}
+
+.delete-modal-released-option {
+    margin-top: 12px;
+    margin-bottom: 0;
+}
+
 /* The star flagging an instance as favorite - a quiet icon button which is only dark once flagged */
 .favorite-toggle {
     display: inline-flex;
