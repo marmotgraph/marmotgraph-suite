@@ -20,6 +20,8 @@ type LinkedInstancesCreatePanelProps = {
   allowedTypes: string[];
   defaultSpace: string;
   show?: boolean;
+  /** If only one instance can be created at a time (no quantity) */
+  single?: boolean;
   onCreate: (instances: LinkedInstance[]) => void;
 };
 
@@ -27,6 +29,7 @@ export default function LinkedInstancesCreatePanel({
   allowedTypes,
   defaultSpace,
   show = true,
+  single = false,
   onCreate,
 }: LinkedInstancesCreatePanelProps) {
   const [isExpanded, setIsExpanded] = useState(false);
@@ -88,6 +91,9 @@ export default function LinkedInstancesCreatePanel({
 
     setNamePrefix("");
     setQuantity(1);
+    if (single) {
+      setIsExpanded(false);
+    }
   };
 
   return (
@@ -114,7 +120,11 @@ export default function LinkedInstancesCreatePanel({
           id="linked-instances-create-panel-form"
           className="linked-instances-create-panel-form"
         >
-          <div className="linked-instances-create-panel-fields">
+          <div
+            className={`linked-instances-create-panel-fields${
+              single ? " linked-instances-create-panel-fields--single" : ""
+            }`}
+          >
             <Form.Group className="linked-instances-create-panel-field">
               <Form.Label>Type</Form.Label>
               <Form.Select
@@ -144,27 +154,29 @@ export default function LinkedInstancesCreatePanel({
               />
             </Form.Group>
 
-            <Form.Group className="linked-instances-create-panel-field linked-instances-create-panel-field--quantity">
-              <Form.Label>Qty</Form.Label>
-              <Form.Control
-                type="number"
-                min={1}
-                max={MAX_BULK_CREATE}
-                value={quantity}
-                onChange={(event) => {
-                  const nextValue = Number.parseInt(event.target.value, 10);
+            {!single && (
+              <Form.Group className="linked-instances-create-panel-field linked-instances-create-panel-field--quantity">
+                <Form.Label>Qty</Form.Label>
+                <Form.Control
+                  type="number"
+                  min={1}
+                  max={MAX_BULK_CREATE}
+                  value={quantity}
+                  onChange={(event) => {
+                    const nextValue = Number.parseInt(event.target.value, 10);
 
-                  if (Number.isNaN(nextValue)) {
-                    setQuantity(1);
-                    return;
-                  }
+                    if (Number.isNaN(nextValue)) {
+                      setQuantity(1);
+                      return;
+                    }
 
-                  setQuantity(
-                    Math.min(Math.max(nextValue, 1), MAX_BULK_CREATE),
-                  );
-                }}
-              />
-            </Form.Group>
+                    setQuantity(
+                      Math.min(Math.max(nextValue, 1), MAX_BULK_CREATE),
+                    );
+                  }}
+                />
+              </Form.Group>
+            )}
 
             <Form.Group className="linked-instances-create-panel-field linked-instances-create-panel-field--space">
               <Form.Label>Space</Form.Label>
@@ -210,7 +222,9 @@ export default function LinkedInstancesCreatePanel({
               onClick={handleCreate}
               disabled={!canCreate}
             >
-              Create &amp; add{quantity > 1 ? ` (${quantity})` : ""}
+              {single
+                ? "Create & select"
+                : `Create & add${quantity > 1 ? ` (${quantity})` : ""}`}
             </Button>
           </div>
         </div>

@@ -20,6 +20,7 @@ import {
 } from "./FilterPillsOverflow";
 import LinkedInstancesCreatePanel from "./LinkedInstancesCreatePanel";
 import { MultiSelectFilterDropdown } from "./MultiSelectFilterDropdown";
+import InstanceSingleSelectList from "./InstanceSingleSelectList";
 import InstanceTransferList from "./InstanceTransferList";
 import "./LinkedInstancesEditModal.css";
 
@@ -29,6 +30,8 @@ type LinkedInstancesEditModalProps = {
   fieldLabel: string;
   /** The types (identifiers) of the instances which can be linked - all if empty */
   allowedTypes: string[];
+  /** If at most one instance can be linked */
+  single?: boolean;
   linkedInstances: LinkedInstance[];
   currentInstanceId?: string;
   parentSpace?: string;
@@ -54,6 +57,7 @@ export default function LinkedInstancesEditModal({
   onHide,
   fieldLabel,
   allowedTypes,
+  single = false,
   linkedInstances,
   currentInstanceId,
   parentSpace = "",
@@ -164,15 +168,22 @@ export default function LinkedInstancesEditModal({
 
     return [...merged.values()];
   }, [createdInstances, enrichedLinkedInstances, selectableCatalog]);
+  // The instances created in the dialog are not part of the catalog but can still be chosen
+  const singleSelectInstances = useMemo(() => {
+    const catalogIds = new Set(selectableCatalog.map((instance) => instance.instanceId));
+    return [
+      ...createdInstances.filter((instance) => !catalogIds.has(instance.instanceId)),
+      ...selectableCatalog,
+    ];
+  }, [createdInstances, selectableCatalog]);
   const wasOpenRef = useRef(false);
 
   useEffect(() => {
     if (show && !wasOpenRef.current) {
       sessionCreatedIdsRef.current = new Set();
       setCreatedInstances(getInitialCreatedInstances(enrichedLinkedInstances));
-      setSelectedIds(
-        enrichedLinkedInstances.map((instance) => instance.instanceId),
-      );
+      const initialIds = enrichedLinkedInstances.map((instance) => instance.instanceId);
+      setSelectedIds(single ? initialIds.slice(-1) : initialIds);
       setSelectedTypes([]);
       setSelectedSpaces([]);
     }
@@ -225,9 +236,19 @@ export default function LinkedInstancesEditModal({
         return;
       }
 
+      // A single link can only ever use one new instance - it replaces the one created before
+      const replacedIds = single ? new Set(sessionCreatedIdsRef.current) : new Set<string>();
+      if (single) {
+        discardSessionCreatedInstances();
+      }
+
       registerCreatedInstances(instances);
       setCreatedInstances((previous) => {
-        const merged = new Map(previous.map((instance) => [instance.instanceId, instance]));
+        const merged = new Map(
+          previous
+            .filter((instance) => !replacedIds.has(instance.instanceId))
+            .map((instance) => [instance.instanceId, instance]),
+        );
 
         for (const instance of instances) {
           merged.set(instance.instanceId, instance);
@@ -236,13 +257,13 @@ export default function LinkedInstancesEditModal({
         return [...merged.values()];
       });
       setSelectedIds((previous) => [
-        ...previous,
+        ...(single ? [] : previous),
         ...instances
           .map((instance) => instance.instanceId)
-          .filter((instanceId) => !previous.includes(instanceId)),
+          .filter((instanceId) => single || !previous.includes(instanceId)),
       ]);
     },
-    [registerCreatedInstances],
+    [discardSessionCreatedInstances, registerCreatedInstances, single],
   );
 
   const handleTypeToggle = (type: string) => {
@@ -284,117 +305,145 @@ export default function LinkedInstancesEditModal({
     onHide();
   };
 
+  const filters = (
+    <div className="linked-instances-edit-modal-filters linked-instances-edit-modal-filters--available">
+      <div className="linked-instances-edit-modal-filter-row">
+        <span className="linked-instances-edit-modal-filter-label">
+          Filter
+        </span>
+        <div className="linked-instances-edit-modal-filter-controls">
+          <MultiSelectFilterDropdown
+            label="Type"
+            options={availableTypes}
+            selected={selectedTypes}
+            onChange={setSelectedTypes}
+            searchPlaceholder="Search types..."
+            emptyMessage="No types found"
+          />
+          <MultiSelectFilterDropdown
+            label="Space"
+            options={availableSpaces}
+            selected={selectedSpaces}
+            onChange={setSelectedSpaces}
+            searchPlaceholder="Search spaces..."
+            emptyMessage="No spaces found"
+            menuClassName="multi-select-filter-dropdown-menu--wide"
+          />
+        </div>
+      </div>
+
+      {loading && (
+        <div className="text-muted small">Loading instances...</div>
+      )}
+      {loadError && <div className="text-danger small">{loadError}</div>}
+
+      {(selectedTypes.length > 0 || selectedSpaces.length > 0) && (
+        <div className="linked-instances-edit-modal-filter-pills">
+          <div className="linked-instances-edit-modal-filter-pills-groups">
+            <FilterPillsOverflow
+              label="Type"
+              values={selectedTypes}
+              onRemove={handleTypeToggle}
+              onClearAll={() => setSelectedTypes([])}
+            />
+            <FilterPillsOverflow
+              label="Space"
+              values={selectedSpaces}
+              onRemove={handleSpaceToggle}
+              onClearAll={() => setSelectedSpaces([])}
+              formatValue={formatSpaceFilterValue}
+            />
+          </div>
+          <Button
+            type="button"
+            variant="link"
+            size="sm"
+            className="linked-instances-edit-modal-clear-filters p-0"
+            onClick={() => {
+              setSelectedTypes([]);
+              setSelectedSpaces([]);
+            }}
+          >
+            Clear all
+          </Button>
+        </div>
+      )}
+    </div>
+  );
+
   return (
     <Modal
       show={show}
       onHide={handleClose}
       centered
-      size="xl"
+      size={single ? "lg" : "xl"}
       className="linked-instances-edit-modal"
     >
       <Modal.Header closeButton>
         <Modal.Title>
-          Manage {fieldLabel}
-          <span className="linked-instances-edit-modal-count ms-2">
-            ({selectedIds.length} selected)
-          </span>
+          {single ? (
+            `Select ${fieldLabel}`
+          ) : (
+            <>
+              Manage {fieldLabel}
+              <span className="linked-instances-edit-modal-count ms-2">
+                ({selectedIds.length} selected)
+              </span>
+            </>
+          )}
         </Modal.Title>
       </Modal.Header>
 
       <Modal.Body>
         <p className="text-muted linked-instances-edit-modal-help">
-          Move instances from the available list on the left into the selected
-          list on the right, or create new instances to link.
+          {single
+            ? "Select the instance to link, or create a new one."
+            : "Move instances from the available list on the left into the selected list on the right, or create new instances to link."}
         </p>
 
         <LinkedInstancesCreatePanel
           allowedTypes={allowedTypeLabels}
           defaultSpace={parentSpace}
           show={show}
+          single={single}
           onCreate={handleCreateInstances}
         />
 
-        <InstanceTransferList
-          instances={allInstances}
-          availableInstances={selectableCatalog}
-          selectedIds={selectedIds}
-          onSelectedIdsChange={setSelectedIds}
-          availableFilters={
-            <div className="linked-instances-edit-modal-filters linked-instances-edit-modal-filters--available">
-              <div className="linked-instances-edit-modal-filter-row">
-                <span className="linked-instances-edit-modal-filter-label">
-                  Filter
-                </span>
-                <div className="linked-instances-edit-modal-filter-controls">
-                  <MultiSelectFilterDropdown
-                    label="Type"
-                    options={availableTypes}
-                    selected={selectedTypes}
-                    onChange={setSelectedTypes}
-                    searchPlaceholder="Search types..."
-                    emptyMessage="No types found"
-                  />
-                  <MultiSelectFilterDropdown
-                    label="Space"
-                    options={availableSpaces}
-                    selected={selectedSpaces}
-                    onChange={setSelectedSpaces}
-                    searchPlaceholder="Search spaces..."
-                    emptyMessage="No spaces found"
-                    menuClassName="multi-select-filter-dropdown-menu--wide"
-                  />
-                </div>
-              </div>
-
-              {loading && (
-                <div className="text-muted small">Loading instances...</div>
-              )}
-              {loadError && <div className="text-danger small">{loadError}</div>}
-
-              {(selectedTypes.length > 0 || selectedSpaces.length > 0) && (
-                <div className="linked-instances-edit-modal-filter-pills">
-                  <div className="linked-instances-edit-modal-filter-pills-groups">
-                    <FilterPillsOverflow
-                      label="Type"
-                      values={selectedTypes}
-                      onRemove={handleTypeToggle}
-                      onClearAll={() => setSelectedTypes([])}
-                    />
-                    <FilterPillsOverflow
-                      label="Space"
-                      values={selectedSpaces}
-                      onRemove={handleSpaceToggle}
-                      onClearAll={() => setSelectedSpaces([])}
-                      formatValue={formatSpaceFilterValue}
-                    />
-                  </div>
-                  <Button
-                    type="button"
-                    variant="link"
-                    size="sm"
-                    className="linked-instances-edit-modal-clear-filters p-0"
-                    onClick={() => {
-                      setSelectedTypes([]);
-                      setSelectedSpaces([]);
-                    }}
-                  >
-                    Clear all
-                  </Button>
-                </div>
-              )}
-            </div>
-          }
-        />
+        {single ? (
+          <InstanceSingleSelectList
+            instances={singleSelectInstances}
+            selected={allInstances.find((instance) => instance.instanceId === selectedIds[0])}
+            onSelect={(instanceId) => setSelectedIds(instanceId ? [instanceId] : [])}
+            emptyMessage={
+              loading
+                ? "Loading instances..."
+                : loadError
+                  ? "Could not load the instances"
+                  : "No instances found"
+            }
+            filters={filters}
+          />
+        ) : (
+          <InstanceTransferList
+            instances={allInstances}
+            availableInstances={selectableCatalog}
+            selectedIds={selectedIds}
+            onSelectedIdsChange={setSelectedIds}
+            availableFilters={filters}
+          />
+        )}
       </Modal.Body>
 
       <Modal.Footer>
-        <Badge
-          bg="light"
-          text="dark"
-          className="linked-instances-edit-modal-badge"
-        >
-          {selectedIds.length} in {fieldLabel}
-        </Badge>
+        {!single && (
+          <Badge
+            bg="light"
+            text="dark"
+            className="linked-instances-edit-modal-badge"
+          >
+            {selectedIds.length} in {fieldLabel}
+          </Badge>
+        )}
         <Button type="button" variant="outline-secondary" onClick={handleClose}>
           Cancel
         </Button>

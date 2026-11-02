@@ -59,6 +59,21 @@ describe("LinkedInstancesCreatePanel", () => {
     expect(onCreate.mock.calls[0][0][0]).toMatchObject({ instanceName: "Blade", space: "creatable" });
   });
 
+  it("creates exactly one instance without a quantity in single mode and closes the form", () => {
+    vi.mocked(useQuerySpaces).mockReturnValue({ data: SPACES });
+    const onCreate = vi.fn();
+    render(<LinkedInstancesCreatePanel allowedTypes={["Device"]} defaultSpace="" single onCreate={onCreate} />);
+    const toggle = screen.getByRole("button", { name: "Create new instance" });
+    fireEvent.click(toggle);
+
+    expect(screen.queryByText("Qty")).toBeNull();
+    fireEvent.change(screen.getByPlaceholderText("e.g. Blade-Rack-A1"), { target: { value: "Blade" } });
+    fireEvent.click(screen.getByRole("button", { name: "Create & select", hidden: true }));
+
+    expect(onCreate.mock.calls[0][0]).toHaveLength(1);
+    expect(toggle).toHaveAttribute("aria-expanded", "false");
+  });
+
   it.each([
     ["while loading", {}, "Loading spaces..."],
     ["if loading failed", { error: "Failed" }, "Could not load the spaces"],

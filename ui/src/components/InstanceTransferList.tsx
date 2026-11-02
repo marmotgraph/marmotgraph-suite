@@ -31,7 +31,7 @@ type InstanceTransferListProps = {
   availableFilters?: React.ReactNode;
 };
 
-function matchesSearch(instance: LinkedInstance, search: string): boolean {
+export function matchesSearch(instance: LinkedInstance, search: string): boolean {
   const normalizedSearch = search.trim().toLowerCase();
 
   if (normalizedSearch === "") {
@@ -101,7 +101,7 @@ function moveBlockDown(ids: string[], highlighted: Set<string>): string[] {
   return next;
 }
 
-function TransferListItemLabel({
+export function TransferListItemLabel({
   instance,
   checkboxId,
   orderIndex,
@@ -112,7 +112,7 @@ function TransferListItemLabel({
   orderIndex?: number;
   showOrderIndex?: boolean;
 }) {
-  const typeColor = typeColors[instance.type] || "#6c757d";
+  const typeColor = instance.typeColor || typeColors[instance.type] || "#6c757d";
 
   return (
     <span className="instance-transfer-list-item-label">
@@ -139,6 +139,7 @@ function TransferListItemLabel({
         className="instance-transfer-list-item-meta"
       >
         {instance.type} · {instance.instanceId}
+        {instance.space ? ` · ${instance.space}` : ""}
       </span>
     </span>
   );

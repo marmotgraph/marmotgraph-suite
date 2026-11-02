@@ -5,6 +5,7 @@ import LinkedInstancesEditModal from "./LinkedInstancesEditModal";
 import { UnsavedInstancesProvider, useUnsavedInstances } from "../contexts/UnsavedInstancesContext";
 import { useQuerySpaces } from "../modules/query-builder/useQueryBuilderData";
 import { useTypes } from "../hooks/useTypes";
+import { fetchInstances } from "../services/instances";
 
 vi.mock("../contexts/AuthContext", () => {
   const getAccessToken = () => Promise.resolve("token");
@@ -68,6 +69,74 @@ describe("LinkedInstancesEditModal", () => {
       space: "shared",
       isNew: true,
       fieldValues,
+    });
+  });
+
+  describe("single", () => {
+    const LINKED = { instanceId: "linked", instanceName: "Linked", type: "Device", space: "shared" };
+    const OTHER = { instanceId: "other", instanceName: "Other", type: "Device", space: "shared" };
+    let drafts: { instanceName: string }[] = [];
+
+    function renderSingle(linkedInstances = [LINKED]) {
+      vi.mocked(useTypes).mockReturnValue([{ identifier: DEVICE, name: "Device" }]);
+      vi.mocked(fetchInstances).mockResolvedValue({ instances: [LINKED, OTHER] } as never);
+      const onApply = vi.fn();
+      render(
+        <UnsavedInstancesProvider>
+          <DraftProbe onDrafts={(current) => (drafts = current as { instanceName: string }[])} />
+          <LinkedInstancesEditModal
+            show
+            single
+            onHide={vi.fn()}
+            fieldLabel="Device"
+            allowedTypes={[DEVICE]}
+            linkedInstances={linkedInstances}
+            onApply={onApply}
+          />
+        </UnsavedInstancesProvider>,
+      );
+      return onApply;
+    }
+
+    const apply = () => fireEvent.click(screen.getByRole("button", { name: "Apply", hidden: true }));
+
+    function create(name: string) {
+      fireEvent.click(screen.getByRole("button", { name: "Create new instance", hidden: true }));
+      fireEvent.change(screen.getByPlaceholderText("e.g. Blade-Rack-A1"), { target: { value: name } });
+      fireEvent.click(screen.getByRole("button", { name: "Create & select", hidden: true }));
+    }
+
+    it("replaces the linked instance by the selected one", async () => {
+      const onApply = renderSingle();
+
+      fireEvent.click(await screen.findByRole("radio", { name: /Other/, hidden: true }));
+      apply();
+
+      expect(onApply.mock.calls[0][0]).toEqual([expect.objectContaining({ instanceId: "other" })]);
+    });
+
+    it("can remove the link", async () => {
+      const onApply = renderSingle();
+
+      await screen.findByRole("radio", { name: /Other/, hidden: true });
+      fireEvent.click(screen.getByRole("button", { name: "Clear selection", hidden: true }));
+      apply();
+
+      expect(onApply).toHaveBeenCalledWith([]);
+    });
+
+    it("selects a created instance and only keeps the last one created", async () => {
+      const onApply = renderSingle();
+
+      await screen.findByRole("radio", { name: /Other/, hidden: true });
+      create("First");
+      await waitFor(() => expect(drafts).toHaveLength(1));
+      create("Second");
+      await waitFor(() => expect(drafts.map((draft) => draft.instanceName)).toEqual(["Second"]));
+      expect(screen.queryByRole("radio", { name: /First/, hidden: true })).toBeNull();
+      apply();
+
+      expect(onApply.mock.calls[0][0]).toEqual([expect.objectContaining({ instanceName: "Second" })]);
     });
   });
 });

@@ -110,6 +110,7 @@ function linkedInstances(single: boolean) {
       <LinkedInstancesField
         fieldLabel={field.label}
         allowedTypes={field.targetTypes}
+        single={single}
         linkedInstances={asLinkedInstances(value)}
         onInstanceClick={onInstanceClick}
         isEditMode={isEditMode}

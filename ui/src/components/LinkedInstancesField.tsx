@@ -35,6 +35,8 @@ type LinkedInstancesFieldProps = {
   fieldLabel: string;
   /** The types (identifiers) of the instances which can be linked - all if empty */
   allowedTypes?: string[];
+  /** If at most one instance can be linked */
+  single?: boolean;
   linkedInstances: LinkedInstance[];
   onInstanceClick: (instanceId: string) => void;
   isEditMode?: boolean;
@@ -51,6 +53,7 @@ type LinkedInstancesFieldProps = {
 export default function LinkedInstancesField({
   fieldLabel,
   allowedTypes = NO_TYPES,
+  single = false,
   linkedInstances,
   onInstanceClick,
   isEditMode = false,
@@ -86,6 +89,7 @@ export default function LinkedInstancesField({
   useEffect(() => {
     highlightedRef.current?.scrollIntoView({ block: "nearest", inline: "nearest" });
   }, [highlightedInstanceId]);
+  const singleAction = displayInstances.length > 0 ? "Change" : "Select";
   const badgeClassName =
     variant === "edit" ? "tag-badge me-2 mb-2" : "view-badge me-2 mb-2";
 
@@ -184,8 +188,9 @@ export default function LinkedInstancesField({
             size="sm"
             className="linked-instances-see-all-btn p-0"
             onClick={() => setShowEditModal(true)}
+            aria-label={single ? `${singleAction} ${fieldLabel}` : undefined}
           >
-            Manage ({displayInstances.length})
+            {single ? singleAction : `Manage (${displayInstances.length})`}
           </Button>
         ) : (
           hiddenCount > 0 && (
@@ -207,6 +212,7 @@ export default function LinkedInstancesField({
           onHide={() => setShowEditModal(false)}
           fieldLabel={fieldLabel}
           allowedTypes={allowedTypes}
+          single={single}
           linkedInstances={linkedInstances}
           currentInstanceId={currentInstanceId}
           parentSpace={parentSpace}

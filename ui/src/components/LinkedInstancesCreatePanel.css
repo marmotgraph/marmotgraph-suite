@@ -38,6 +38,10 @@
   align-items: end;
 }
 
+.linked-instances-create-panel-fields--single {
+  grid-template-columns: minmax(120px, 0.9fr) minmax(180px, 1.4fr) minmax(180px, 1.2fr);
+}
+
 .linked-instances-create-panel-field .form-label {
   font-size: 0.72rem;
   font-weight: 600;
@@ -69,7 +73,8 @@
   }
 
   .linked-instances-create-panel-field--name,
-  .linked-instances-create-panel-field--space {
+  .linked-instances-create-panel-field--space,
+  .linked-instances-create-panel-fields--single .linked-instances-create-panel-field {
     grid-column: 1 / -1;
   }
 }
