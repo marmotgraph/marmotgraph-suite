@@ -169,8 +169,12 @@ function InstanceDetailView({ instanceId }: { instanceId: string }) {
   const [isNewInstance, setIsNewInstance] = useState(
     () => searchParams.get("new") === "1" || Boolean(getDraft(instanceId)?.isNew),
   );
-  /** The identifier of the type of the new instance */
-  const newInstanceType = searchParams.get("type") || "";
+  /** The identifier of the type of the new instance - a reopened draft is opened without it in the URL */
+  const [newInstanceType] = useState(
+    () => searchParams.get("type") || getDraft(instanceId)?.typeIdentifier || "",
+  );
+  /** The space the new instance is created in (chosen when it was created for a link) */
+  const [newInstanceSpace] = useState(() => getDraft(instanceId)?.space);
   const openInEditMode = searchParams.get("edit") === "1";
   const openInRawMode = searchParams.get("raw") === "1" && !isNewInstance;
   const openInReleaseMode = searchParams.get("release") === "1" && !isNewInstance && !openInRawMode;
@@ -203,7 +207,7 @@ function InstanceDetailView({ instanceId }: { instanceId: string }) {
             instanceId,
             type: newInstanceType,
             instanceName: "New instance",
-            space: "",
+            space: newInstanceSpace ?? "",
             permissions: "",
             releaseStatus: "in progress",
             directLinks: [],
@@ -537,12 +541,17 @@ function InstanceDetailView({ instanceId }: { instanceId: string }) {
         fieldValues: currentFieldValues,
         updatedAt: Date.now(),
         isNew: isNewInstance,
+        typeIdentifier: isNewInstance ? newInstanceType : undefined,
+        space: isNewInstance ? newInstanceSpace : undefined,
         changedFieldLabels,
       });
       return;
     }
 
-    removeDraft(instanceId);
+    // An instance created for a link is kept even if nothing is filled in yet - it is linked already
+    if (!newInstanceSpace) {
+      removeDraft(instanceId);
+    }
   }, [
     baseline,
     changedFieldLabels,
@@ -552,6 +561,8 @@ function InstanceDetailView({ instanceId }: { instanceId: string }) {
     instanceName,
     isEditMode,
     isNewInstance,
+    newInstanceSpace,
+    newInstanceType,
     removeDraft,
     upsertDraft,
   ]);
@@ -705,7 +716,7 @@ function InstanceDetailView({ instanceId }: { instanceId: string }) {
     getAccessToken()
       .then((token) =>
         isNewInstance
-          ? createInstance(token, instanceId, newInstanceType, changes)
+          ? createInstance(token, instanceId, newInstanceType, changes, newInstanceSpace)
           : updateInstance(token, instanceId, changes),
       )
       .then((stored) => {

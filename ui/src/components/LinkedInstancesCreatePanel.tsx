@@ -7,6 +7,11 @@ import {
   createDraftLinkedInstances,
   LinkedInstance,
 } from "../modules/editor/editorMockData";
+import {
+  findSpace,
+  spaceLabel,
+  useQuerySpaces,
+} from "../modules/query-builder/useQueryBuilderData";
 import "./LinkedInstancesCreatePanel.css";
 
 const MAX_BULK_CREATE = 50;
@@ -28,7 +33,19 @@ export default function LinkedInstancesCreatePanel({
   const [createType, setCreateType] = useState(allowedTypes[0] ?? "");
   const [namePrefix, setNamePrefix] = useState("");
   const [quantity, setQuantity] = useState(1);
-  const [space, setSpace] = useState(defaultSpace);
+  const [chosenSpace, setChosenSpace] = useState<string>();
+  const { data: spaces, error: spacesError } = useQuerySpaces();
+  const creatableSpaces = useMemo(
+    () => spaces?.filter((candidate) => candidate.canCreate) ?? [],
+    [spaces],
+  );
+  // The chosen space - initially the one of the parent if the user can create instances in it, otherwise the first
+  // (their private one)
+  const space = (
+    findSpace(creatableSpaces, chosenSpace) ??
+    findSpace(creatableSpaces, defaultSpace) ??
+    creatableSpaces[0]
+  )?.identifier ?? "";
 
   useEffect(() => {
     if (!show) {
@@ -39,7 +56,7 @@ export default function LinkedInstancesCreatePanel({
     setCreateType(allowedTypes[0] ?? "");
     setNamePrefix("");
     setQuantity(1);
-    setSpace(defaultSpace);
+    setChosenSpace(undefined);
   }, [allowedTypes, defaultSpace, show]);
 
   const previewNames = useMemo(
@@ -55,7 +72,7 @@ export default function LinkedInstancesCreatePanel({
     namePrefix.trim().length > 0 &&
     quantity >= 1 &&
     quantity <= MAX_BULK_CREATE &&
-    space.trim().length > 0;
+    space.length > 0;
 
   const handleCreate = (event: React.MouseEvent<HTMLButtonElement>) => {
     event.preventDefault();
@@ -66,7 +83,7 @@ export default function LinkedInstancesCreatePanel({
     }
 
     onCreate(
-      createDraftLinkedInstances(createType, names, space.trim()),
+      createDraftLinkedInstances(createType, names, space),
     );
 
     setNamePrefix("");
@@ -151,12 +168,30 @@ export default function LinkedInstancesCreatePanel({
 
             <Form.Group className="linked-instances-create-panel-field linked-instances-create-panel-field--space">
               <Form.Label>Space</Form.Label>
-              <Form.Control
-                type="text"
+              <Form.Select
                 value={space}
-                onChange={(event) => setSpace(event.target.value)}
-                placeholder="Space for new instance"
-              />
+                onChange={(event) => setChosenSpace(event.target.value)}
+                disabled={creatableSpaces.length === 0}
+                aria-label="Space for new instance"
+              >
+                {creatableSpaces.length === 0 && (
+                  <option value="">
+                    {spacesError
+                      ? "Could not load the spaces"
+                      : spaces
+                        ? "No spaces you can create in"
+                        : "Loading spaces..."}
+                  </option>
+                )}
+                {creatableSpaces.map((creatableSpace) => (
+                  <option
+                    key={creatableSpace.identifier}
+                    value={creatableSpace.identifier}
+                  >
+                    {spaceLabel(creatableSpace)}
+                  </option>
+                ))}
+              </Form.Select>
             </Form.Group>
           </div>
 

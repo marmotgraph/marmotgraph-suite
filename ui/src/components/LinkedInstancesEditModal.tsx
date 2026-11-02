@@ -186,18 +186,25 @@ export default function LinkedInstancesEditModal({
       const timestamp = Date.now();
 
       for (const instance of instances) {
+        const typeIdentifier = typeIdentifiersByLabel.get(instance.type);
+        const labelProperty = types.find((type) => type.identifier === typeIdentifier)?.labelProperty;
         upsertDraft({
           instanceId: instance.instanceId,
           instanceName: instance.instanceName,
           type: instance.type,
-          fieldValues: emptyInstanceFieldValues,
+          // The name is the value of the label field of the type - so it is stored with the instance
+          fieldValues: labelProperty
+            ? { ...emptyInstanceFieldValues, [labelProperty]: instance.instanceName }
+            : emptyInstanceFieldValues,
           updatedAt: timestamp,
           isNew: true,
+          typeIdentifier,
+          space: instance.space,
         });
         sessionCreatedIdsRef.current.add(instance.instanceId);
       }
     },
-    [upsertDraft],
+    [typeIdentifiersByLabel, types, upsertDraft],
   );
 
   const discardSessionCreatedInstances = useCallback(() => {

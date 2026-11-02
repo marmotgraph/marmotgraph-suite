@@ -16,7 +16,7 @@ import {
 } from "../../services/instances";
 import { fetchTypeFields, fetchTypes } from "../../services/types";
 import { addComment, deleteComment, fetchComments, InstanceComment, updateComment } from "../../services/comments";
-import { UnsavedInstancesProvider } from "../../contexts/UnsavedInstancesContext";
+import { UnsavedInstanceDraft, UnsavedInstancesProvider, useUnsavedInstances } from "../../contexts/UnsavedInstancesContext";
 
 vi.mock("../../contexts/AuthContext", () => {
   const getAccessToken = () => Promise.resolve("token");
@@ -174,12 +174,101 @@ describe("InstanceDetail", () => {
     await waitFor(() =>
       expect(createInstance).toHaveBeenCalledWith("token", instanceId, device, {
         [serialNumber]: "SN-42",
-      }),
+      }, undefined),
     );
     // Shown as stored by the core - no longer in the edit mode
     expect(await screen.findByText("private-1234")).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Save" })).not.toBeInTheDocument();
     expect(updateInstance).not.toHaveBeenCalled();
+  });
+
+  describe("a draft of a new instance reopened from the unsaved instances", () => {
+    const device = "https://example.org/types/Device";
+    const serialNumber = "https://example.org/serialNumber";
+    const instanceId = "7d3c5b52-4d4b-4d0e-9a3e-2f6f2b1c8e02";
+
+    /** Lists the draft before the instance is opened - without the type in the URL */
+    function WithDraft({ draft, children }: { draft: UnsavedInstanceDraft; children: React.ReactNode }) {
+      const { drafts, getDraft, upsertDraft } = useUnsavedInstances();
+      const [seeded, setSeeded] = React.useState(false);
+      React.useEffect(() => {
+        upsertDraft(draft);
+        setSeeded(true);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+      }, []);
+      return (
+        <>
+          <div data-testid="drafts">{drafts.length}</div>
+          {seeded && getDraft(draft.instanceId) && children}
+        </>
+      );
+    }
+
+    function renderDraft(fieldValues: Record<string, unknown>, labelProperty?: string) {
+      vi.mocked(fetchTypes).mockResolvedValue([{ identifier: device, name: "Device", labelProperty }]);
+      vi.mocked(fetchTypeFields).mockResolvedValue([
+        { identifier: serialNumber, label: "Serial number", kind: "TEXT", required: true, readOnly: false },
+      ]);
+      vi.mocked(createInstance).mockResolvedValue({
+        instanceId,
+        type: "Device",
+        instanceName: "SN-1",
+        space: "shared",
+        permissions: "View, Edit",
+        releaseStatus: "in progress",
+        fields: [],
+        directLinks: [],
+      });
+      render(
+        <MemoryRouter initialEntries={[`/editor/instances/${instanceId}`]}>
+          <UnsavedInstancesProvider>
+            <WithDraft
+              draft={{
+                instanceId,
+                instanceName: "SN-1",
+                type: "Device",
+                typeIdentifier: device,
+                space: "shared",
+                isNew: true,
+                fieldValues,
+                updatedAt: 1,
+              }}
+            >
+              <Routes>
+                <Route path="/editor/instances/:instanceId" element={<InstanceDetail />} />
+              </Routes>
+            </WithDraft>
+          </UnsavedInstancesProvider>
+        </MemoryRouter>,
+      );
+    }
+
+    it("is created with its type and in its space", async () => {
+      renderDraft({ [serialNumber]: "SN-1" }, serialNumber);
+
+      expect(await screen.findByRole("heading", { name: "SN-1" })).toBeInTheDocument();
+      expect(fetchTypeFields).toHaveBeenCalledWith("token", device);
+      expect(screen.getByText("shared")).toBeInTheDocument();
+      fireEvent.click(screen.getByRole("button", { name: "Save" }));
+
+      await waitFor(() =>
+        expect(createInstance).toHaveBeenCalledWith("token", instanceId, device, { [serialNumber]: "SN-1" }, "shared"),
+      );
+    });
+
+    it("stays listed if nothing is filled in yet - and keeps its space when it is", async () => {
+      vi.mocked(createInstance).mockClear();
+      renderDraft({});
+
+      const save = await screen.findByRole("button", { name: "Save" });
+      expect(screen.getByTestId("drafts")).toHaveTextContent("1");
+      fireEvent.change(within(document.querySelector(".instance-form") as HTMLElement).getByRole("textbox"), { target: { value: "SN-1" } });
+      fireEvent.click(save);
+
+      await waitFor(() =>
+        expect(createInstance).toHaveBeenCalledWith("token", instanceId, device, { [serialNumber]: "SN-1" }, "shared"),
+      );
+    });
   });
 
   it("opens in view mode", async () => {

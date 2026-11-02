@@ -15,6 +15,10 @@ export type UnsavedInstanceDraft = {
   fieldValues: InstanceFieldValues;
   updatedAt: number;
   isNew?: boolean;
+  /** The identifier of the type of a new instance - type holds its label */
+  typeIdentifier?: string;
+  /** The space a new instance is created in - the private space of the user if there is none */
+  space?: string;
   changedFieldLabels?: string[];
   /** The edited JSON document if the instance was changed in the raw mode (the field values are unchanged then) */
   rawJson?: string;
