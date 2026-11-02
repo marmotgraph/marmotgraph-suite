@@ -58,7 +58,7 @@ import InstanceRelease from "../../components/InstanceRelease";
 import InstanceInfo from "../../components/InstanceInfo";
 import { DisabledHint, noPermission } from "../../components/DisabledHint";
 import InstanceReview from "../../components/InstanceReview";
-import { CommentThread, CommentsToggle, InstanceCommentsOverview } from "../../components/InstanceComments";
+import { CommentsToggle, FieldCommentThread, InstanceCommentsOverview } from "../../components/InstanceComments";
 import { useInstanceComments } from "../../hooks/useInstanceComments";
 import { InstanceStatusTags } from "../../components/InstanceStatusTags";
 import {
@@ -574,7 +574,6 @@ function InstanceDetailView({ instanceId }: { instanceId: string }) {
 
   const fieldAlternatives = useFieldAlternatives(
     instance?.alternatives,
-    handleLinkClick,
     currentFieldValues,
     setFieldValue,
   );
@@ -692,7 +691,7 @@ function InstanceDetailView({ instanceId }: { instanceId: string }) {
 
   const fieldCommentThread = (field: InstanceField) =>
     canComment && !comments.loadError && openCommentFields.has(field.identifier) ? (
-      <CommentThread
+      <FieldCommentThread
         comments={comments}
         property={field.identifier}
         canModerate={canModerateComments}
@@ -1340,7 +1339,7 @@ function InstanceFieldLabel({
 }) {
   return (
     <Form.Label
-      className={isChanged ? "instance-field-label--changed" : undefined}
+      className={`view-label${isChanged ? " instance-field-label--changed" : ""}`}
       title={tooltip}
     >
       {children}

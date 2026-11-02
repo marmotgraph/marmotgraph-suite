@@ -169,13 +169,13 @@ describe("InstanceDetail", () => {
       expect(screen.queryByRole("button", { name: /Contributions to/ })).not.toBeInTheDocument();
     });
 
-    it("shows linked values as links and contributions which can't be shown as a link as they are", async () => {
+    it("shows contributed links by their identifier and contributions in another shape as they are", async () => {
       vi.mocked(fetchTypes).mockResolvedValue([]);
       renderDetail("?edit=1", [roomField], "inst-1", {
         alternatives: {
           [roomField.identifier]: [
             {
-              value: { instanceId: "room-2", instanceName: "Room B", type: "Room", space: "default", linkStatus: "resolved" },
+              value: { instanceId: "room-2", instanceName: "room-2", type: "", space: "", linkStatus: "unresolved" },
               selected: true,
               users: [jane],
             },
@@ -187,9 +187,51 @@ describe("InstanceDetail", () => {
       fireEvent.click(await screen.findByRole("button", { name: "Contributions to Room (2 different values)" }));
 
       const panel = screen.getByRole("group", { name: "Contributions to Room" });
-      expect(within(panel).getByRole("button", { name: "Room B" })).toBeInTheDocument();
+      expect(within(panel).getByText("room-2")).toBeInTheDocument();
+      expect(within(panel).queryByText("Unknown connection")).not.toBeInTheDocument();
+      expect(within(panel).queryByRole("button", { name: "room-2" })).not.toBeInTheDocument();
       expect(within(panel).getByText("{@id=room-3}")).toBeInTheDocument();
       expect(within(panel).getByText("Unknown contributor")).toBeInTheDocument();
+    });
+
+    it("shows links within contributed embedded instances by their identifier", async () => {
+      vi.mocked(fetchTypes).mockResolvedValue([]);
+      const partsField: InstanceField = {
+        identifier: "https://example.org/parts",
+        label: "Parts",
+        kind: "NESTED",
+        value: [],
+        required: false,
+        readOnly: false,
+      };
+      renderDetail("?edit=1", [partsField], "inst-1", {
+        alternatives: {
+          [partsField.identifier]: [
+            {
+              value: [
+                {
+                  type: "https://example.org/Part",
+                  typeLabel: "Part",
+                  fields: [
+                    {
+                      ...roomField,
+                      value: { instanceId: "room-2", instanceName: "room-2", type: "", space: "", linkStatus: "unresolved" },
+                    },
+                  ],
+                },
+              ],
+              selected: true,
+              users: [jane],
+            },
+          ],
+        },
+      });
+
+      fireEvent.click(await screen.findByRole("button", { name: "Contributions to Parts" }));
+
+      const panel = screen.getByRole("group", { name: "Contributions to Parts" });
+      expect(within(panel).getByText("room-2")).toBeInTheDocument();
+      expect(within(panel).queryByText("Unknown connection")).not.toBeInTheDocument();
     });
 
     it("tells when the latest contribution removed the value", async () => {
@@ -242,12 +284,13 @@ describe("InstanceDetail", () => {
     it("copies a contributed link into the field", async () => {
       vi.mocked(fetchTypes).mockResolvedValue([]);
       const roomA = { instanceId: "room-1", instanceName: "Room A", type: "Room", space: "default", linkStatus: "resolved" };
-      const roomB = { instanceId: "room-2", instanceName: "Room B", type: "Room", space: "default", linkStatus: "resolved" };
+      const contributedRoomA = { instanceId: "room-1", instanceName: "room-1", type: "", space: "", linkStatus: "unresolved" };
+      const contributedRoomB = { instanceId: "room-2", instanceName: "room-2", type: "", space: "", linkStatus: "unresolved" };
       renderDetail("?edit=1", [{ ...roomField, value: roomA }], "inst-1", {
         alternatives: {
           [roomField.identifier]: [
-            { value: roomA, selected: true, users: [jane] },
-            { value: roomB, selected: false, users: [joe] },
+            { value: contributedRoomA, selected: true, users: [jane] },
+            { value: contributedRoomB, selected: false, users: [joe] },
           ],
         },
       });
@@ -553,8 +596,10 @@ describe("InstanceDetail", () => {
       fireEvent.click(toggle);
 
       expect(toggle).toHaveAttribute("aria-expanded", "true");
-      expect(screen.getByText("About the name")).toBeInTheDocument();
-      expect(screen.getByText("Jane Doe")).toBeInTheDocument();
+      const panel = screen.getByRole("group", { name: "Comments on Name" });
+      expect(within(panel).getByText("Comments")).toBeInTheDocument();
+      expect(within(panel).getByText("About the name")).toBeInTheDocument();
+      expect(within(panel).getByText("Jane Doe")).toBeInTheDocument();
 
       fireEvent.click(toggle);
 

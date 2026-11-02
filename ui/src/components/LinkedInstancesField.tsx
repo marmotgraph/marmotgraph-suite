@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { createContext, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { Badge, Button } from "react-bootstrap";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
@@ -27,6 +27,12 @@ const typeColors: Record<string, string> = {
   Cabinet: "#f44336",
   Canton: "#00bcd4",
 };
+
+/**
+ * Whether the links are shown by the identifier they are linked with only - for links whose targets are not looked up
+ * (nothing is known about them, including whether they exist).
+ */
+export const LinkIdentifiersOnlyContext = createContext(false);
 
 const PREVIEW_LIMIT = 10;
 const NO_TYPES: string[] = [];
@@ -64,6 +70,7 @@ export default function LinkedInstancesField({
   highlightedInstanceId,
   onInstanceHover,
 }: LinkedInstancesFieldProps) {
+  const identifiersOnly = useContext(LinkIdentifiersOnlyContext);
   const { getDraft } = useUnsavedInstances();
   const [showViewModal, setShowViewModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
@@ -92,6 +99,16 @@ export default function LinkedInstancesField({
   const singleAction = displayInstances.length > 0 ? "Change" : "Select";
   const badgeClassName =
     variant === "edit" ? "tag-badge me-2 mb-2" : "view-badge me-2 mb-2";
+
+  if (identifiersOnly) {
+    return (
+      <div className="linked-instance-identifiers">
+        {linkedInstances.map((instance) => (
+          <div key={instance.instanceId}>{instance.instanceId}</div>
+        ))}
+      </div>
+    );
+  }
 
   return (
     <>

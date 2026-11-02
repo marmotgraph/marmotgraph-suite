@@ -167,6 +167,34 @@ export function CommentThread({
   );
 }
 
+/** The comments on a field - set apart from its value. */
+export function FieldCommentThread({
+  comments,
+  property,
+  canModerate,
+  subject,
+  onClose,
+}: {
+  comments: Comments;
+  property: string;
+  canModerate: boolean;
+  subject: string;
+  onClose: () => void;
+}) {
+  return (
+    <div className="instance-field-panel" role="group" aria-label={`Comments on ${subject}`}>
+      <p className="instance-field-panel-title">Comments</p>
+      <CommentThread
+        comments={comments}
+        property={property}
+        canModerate={canModerate}
+        subject={subject}
+        onClose={onClose}
+      />
+    </div>
+  );
+}
+
 function CommentItem({
   comment,
   comments,

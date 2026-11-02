@@ -3,11 +3,13 @@ import { Button } from "react-bootstrap";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faCheck, faTurnUp, faUsers } from "@fortawesome/free-solid-svg-icons";
 import InstanceFieldControl from "./InstanceFieldControl";
+import { LinkIdentifiersOnlyContext } from "./LinkedInstancesField";
 import { FieldAlternative, InstanceField } from "../services/instances";
 import { InstanceFieldValues, isInstanceFieldValueEqual } from "../modules/editor/editorMockData";
 import "./InstanceAlternatives.css";
 
 const noChange = () => undefined;
+const noInstanceClick = () => undefined;
 
 /** Shows or hides the values contributed to a field - it tells how many there are if they differ. */
 function AlternativesToggle({
@@ -42,16 +44,8 @@ function isEmpty(value: unknown) {
   return value === undefined || value === null || value === "";
 }
 
-/** The value a user contributed - shown the same way as the value of the field. */
-function AlternativeValue({
-  field,
-  alternative,
-  onInstanceClick,
-}: {
-  field: InstanceField;
-  alternative: FieldAlternative;
-  onInstanceClick: (instanceId: string) => void;
-}) {
+/** The value a user contributed - shown the same way as the value of the field, except for links: they show their identifier. */
+function AlternativeValue({ field, alternative }: { field: InstanceField; alternative: FieldAlternative }) {
   if (alternative.text !== undefined) {
     return <div className="view-value">{alternative.text}</div>;
   }
@@ -59,13 +53,15 @@ function AlternativeValue({
     return <em className="text-muted">No value</em>;
   }
   return (
-    <InstanceFieldControl
-      field={field}
-      value={alternative.value}
-      onChange={noChange}
-      isEditMode={false}
-      onInstanceClick={onInstanceClick}
-    />
+    <LinkIdentifiersOnlyContext.Provider value={true}>
+      <InstanceFieldControl
+        field={field}
+        value={alternative.value}
+        onChange={noChange}
+        isEditMode={false}
+        onInstanceClick={noInstanceClick}
+      />
+    </LinkIdentifiersOnlyContext.Provider>
   );
 }
 
@@ -99,20 +95,18 @@ function CopyToFieldButton({ isInField, onClick }: { isInField: boolean; onClick
 function AlternativesPanel({
   field,
   alternatives,
-  onInstanceClick,
   value,
   onCopy,
 }: {
   field: InstanceField;
   alternatives: FieldAlternative[];
-  onInstanceClick: (instanceId: string) => void;
   /** The value in the field right now (it may not be saved yet) */
   value: unknown;
   onCopy: (value: unknown) => void;
 }) {
   return (
-    <div className="instance-alternatives" role="group" aria-label={`Contributions to ${field.label}`}>
-      <p className="instance-alternatives-title">Contributions</p>
+    <div className="instance-field-panel" role="group" aria-label={`Contributions to ${field.label}`}>
+      <p className="instance-field-panel-title">Contributions</p>
       {!alternatives.some((alternative) => alternative.selected) && (
         <p className="instance-alternatives-note">The latest contribution removed the value of this field.</p>
       )}
@@ -121,7 +115,7 @@ function AlternativesPanel({
           <li key={index} className="instance-alternative">
             <div className="instance-alternative-content">
               <div className="instance-alternative-value">
-                <AlternativeValue field={field} alternative={alternative} onInstanceClick={onInstanceClick} />
+                <AlternativeValue field={field} alternative={alternative} />
               </div>
               <div className="instance-alternative-meta">
                 {alternative.selected && (
@@ -159,7 +153,6 @@ export type FieldAlternativesControls = {
 /** The contributions to the fields of an instance - shown on demand, per field. */
 export function useFieldAlternatives(
   alternatives: Record<string, FieldAlternative[]> | undefined,
-  onInstanceClick: (instanceId: string) => void,
   values: InstanceFieldValues,
   onCopy: (identifier: string, value: unknown) => void,
 ): FieldAlternativesControls {
@@ -192,7 +185,6 @@ export function useFieldAlternatives(
         <AlternativesPanel
           field={field}
           alternatives={fieldAlternatives}
-          onInstanceClick={onInstanceClick}
           value={values[field.identifier]}
           onCopy={(value) => onCopy(field.identifier, value)}
         />

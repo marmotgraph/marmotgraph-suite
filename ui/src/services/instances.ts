@@ -63,7 +63,7 @@ export interface AlternativeContributor {
 
 /** A value contributed to a field and the users who contributed it. */
 export interface FieldAlternative {
-  /** The value in the shape required by the kind of the field */
+  /** The value in the shape required by the kind of the field - the targets of links are not looked up (only their identifier is known) */
   value?: unknown;
   /** The contribution as is - if it can't be provided in the shape of the field */
   text?: string;

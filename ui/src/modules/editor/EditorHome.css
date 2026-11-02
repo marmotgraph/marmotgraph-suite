@@ -521,7 +521,7 @@
     min-height: 1.5em;
 }
 
-.instances-table thead th {
+.instances-table.shared-queries-table thead th {
     position: sticky;
     top: 0;
     z-index: 2;

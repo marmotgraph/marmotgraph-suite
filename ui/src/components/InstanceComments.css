@@ -30,6 +30,11 @@
     margin-top: 8px;
 }
 
+/* The panel already sets the thread apart from the field */
+.instance-field-panel .comment-thread {
+    margin-top: 0;
+}
+
 .comment-list {
     display: flex;
     flex-direction: column;

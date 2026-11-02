@@ -219,7 +219,7 @@ export default function NestedInstancesField({
               fields.map((nestedField) => (
                 <div key={nestedField.identifier} className="nested-instance-field">
                   {isEditMode ? (
-                    <Form.Label title={nestedField.tooltip}>
+                    <Form.Label className="view-label" title={nestedField.tooltip}>
                       {nestedField.label}
                       {nestedField.required && <RequiredMark />}
                     </Form.Label>

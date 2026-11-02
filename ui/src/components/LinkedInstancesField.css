@@ -20,6 +20,13 @@
   min-width: 0;
 }
 
+.linked-instance-identifiers {
+  font-family: monospace;
+  font-size: 0.8rem;
+  color: #495057;
+  overflow-wrap: anywhere;
+}
+
 .linked-instance-badge--restricted,
 .linked-instance-badge--unresolved {
   cursor: default;
