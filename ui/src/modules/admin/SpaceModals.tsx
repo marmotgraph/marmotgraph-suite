@@ -1,0 +1,162 @@
+import React, { useState } from "react";
+import { Alert, Button, Form, Modal, Spinner } from "react-bootstrap";
+import { useAuth } from "../../contexts/AuthContext";
+import { deleteSpaceSpecification, ManagedSpace, saveSpaceSpecification, SpaceSettings } from "../../services/spaces";
+
+const DEFAULT_SETTINGS: SpaceSettings = { autoRelease: false, clientSpace: false, deferCache: false };
+
+/** The spaces of the core which can't be specified: the private space of the user and the one of the invitations. */
+const RESERVED_SPACES = ["myspace", "review"];
+
+/** The settings of a space with their labels. */
+export const SPACE_SETTINGS: { key: keyof SpaceSettings; label: string; description?: string }[] = [
+  { key: "autoRelease", label: "Auto release", description: "Instances are released automatically when they change." },
+  { key: "clientSpace", label: "Client space" },
+  { key: "deferCache", label: "Defer cache" },
+];
+
+/** Validates the name of a new space - the same rules as the backend, nothing is reported for an empty name. */
+export function spaceNameError(name: string, existing: string[]): string | undefined {
+  if (!name) {
+    return undefined;
+  }
+  if (!/^[\w.-]+$/.test(name)) {
+    return 'Space names may only contain letters, digits, ".", "-" and "_"';
+  }
+  if (RESERVED_SPACES.includes(name)) {
+    return "This name is reserved";
+  }
+  return existing.includes(name) ? "A space with this name already exists" : undefined;
+}
+
+/**
+ * Adds a space (if there is none given) or edits the specification of the given one.
+ *
+ * @param existing the identifiers of the spaces already known - a new space can't take one of them
+ */
+export function SpaceSpecificationModal({ space, existing, onHide, onSaved }: {
+  space?: ManagedSpace;
+  existing: string[];
+  onHide: () => void;
+  onSaved: () => void;
+}) {
+  const { getAccessToken } = useAuth();
+  const [name, setName] = useState("");
+  const [settings, setSettings] = useState<SpaceSettings>(space?.settings ?? DEFAULT_SETTINGS);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string>();
+
+  const trimmedName = name.trim();
+  const nameError = space ? undefined : spaceNameError(trimmedName, existing);
+  const identifier = space?.identifier ?? trimmedName;
+
+  const save = async (event: React.FormEvent) => {
+    event.preventDefault();
+    if (!identifier || nameError) {
+      return;
+    }
+    setBusy(true);
+    setError(undefined);
+    try {
+      await saveSpaceSpecification(await getAccessToken(), identifier, settings);
+      onSaved();
+    } catch (e) {
+      setError((e as Error).message);
+      setBusy(false);
+    }
+  };
+
+  return (
+    <Modal show onHide={onHide} centered className="admin-modal">
+      <Form onSubmit={save}>
+        <Modal.Header closeButton>
+          <Modal.Title>{space ? `Edit space ${space.identifier}` : "Add space"}</Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          {error && <Alert variant="danger">{error}</Alert>}
+          {!space && (
+            <Form.Group className="mb-3" controlId="admin-space-name">
+              <Form.Label>Name</Form.Label>
+              <Form.Control
+                size="sm"
+                autoFocus
+                value={name}
+                isInvalid={!!nameError}
+                onChange={(e) => setName(e.target.value)}
+              />
+              <Form.Control.Feedback type="invalid">{nameError}</Form.Control.Feedback>
+            </Form.Group>
+          )}
+          {SPACE_SETTINGS.map(({ key, label, description }) => (
+            <Form.Group key={key} className="mb-2" controlId={`admin-space-${key}`}>
+              <Form.Check
+                type="checkbox"
+                label={label}
+                checked={settings[key]}
+                onChange={(e) => setSettings({ ...settings, [key]: e.target.checked })}
+              />
+              {description && <Form.Text muted>{description}</Form.Text>}
+            </Form.Group>
+          ))}
+        </Modal.Body>
+        <Modal.Footer>
+          <Button variant="outline-secondary" onClick={onHide}>
+            Cancel
+          </Button>
+          <Button type="submit" variant="dark" disabled={busy || !identifier || !!nameError}>
+            {busy ? <Spinner animation="border" size="sm" /> : space ? "Save" : "Add"}
+          </Button>
+        </Modal.Footer>
+      </Form>
+    </Modal>
+  );
+}
+
+/** Asks for the confirmation to delete the specification of the given space and deletes it. */
+export function DeleteSpaceModal({ space, onHide, onDeleted }: {
+  space: ManagedSpace;
+  onHide: () => void;
+  onDeleted: () => void;
+}) {
+  const { getAccessToken } = useAuth();
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string>();
+
+  const remove = async () => {
+    setBusy(true);
+    setError(undefined);
+    try {
+      await deleteSpaceSpecification(await getAccessToken(), space.identifier);
+      onDeleted();
+    } catch (e) {
+      setError((e as Error).message);
+      setBusy(false);
+    }
+  };
+
+  return (
+    <Modal show onHide={onHide} centered className="admin-modal">
+      <Modal.Header closeButton>
+        <Modal.Title>Delete specification</Modal.Title>
+      </Modal.Header>
+      <Modal.Body>
+        {error && <Alert variant="danger">{error}</Alert>}
+        <p>
+          Delete the specification of the space <strong className="admin-space-name">{space.identifier}</strong>?
+        </p>
+        <p className="mb-0">
+          A space without types is removed. Otherwise, it stays with the default settings. The claims of the space are
+          not removed.
+        </p>
+      </Modal.Body>
+      <Modal.Footer>
+        <Button variant="outline-secondary" onClick={onHide}>
+          Cancel
+        </Button>
+        <Button variant="danger" disabled={busy} onClick={remove}>
+          {busy ? <Spinner animation="border" size="sm" /> : "Delete specification"}
+        </Button>
+      </Modal.Footer>
+    </Modal>
+  );
+}

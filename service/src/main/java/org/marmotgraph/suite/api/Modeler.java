@@ -384,7 +384,7 @@ public class Modeler {
         return requireNotBlank(name, "The name of the validation schema is missing");
     }
 
-    private static String requireSpace(String space) {
+    static String requireSpace(String space) {
         if (space == null || !SPACE_NAME.matcher(space).matches()) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Space names may only contain letters, digits, \".\", \"-\" and \"_\"");
         }

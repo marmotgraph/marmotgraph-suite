@@ -1,9 +1,9 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { Alert, Button, Form, Modal, Spinner } from "react-bootstrap";
-import { Globe, Plus, Trash2 } from "lucide-react";
+import { Globe, Pencil, Plus, Trash2 } from "lucide-react";
+import { DisabledHint, noPermission } from "../../components/DisabledHint";
 import { useAuth } from "../../contexts/AuthContext";
-import { useSubNavActions } from "../../contexts/SubNavActionsContext";
-import { useSpaces } from "../../hooks/useSpaces";
+import { useGlobalFunctionalities } from "../../hooks/useGlobalFunctionalities";
 import {
   Claims,
   fetchRoleDefinitions,
@@ -12,6 +12,8 @@ import {
   RoleDefinition,
   updateRoleDefinition,
 } from "../../services/permissions";
+import { fetchManagedSpaces, ManagedSpace } from "../../services/spaces";
+import { DeleteSpaceModal, SPACE_SETTINGS, SpaceSpecificationModal } from "./SpaceModals";
 
 /** The key of the section of the global role definitions */
 const GLOBAL = "";
@@ -24,17 +26,22 @@ interface ClaimDraft {
 
 /**
  * Manages the claims mapped to the roles of the core - grouped by space (with the global roles first) and role. Claims
- * are added as JSON patterns and removed one by one.
+ * are added as JSON patterns and removed one by one. The specifications of the spaces are managed along with them, so
+ * spaces without claims are listed as well.
  */
 export default function PermissionsAdmin() {
   const { getAccessToken } = useAuth();
-  const spaces = useSpaces();
+  const canAddSpace = useGlobalFunctionalities()?.includes("MANAGE_SPACE") ?? false;
+  const [spaces, setSpaces] = useState<ManagedSpace[]>([]);
   const [roles, setRoles] = useState<string[]>([]);
   const [definitions, setDefinitions] = useState<RoleDefinition[]>();
   const [error, setError] = useState<string>();
   const [filter, setFilter] = useState("");
   const [draft, setDraft] = useState<ClaimDraft>();
   const [busy, setBusy] = useState(false);
+  /** The space being edited - without a space, a new one is being added. */
+  const [spaceDraft, setSpaceDraft] = useState<{ space?: ManagedSpace }>();
+  const [spaceToDelete, setSpaceToDelete] = useState<ManagedSpace>();
 
   const load = useCallback(() => {
     setError(undefined);
@@ -49,10 +56,26 @@ export default function PermissionsAdmin() {
 
   useEffect(load, [load]);
 
-  /** The role definitions grouped by space - global first, then the spaces by name. */
+  /** Loaded on its own, so the permissions remain available if the spaces can't be read. */
+  const loadSpaces = useCallback(() => {
+    getAccessToken()
+      .then(fetchManagedSpaces)
+      .then(setSpaces)
+      .catch((e: Error) => setError(e.message));
+  }, [getAccessToken]);
+
+  useEffect(loadSpaces, [loadSpaces]);
+
+  /**
+   * The role definitions grouped by space - global first, then the spaces by name. Global and the spaces are listed
+   * without definitions too, since this is where the claims are added.
+   */
   const sections = useMemo(() => {
-    const grouped = new Map<string, RoleDefinition[]>();
-    (definitions ?? []).forEach((d) => {
+    if (!definitions) {
+      return [];
+    }
+    const grouped = new Map<string, RoleDefinition[]>([[GLOBAL, []], ...spaces.map((s): [string, RoleDefinition[]] => [s.identifier, []])]);
+    definitions.forEach((d) => {
       const key = d.space ?? GLOBAL;
       grouped.set(key, [...(grouped.get(key) ?? []), d]);
     });
@@ -64,7 +87,7 @@ export default function PermissionsAdmin() {
         roleDefinitions.some((d) => JSON.stringify(d.claims).toLowerCase().includes(term)),
       )
       .sort(([a], [b]) => (a === GLOBAL ? -1 : b === GLOBAL ? 1 : a.localeCompare(b)));
-  }, [definitions, filter]);
+  }, [definitions, spaces, filter]);
 
   /** Takes over the definition of a role as returned by the core after an update (dropping it if nothing remains). */
   const apply = (updated: RoleDefinition) => {
@@ -117,8 +140,6 @@ export default function PermissionsAdmin() {
   const openDraft = (space: string, role?: string) =>
     setDraft({ space, role: role ?? roles[0] ?? "", json: '{\n  "roles": {\n    "group": [""]\n  }\n}' });
 
-  useSubNavActions([{ label: "Add claim", icon: <Plus size={16} />, onClick: () => openDraft(GLOBAL) }]);
-
   return (
     <div>
       <div className="d-flex align-items-center flex-wrap mb-3 gap-2">
@@ -131,6 +152,11 @@ export default function PermissionsAdmin() {
           value={filter}
           onChange={(e) => setFilter(e.target.value)}
         />
+        <DisabledHint reason={canAddSpace ? undefined : noPermission("add spaces")}>
+          <Button size="sm" variant="outline-secondary" disabled={!canAddSpace} onClick={() => setSpaceDraft({})}>
+            <Plus size={14} aria-hidden /> Add space
+          </Button>
+        </DisabledHint>
         {definitions && (
           <span className="admin-result-count ms-auto">
             {sections.length} {sections.length === 1 ? "space" : "spaces"}
@@ -151,16 +177,25 @@ export default function PermissionsAdmin() {
       )}
 
       {definitions && sections.length === 0 && (
-        <p className="admin-empty">{filter ? "No permissions match the filter." : "No permissions are defined yet."}</p>
+        <p className="admin-empty">No permissions match the filter.</p>
       )}
 
       {sections.map(([space, roleDefinitions]) => {
         const spaceLabel = space === GLOBAL ? "Global" : space;
+        const managedSpace = spaces.find((s) => s.identifier === space);
         return (
           <section key={space || "global"} className="admin-space-card">
             <div className="admin-space-header">
               {space === GLOBAL && <Globe size={16} aria-hidden />}
               <span>{spaceLabel}</span>
+              {SPACE_SETTINGS.filter(({ key }) => managedSpace?.settings?.[key]).map(({ key, label }) => (
+                <span key={key} className="admin-space-setting">
+                  {label}
+                </span>
+              ))}
+              {managedSpace?.settings && !managedSpace.specified && (
+                <span className="admin-space-unspecified">Not specified</span>
+              )}
               <Button
                 size="sm"
                 variant="link"
@@ -171,8 +206,39 @@ export default function PermissionsAdmin() {
               >
                 <Plus size={16} />
               </Button>
+              {managedSpace && (
+                <>
+                  <DisabledHint reason={managedSpace.settings ? undefined : noPermission("edit this space")}>
+                    <Button
+                      size="sm"
+                      variant="link"
+                      className="edit-icon-btn admin-icon-btn"
+                      title={`Edit space (${spaceLabel})`}
+                      aria-label={`Edit space (${spaceLabel})`}
+                      disabled={!managedSpace.settings}
+                      onClick={() => setSpaceDraft({ space: managedSpace })}
+                    >
+                      <Pencil size={16} />
+                    </Button>
+                  </DisabledHint>
+                  <DisabledHint reason={deleteHint(managedSpace)}>
+                    <Button
+                      size="sm"
+                      variant="link"
+                      className="edit-icon-btn admin-icon-btn"
+                      title={`Delete specification (${spaceLabel})`}
+                      aria-label={`Delete specification (${spaceLabel})`}
+                      disabled={!!deleteHint(managedSpace)}
+                      onClick={() => setSpaceToDelete(managedSpace)}
+                    >
+                      <Trash2 size={16} />
+                    </Button>
+                  </DisabledHint>
+                </>
+              )}
             </div>
             <div className="admin-space-body">
+              {roleDefinitions.length === 0 && <p className="admin-space-empty">{space === GLOBAL ? "No global claims are defined." : "No claims are defined for this space."}</p>}
               {roleDefinitions.map((definition) => (
                 <div key={definition.role} className="admin-role">
                   <div className="d-flex align-items-center">
@@ -233,9 +299,7 @@ export default function PermissionsAdmin() {
               />
               <datalist id="admin-spaces">
                 {spaces.map((s) => (
-                  <option key={s.identifier} value={s.identifier}>
-                    {s.name}
-                  </option>
+                  <option key={s.identifier} value={s.identifier} />
                 ))}
               </datalist>
             </Form.Group>
@@ -276,8 +340,38 @@ export default function PermissionsAdmin() {
           </Button>
         </Modal.Footer>
       </Modal>
+
+      {spaceDraft && (
+        <SpaceSpecificationModal
+          space={spaceDraft.space}
+          existing={spaces.map((s) => s.identifier)}
+          onHide={() => setSpaceDraft(undefined)}
+          onSaved={() => {
+            setSpaceDraft(undefined);
+            loadSpaces();
+          }}
+        />
+      )}
+      {spaceToDelete && (
+        <DeleteSpaceModal
+          space={spaceToDelete}
+          onHide={() => setSpaceToDelete(undefined)}
+          onDeleted={() => {
+            setSpaceToDelete(undefined);
+            loadSpaces();
+          }}
+        />
+      )}
     </div>
   );
+}
+
+/** Why the specification of the space can't be deleted - undefined if it can. */
+function deleteHint(space: ManagedSpace): string | undefined {
+  if (!space.settings) {
+    return noPermission("delete this space");
+  }
+  return space.specified ? undefined : "This space has no specification";
 }
 
 /** Parses the JSON of a claim - it has to be a non-empty object. */
