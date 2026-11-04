@@ -1,0 +1,93 @@
+/* The instances embedded in a nested field - one subsection (nested card) per instance */
+.nested-instances-field {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    min-width: 0;
+}
+
+.nested-instance {
+    background-color: #fff;
+    border: 1px solid #e4e7eb;
+    border-left: 3px solid #6c757d;
+    border-radius: 8px;
+    box-shadow: 0 1px 2px rgba(16, 24, 40, 0.04);
+    padding: 10px 16px 12px;
+    min-width: 0;
+}
+
+.nested-instance-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    min-height: 32px;
+    margin-bottom: 6px;
+}
+
+.nested-instance-type {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+    color: #6c757d;
+    overflow-wrap: anywhere;
+}
+
+.nested-instance-type-dot {
+    font-size: 0.45rem;
+}
+
+.nested-instance-index {
+    color: #adb5bd;
+    font-variant-numeric: tabular-nums;
+}
+
+.nested-instance-actions {
+    display: inline-flex;
+    gap: 2px;
+}
+
+.nested-instance-action.edit-icon-btn {
+    min-width: 32px;
+    min-height: 32px;
+}
+
+.nested-instance-action.edit-icon-btn:focus-visible {
+    outline: 2px solid #6c8ebf;
+    outline-offset: 2px;
+}
+
+.nested-instance-field + .nested-instance-field {
+    margin-top: 12px;
+}
+
+.nested-instance .view-label {
+    font-size: 0.7rem;
+    color: #868e96;
+    margin-bottom: 4px;
+}
+
+.nested-instance .view-value {
+    padding: 4px 0 8px;
+}
+
+.nested-instance > .nested-instance-field:last-child .view-value {
+    border-bottom: none;
+    padding-bottom: 0;
+}
+
+.nested-instance-empty,
+.nested-instances-empty {
+    font-size: 0.9rem;
+    margin: 0;
+}
+
+.nested-instances-add {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}

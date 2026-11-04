@@ -1,0 +1,83 @@
+.linked-instances-field {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+/* The edit field also has tag-container, which top-aligns its children. */
+.tag-container.linked-instances-field:has(.linked-instances-field-empty) {
+  align-items: center;
+}
+
+.linked-instances-field-empty {
+  font-size: 0.9rem;
+  line-height: 1.2;
+}
+
+.linked-instance-badge {
+  cursor: pointer;
+  max-width: 100%;
+  min-width: 0;
+}
+
+.linked-instance-identifiers {
+  font-family: monospace;
+  font-size: 0.8rem;
+  color: #495057;
+  overflow-wrap: anywhere;
+}
+
+.linked-instance-badge--restricted,
+.linked-instance-badge--unresolved {
+  cursor: default;
+  font-style: italic;
+}
+
+.linked-instance-badge--unresolved {
+  color: #6c757d !important;
+  border: 1px dashed #adb5bd;
+}
+
+.view-badge.linked-instance-badge--highlighted,
+.tag-badge.linked-instance-badge--highlighted {
+  background-color: #f3f7fc !important;
+  border-color: #6c8ebf !important;
+  box-shadow: 0 0 0 2px rgba(108, 142, 191, 0.22);
+}
+
+.linked-instance-badge-status-icon {
+  font-size: 0.7rem;
+  margin-right: 6px;
+}
+
+.linked-instance-badge-icon {
+  font-size: 0.45rem;
+  margin-right: 6px;
+}
+
+.linked-instance-badge-name {
+  vertical-align: middle;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.linked-instance-badge .linked-instance-draft-badge {
+  margin-left: 0.35rem;
+}
+
+.linked-instances-see-all-btn {
+  margin-bottom: 8px;
+  font-size: 0.875rem;
+  line-height: 1.2;
+  text-decoration: none !important;
+  white-space: nowrap;
+}
+
+.linked-instances-field-empty + .linked-instances-see-all-btn {
+  margin: 0 0 0 8px;
+  align-self: center;
+}
+
+.linked-instances-see-all-btn:hover {
+  text-decoration: underline !important;
+}

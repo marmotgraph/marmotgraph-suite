@@ -25,11 +25,9 @@
 package org.marmotgraph.suite;
 
 import org.springframework.boot.SpringApplication;
-import org.springframework.context.annotation.ComponentScan;
-import org.springframework.context.annotation.Configuration;
+import org.springframework.boot.autoconfigure.SpringBootApplication;
 
-@Configuration
-@ComponentScan({"org.marmotgraph"})
+@SpringBootApplication(scanBasePackages = "org.marmotgraph")
 public class MarmotGraphSuiteApplication {
 
     public static void main(String[] args) {

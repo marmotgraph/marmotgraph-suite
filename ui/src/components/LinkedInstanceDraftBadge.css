@@ -1,0 +1,17 @@
+.linked-instance-draft-badge {
+  display: inline-block;
+  flex-shrink: 0;
+  font-size: 0.6rem;
+  font-weight: 700;
+  line-height: 1.2;
+  color: #495057;
+  background-color: #dee2e6;
+  border-radius: 999px;
+  padding: 1px 6px;
+  text-transform: uppercase;
+  vertical-align: middle;
+}
+
+.linked-instance-draft-badge--inline {
+  margin-left: 0.35rem;
+}

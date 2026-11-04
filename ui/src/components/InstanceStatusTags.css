@@ -1,0 +1,39 @@
+.instance-card-status {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 0.75rem;
+    line-height: 1.2;
+    border-radius: 999px;
+    padding: 2px 8px;
+    background-color: #f1f3f5;
+    color: #495057;
+}
+
+.instance-card-status--released {
+    background-color: #e8f6ee;
+    color: #1e7a42;
+}
+
+.instance-card-status--changed {
+    background-color: #fff4e5;
+    color: #9a5b00;
+}
+
+.instance-card-status--progress {
+    background-color: #fff3cd;
+    color: #856404;
+}
+
+.instance-card-status--contribution {
+    background-color: #e7f3ff;
+    color: #1D4ED8;
+}
+
+.instance-status {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-start;
+    gap: 4px 6px;
+    max-width: 100%;
+}

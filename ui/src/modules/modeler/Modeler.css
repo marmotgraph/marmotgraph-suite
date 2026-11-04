@@ -1,0 +1,777 @@
+.modeler-home {
+    padding-bottom: 1rem;
+}
+
+.modeler-home .form-control:focus,
+.modeler-home .form-select:focus,
+.modeler-home .form-check-input:focus,
+.modeler-modal .form-control:focus,
+.modeler-modal .form-select:focus,
+.modeler-modal .form-check-input:focus {
+    border-color: #6c8ebf;
+    box-shadow: 0 0 0 0.2rem rgba(108, 142, 191, 0.25);
+}
+
+.modeler-home .form-label,
+.modeler-modal .form-label {
+    font-weight: 500;
+    color: #333;
+}
+
+.modeler-filter {
+    max-width: 260px;
+}
+
+.modeler-code {
+    font-family: SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    font-size: 0.85rem;
+}
+
+/* Group labels */
+.modeler-kicker {
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: #6c757d;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 8px;
+}
+
+.modeler-result-count {
+    font-size: 0.8rem;
+    color: #6c757d;
+    margin-bottom: 6px;
+    font-variant-numeric: tabular-nums;
+}
+
+.modeler-empty {
+    padding: 24px 12px;
+    text-align: center;
+    font-size: 0.875rem;
+    color: #6c757d;
+}
+
+.modeler-loading {
+    padding: 24px 12px;
+    text-align: center;
+    font-size: 0.875rem;
+    color: #6c757d;
+}
+
+.modeler-color-dot {
+    display: inline-block;
+    width: 0.75rem;
+    height: 0.75rem;
+    flex-shrink: 0;
+    border-radius: 50%;
+    border: 1px solid rgba(0, 0, 0, 0.15);
+    vertical-align: middle;
+}
+
+.modeler-color-picker {
+    width: 2.5rem;
+    flex-shrink: 0;
+    padding: 0.15rem;
+}
+
+/* The color of the type in the header - opens a color picker */
+.modeler-color-swatch {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+    height: 24px;
+    margin-left: -6px;
+    border-radius: 6px;
+    cursor: pointer;
+}
+
+.modeler-color-swatch:hover {
+    background-color: #f1f3f5;
+}
+
+.modeler-color-swatch:focus-within {
+    outline: 2px solid #5b5fc7;
+    outline-offset: 1px;
+}
+
+.modeler-header-switch {
+    margin-bottom: 0;
+    min-height: 0;
+    color: #495057;
+}
+
+/* Identifiers (IRIs) - one line, monospace, with a copy control */
+.modeler-id {
+    display: flex;
+    align-items: center;
+    min-width: 0;
+    font-family: monospace;
+    font-size: 0.75rem;
+    color: #6c757d;
+}
+
+.modeler-id-text {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.modeler-copy {
+    border: none;
+    background: transparent;
+    color: #6c757d;
+    padding: 2px 4px;
+    margin-left: 4px;
+    border-radius: 4px;
+    line-height: 1;
+}
+
+.modeler-copy:hover {
+    background-color: #f1f3f5;
+}
+
+.modeler-copy:focus-visible {
+    outline: 2px solid #6c8ebf;
+    outline-offset: 2px;
+}
+
+.modeler-copy:focus-visible .copy-id-tooltip {
+    opacity: 1;
+}
+
+/* Counts and statuses */
+.modeler-count {
+    display: inline-block;
+    font-size: 0.75rem;
+    line-height: 1.2;
+    border-radius: 999px;
+    padding: 2px 8px;
+    background-color: #f1f3f5;
+    color: #495057;
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+}
+
+.modeler-status {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 0.75rem;
+    line-height: 1.2;
+    border-radius: 999px;
+    padding: 2px 8px;
+    white-space: nowrap;
+    background-color: #f1f3f5;
+    color: #495057;
+}
+
+/* Types and properties without a specification - they are only known from the data */
+.modeler-status--unspecified {
+    background-color: #fff4e5;
+    color: #a3410a;
+}
+
+.modeler-unspecified {
+    color: #a3410a;
+}
+
+/* List of the types */
+.modeler-type-list {
+    max-height: calc(100vh - 290px);
+    min-height: 200px;
+    overflow-y: auto;
+    border: 1px solid #dee2e6;
+    border-radius: 10px;
+    background-color: #fff;
+}
+
+.modeler-type-item {
+    display: flex;
+    align-items: center;
+    width: 100%;
+    gap: 8px;
+    padding: 10px 12px;
+    border: none;
+    border-bottom: 1px solid #f1f3f5;
+    border-left: 4px solid transparent;
+    background-color: transparent;
+    color: #333;
+    font-size: 0.95rem;
+    text-align: left;
+    cursor: pointer;
+    transition: background-color 0.15s ease;
+}
+
+.modeler-type-item:last-child {
+    border-bottom: none;
+}
+
+.modeler-type-item:hover {
+    background-color: #e8e9f3;
+    border-left-color: #5b5fc7;
+}
+
+.modeler-type-item--selected,
+.modeler-type-item--selected:hover {
+    background-color: #eef0fb;
+    border-left-color: #5b5fc7;
+    color: #212529;
+    font-weight: 600;
+}
+
+.modeler-type-item:focus-visible {
+    outline: 2px solid #5b5fc7;
+    outline-offset: -2px;
+}
+
+.modeler-type-item-name {
+    min-width: 0;
+    overflow-wrap: anywhere;
+}
+
+/* Details of a type - shares the look of the open instance */
+.modeler-type-details .instance-header {
+    padding-top: 0;
+    margin-bottom: 16px;
+}
+
+.modeler-header-main {
+    flex: 1;
+    min-width: 0;
+}
+
+.modeler-num {
+    font-variant-numeric: tabular-nums;
+}
+
+.modeler-type-details .instance-name {
+    margin-bottom: 6px;
+}
+
+/* Texts of the header edited in place - the name and the description of the type */
+.modeler-inline {
+    min-width: 0;
+}
+
+.modeler-inline--editable {
+    display: flex;
+    align-items: flex-start;
+    gap: 4px;
+}
+
+.modeler-inline-text {
+    min-width: 0;
+    margin-left: -6px;
+    padding: 0 6px;
+    border-radius: 6px;
+    cursor: text;
+}
+
+.modeler-inline-text:hover {
+    background-color: #f1f3f5;
+}
+
+.modeler-type-details .modeler-inline--editable .instance-name + .edit-icon-btn {
+    margin-top: 6px;
+}
+
+.modeler-type-details .modeler-type-description {
+    margin: 8px 0 0;
+    white-space: pre-line;
+}
+
+.modeler-type-details .modeler-type-description.modeler-inline-text {
+    margin-left: -6px;
+}
+
+.modeler-inline-placeholder {
+    color: #adb5bd;
+}
+
+.modeler-type-details .form-control.modeler-inline-input {
+    margin-left: -7px;
+    padding: 0 6px;
+    width: calc(100% + 7px);
+    color: #212529;
+    border-color: #dee2e6;
+    border-radius: 6px;
+}
+
+.modeler-type-details .form-control.modeler-inline-input.instance-name {
+    margin-bottom: 0;
+    font-size: 1.85rem;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+}
+
+.modeler-type-details .form-control.modeler-inline-input.modeler-type-description {
+    margin-top: 8px;
+    padding: 4px 6px;
+    font-size: 0.9rem;
+}
+
+.modeler-type-details .form-control.modeler-inline-input:focus {
+    border-color: #6c8ebf;
+    box-shadow: 0 0 0 2px rgba(108, 142, 191, 0.25);
+}
+
+.modeler-inline-help {
+    margin-top: 4px;
+    font-size: 0.75rem;
+    color: #868e96;
+}
+
+.modeler-type-link {
+    color: #2563eb;
+    text-decoration: none;
+    white-space: nowrap;
+}
+
+.modeler-type-link:hover {
+    color: #1d4ed8;
+    text-decoration: underline;
+}
+
+.modeler-type-link:focus-visible {
+    outline: 2px solid #2563eb;
+    outline-offset: 2px;
+    border-radius: 2px;
+}
+
+/* The properties of a type - shown as the editor shows them in its form */
+.modeler-hint {
+    font-size: 0.8rem;
+    color: #6c757d;
+}
+
+.modeler-fields {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.modeler-field {
+    position: relative;
+    display: flex;
+    align-items: flex-start;
+    gap: 4px;
+    padding: 10px 12px 10px 4px;
+    border: 1px solid transparent;
+    border-radius: 8px;
+    background-color: #fff;
+    transition: background-color 0.15s ease, border-color 0.15s ease;
+}
+
+.modeler-field:hover,
+.modeler-field:focus-within {
+    border-color: #e4e7eb;
+    background-color: #f8f9fb;
+}
+
+.modeler-field--sortable {
+    cursor: grab;
+}
+
+.modeler-field--dragged {
+    opacity: 0.4;
+}
+
+/* Where the dragged property is dropped */
+.modeler-field--drop-before::before,
+.modeler-field--drop-after::after {
+    content: "";
+    position: absolute;
+    left: 0;
+    right: 0;
+    height: 2px;
+    border-radius: 1px;
+    background-color: #5b5fc7;
+    pointer-events: none;
+}
+
+.modeler-field--drop-before::before {
+    top: -5px;
+}
+
+.modeler-field--drop-after::after {
+    bottom: -5px;
+}
+
+/* Properties without a specification - they are only known from the data */
+.modeler-field--unspecified {
+    box-shadow: inset 3px 0 0 #f0a33a;
+}
+
+.modeler-field-handle {
+    flex-shrink: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+    min-height: 32px;
+    padding: 0;
+    border: none;
+    border-radius: 6px;
+    background: transparent;
+    color: #adb5bd;
+    cursor: grab;
+}
+
+.modeler-field:hover .modeler-field-handle,
+.modeler-field-handle:hover {
+    color: #6c757d;
+}
+
+.modeler-field-handle:hover {
+    background-color: #e9ecef;
+}
+
+.modeler-field-handle:focus-visible {
+    outline: 2px solid #5b5fc7;
+    outline-offset: 2px;
+    color: #495057;
+}
+
+.modeler-field-handle[aria-disabled="true"] {
+    cursor: progress;
+}
+
+/* The label property stays at the top - it can't be moved */
+.modeler-field-handle--pinned,
+.modeler-field:hover .modeler-field-handle--pinned {
+    color: #adb5bd;
+    background: transparent;
+    cursor: default;
+}
+
+.modeler-field-body {
+    flex: 1;
+    min-width: 0;
+}
+
+.modeler-field-header {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 6px;
+    min-height: 32px;
+    margin-bottom: 6px;
+}
+
+.modeler-fields .modeler-field-label {
+    margin-bottom: 0;
+    overflow-wrap: anywhere;
+}
+
+.modeler-field-tools {
+    display: inline-flex;
+    align-items: center;
+    gap: 2px;
+    margin-left: auto;
+}
+
+.modeler-field-tools .modeler-status {
+    margin-right: 4px;
+}
+
+.modeler-field-meta {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    column-gap: 16px;
+    row-gap: 4px;
+    margin-top: 6px;
+    font-size: 0.8rem;
+    color: #868e96;
+}
+
+/* If the property labels the instances of the type and if they can be searched by it */
+.modeler-field-flags {
+    display: inline-flex;
+    align-items: center;
+    gap: 16px;
+    margin-left: auto;
+}
+
+.modeler-field-flags .form-check {
+    margin-bottom: 0;
+    min-height: 0;
+    color: #495057;
+}
+
+.modeler-field-flags .form-check-input:focus-visible {
+    outline: 2px solid #5b5fc7;
+    outline-offset: 2px;
+}
+
+.modeler-field-meta .modeler-id {
+    max-width: 100%;
+}
+
+/* The example of a widget - it only gives an impression and can't be changed */
+.modeler-preview {
+    pointer-events: none;
+}
+
+.modeler-preview .form-control {
+    background-color: #fff;
+    border: 1px solid #dee2e6;
+    border-radius: 6px;
+    padding: 10px 14px;
+    font-size: 0.95rem;
+    color: #212529;
+}
+
+.modeler-preview .form-control-color {
+    width: 3.5rem;
+    padding: 4px !important;
+    height: 44px;
+}
+
+.modeler-preview .tag-container {
+    padding-bottom: 4px;
+}
+
+.modeler-preview-json {
+    font-family: SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    font-size: 0.85rem !important;
+    color: #6c757d !important;
+    white-space: pre-wrap;
+}
+
+.modeler-preview-table {
+    font-size: 0.9rem;
+    background-color: #fff;
+}
+
+.modeler-preview-table th {
+    font-weight: 500;
+    color: #495057;
+    white-space: nowrap;
+}
+
+.modeler-preview-note {
+    margin-top: 4px;
+    font-size: 0.8rem;
+    color: #9a5b00;
+}
+
+/* The preview in the dialog of a property */
+.modeler-preview-box {
+    padding: 12px;
+    border: 1px solid #e4e7eb;
+    border-radius: 8px;
+    background-color: #f8f9fb;
+}
+
+.modeler-modal .modeler-preview-label {
+    overflow-wrap: anywhere;
+}
+
+.modeler-widget-row {
+    display: flex;
+    align-items: flex-end;
+    flex-wrap: wrap;
+    gap: 12px;
+}
+
+.modeler-cardinality-fixed {
+    font-size: 0.875rem;
+    color: #6c757d;
+    line-height: 31px;
+}
+
+.modeler-checklist {
+    max-height: 220px;
+    overflow-y: auto;
+    border: 1px solid #dee2e6;
+    border-radius: 6px;
+    padding: 0.5rem 0.75rem;
+}
+
+.modeler-checklist:empty {
+    display: none;
+}
+
+.modeler-checklist-tall {
+    max-height: 320px;
+}
+
+/* Side panel of the graph */
+.modeler-side-panel {
+    background-color: #fff;
+    border: 1px solid #e4e7eb;
+    border-top: 3px solid var(--modeler-type-color, #6c757d);
+    border-radius: 8px;
+    box-shadow: 0 1px 2px rgba(16, 24, 40, 0.04);
+    padding: 16px;
+    font-size: 0.875rem;
+}
+
+.modeler-side-panel-name {
+    font-size: 1.15rem;
+    font-weight: 600;
+    color: #212529;
+    overflow-wrap: anywhere;
+}
+
+/* Graph */
+
+.modeler-graph {
+    position: relative;
+    height: calc(100vh - 300px);
+    min-height: 360px;
+    border: 1px solid #dee2e6;
+    border-radius: 10px;
+    background: #f8f9fa;
+    overflow: hidden;
+}
+
+.modeler-graph svg {
+    width: 100%;
+    height: 100%;
+    display: block;
+    cursor: grab;
+    touch-action: none;
+    user-select: none;
+}
+
+.modeler-graph svg:active {
+    cursor: grabbing;
+}
+
+.modeler-graph-empty {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.modeler-graph-tools .edit-icon-btn {
+    min-width: 32px;
+    min-height: 32px;
+    padding: 6px 8px !important;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.modeler-node {
+    cursor: pointer;
+    transition: opacity 0.15s ease;
+}
+
+.modeler-node circle {
+    stroke: #fff;
+    stroke-width: 2;
+}
+
+.modeler-node.external circle {
+    stroke: #6c757d;
+    stroke-dasharray: 4 4;
+}
+
+.modeler-node.selected circle {
+    stroke: #5b5fc7;
+    stroke-width: 4;
+}
+
+.modeler-node-label {
+    font-size: 12px;
+    font-weight: 500;
+    fill: #212529;
+    paint-order: stroke;
+    stroke: #f8f9fa;
+    stroke-width: 3px;
+    pointer-events: none;
+}
+
+.modeler-node.dimmed,
+.modeler-edge.dimmed {
+    opacity: 0.35;
+}
+
+.modeler-edge path {
+    fill: none;
+    stroke: #b7c0cc;
+    stroke-width: 1.5;
+    stroke-linecap: round;
+}
+
+/* The active edges take the color of the focused type */
+.modeler-edge.active path {
+    stroke: var(--edge-color, #4f78ad);
+    stroke-width: 2.25;
+}
+
+.modeler-arrow {
+    fill: #b7c0cc;
+    fill: context-stroke;
+}
+
+.modeler-edge-label {
+    font-size: 10px;
+    fill: #6c757d;
+    paint-order: stroke;
+    stroke: #f8f9fa;
+    stroke-width: 3px;
+    pointer-events: none;
+}
+
+.modeler-edge.active .modeler-edge-label {
+    fill: #212529;
+    font-weight: 600;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .modeler-node,
+    .modeler-type-item,
+    .modeler-field {
+        transition: none;
+    }
+}
+
+@media (max-width: 768px) {
+    .modeler-graph {
+        height: 60vh;
+        min-height: 300px;
+    }
+
+    .modeler-type-list {
+        max-height: none;
+    }
+
+    .modeler-filter {
+        max-width: none;
+    }
+}
+
+/* Validation schemas - nested cards */
+.modeler-schema {
+    border: 1px solid #e4e7eb;
+    border-radius: 8px;
+    box-shadow: 0 1px 2px rgba(16, 24, 40, 0.04);
+    overflow: hidden;
+}
+
+.modeler-schema-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 4px 4px 4px 12px;
+    background-color: #f8f9fb;
+    border-bottom: 1px solid #e4e7eb;
+}
+
+.modeler-schema-name {
+    font-weight: 600;
+    color: #212529;
+    overflow-wrap: anywhere;
+}
+
+.modeler-schema-body {
+    padding: 12px;
+}

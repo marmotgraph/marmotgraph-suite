@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg id="Layer_1" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 125.62 125.62">
+    <defs>
+        <style>
+            .cls-1 {
+            fill: #0097A7;
+            stroke: #0097A7;
+            }
+
+            .cls-1, .cls-2 {
+            stroke-miterlimit: 10;
+            }
+
+            .cls-2 {
+            fill: none;
+            stroke: white;
+            stroke-width: 6px;
+            }
+        </style>
+    </defs>
+    <rect class="cls-2" x="59.86" y="84.7" width="44.08" height="18.85" rx="5.17" ry="5.17"/>
+    <rect class="cls-2" x="23.06" y="84.7" width="25.12" height="18.85" rx="5.17" ry="5.17"/>
+    <rect class="cls-2" x="23.06" y="54.72" width="43.65" height="18.85" rx="5.17" ry="5.17"
+          transform="translate(89.77 128.28) rotate(180)"/>
+    <rect class="cls-2" x="78.82" y="54.72" width="25.12" height="18.85" rx="5.17" ry="5.17"
+          transform="translate(182.76 128.28) rotate(180)"/>
+    <rect class="cls-2" x="78.82" y="23.64" width="25.12" height="18.85" rx="5.17" ry="5.17"
+          transform="translate(182.76 66.14) rotate(180)"/>
+    <rect class="cls-1" x="15.01" y="21.44" width="50.25" height="21.67" rx="5.17" ry="5.17"
+          transform="translate(88.23 50.71) rotate(162.18)"/>
+</svg>

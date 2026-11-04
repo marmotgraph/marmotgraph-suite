@@ -1,0 +1,54 @@
+.shared-queries-table {
+  background-color: transparent !important;
+  border: none;
+}
+
+.shared-queries-table thead th {
+  background-color: transparent !important;
+  color: #333;
+  font-weight: 500;
+  font-size: 1rem;
+  padding: 1rem;
+  border: none;
+  border-bottom: 1px solid #dee2e6;
+}
+
+.shared-queries-table tbody tr {
+  background-color: transparent !important;
+  border-left: 4px solid transparent;
+  transition: all 0.2s ease;
+  cursor: pointer;
+}
+
+.shared-queries-table tbody tr:hover {
+  background-color: #e8e9f3 !important;
+  border-left-color: #5b5fc7;
+}
+
+.shared-queries-table tbody td {
+  padding: 1.25rem 1rem;
+  border-top: 1px solid #e0e0e0;
+  border-bottom: none;
+  border-left: none;
+  border-right: none;
+  color: #333;
+  font-size: 0.95rem;
+  background-color: transparent !important;
+}
+
+.shared-queries-table tbody tr:first-child td {
+  border-top: 1px solid #e0e0e0;
+}
+
+.shared-queries-table tbody td:first-child {
+  font-weight: 500;
+}
+
+.shared-queries-table tbody td:nth-child(2) {
+  color: #6c757d;
+}
+
+.shared-queries-table tbody td:last-child {
+  color: #6c757d;
+  word-break: break-all;
+}

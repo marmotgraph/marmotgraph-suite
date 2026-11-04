@@ -1,0 +1,1475 @@
+import React, { useEffect, useMemo, useRef, useState } from "react";
+import { Alert, Button, Col, Collapse, Form, Modal, Row, Spinner, Table } from "react-bootstrap";
+import { useNavigate } from "react-router-dom";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import {
+  faChevronDown,
+  faChevronUp,
+  faCircle,
+  faClipboardCheck,
+  faCode,
+  faCopy,
+  faEye,
+  faFilter,
+  faPen,
+  faRocket,
+  faSort,
+  faSortDown,
+  faSortUp,
+  faStar as faStarSolid,
+  faTriangleExclamation,
+  faXmark,
+} from "@fortawesome/free-solid-svg-icons";
+import { faStar as faStarRegular } from "@fortawesome/free-regular-svg-icons";
+import { useAuth } from "../../contexts/AuthContext";
+import { useInstances } from "../../contexts/InstancesContext";
+import { useUnsavedInstances } from "../../contexts/UnsavedInstancesContext";
+import { SearchBar } from "../../components/SearchBar";
+import UnsavedInstancesPanel from "../../components/UnsavedInstancesPanel";
+import { InstanceFilterPanel } from "../../components/InstanceFilterPanel";
+import { FilterPill } from "../../components/FilterPill";
+import InstanceFieldControl from "../../components/InstanceFieldControl";
+import { MOBILE_VIEWPORT_QUERY, useMediaQuery } from "../../hooks/useMediaQuery";
+import { useTypes } from "../../hooks/useTypes";
+import { useSpaces } from "../../hooks/useSpaces";
+import { typeLabel } from "../../services/types";
+import {
+  deleteInstance,
+  fetchInstance,
+  InstanceDetail,
+  InstanceField,
+  InstanceSortBy,
+} from "../../services/instances";
+import { Timestamp } from "../../components/Timestamp";
+import { InstanceStatusTags } from "../../components/InstanceStatusTags";
+import { InstanceSummary, ReleaseStatus } from "./editorMockData";
+import { DisabledHint, noPermission } from "../../components/DisabledHint";
+import { EDITOR_BREADCRUMB_TRAIL_KEY } from "./editorConstants";
+import "../query-builder/SharedQueries.css";
+import "./EditorHome.css";
+
+const BREADCRUMB_TRAIL_STORAGE_KEY = EDITOR_BREADCRUMB_TRAIL_KEY;
+
+type InstanceFilters = {
+  types: string[];
+  spaces: string[];
+  permissions: string[];
+  releaseStatuses: string[];
+};
+
+// Type color mapping
+const typeColors: Record<string, string> = {
+  Appliance: "#ff9800",
+  "Asset Tag": "#9c27b0",
+  Blade: "#2196f3",
+  Building: "#4caf50",
+  Cabinet: "#f44336",
+  Canton: "#00bcd4",
+};
+
+export default function EditorHome() {
+  const navigate = useNavigate();
+  // const location = useLocation();
+  const {
+    instances,
+    total,
+    loading,
+    hasMore,
+    loadingMore,
+    loadMore,
+    searchTerm,
+    setSearchTerm,
+    typeFilter,
+    setTypeFilter,
+    spaceFilter,
+    setSpaceFilter,
+    favoritesOnly,
+    setFavoritesOnly,
+    contributedOnly,
+    setContributedOnly,
+    releaseStatusFilter,
+    setReleaseStatusFilter,
+    sort,
+    setSort,
+    toggleFavorite,
+    deleteInstances,
+  } = useInstances({ load: true });
+  const { getAccessToken } = useAuth();
+  const { removeDraft } = useUnsavedInstances();
+  const types = useTypes();
+  const spaces = useSpaces();
+  const [searchQuery, setSearchQuery] = useState<string>(searchTerm);
+  const [copiedId, setCopiedId] = useState<string | null>(null);
+  const [selectedInstances, setSelectedInstances] = useState<Set<string>>(
+    new Set(),
+  );
+  const [previewInstanceId, setPreviewInstanceId] = useState<string | null>(
+    null,
+  );
+  const [expandedCardIds, setExpandedCardIds] = useState<Set<string>>(
+    new Set(),
+  );
+  const isMobile = useMediaQuery(MOBILE_VIEWPORT_QUERY);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState<string>();
+  const [deleteReleased, setDeleteReleased] = useState(false);
+  const [showMobileFilters, setShowMobileFilters] = useState(false);
+  const [localFilters, setLocalFilters] = useState<
+    Pick<InstanceFilters, "permissions">
+  >({
+    permissions: [],
+  });
+  // The type, space, release status, favorites and contribution filters are applied by the backend (see
+  // InstancesContext) - the others on the client
+  const filters: InstanceFilters = useMemo(
+    () => ({
+      ...localFilters,
+      types: typeFilter,
+      spaces: spaceFilter,
+      releaseStatuses: releaseStatusFilter,
+    }),
+    [localFilters, typeFilter, spaceFilter, releaseStatusFilter],
+  );
+  const setFilters = ({
+    types,
+    spaces,
+    releaseStatuses,
+    ...rest
+  }: InstanceFilters) => {
+    setLocalFilters(rest);
+    setTypeFilter(types);
+    setSpaceFilter(spaces);
+    setReleaseStatusFilter(releaseStatuses as ReleaseStatus[]);
+  };
+  const activeFilterCount =
+    (favoritesOnly ? 1 : 0) +
+    (contributedOnly ? 1 : 0) +
+    filters.types.length +
+    filters.spaces.length +
+    filters.releaseStatuses.length;
+  const clearFilters = () => {
+    setFavoritesOnly(false);
+    setContributedOnly(false);
+    setFilters({
+      types: [],
+      spaces: [],
+      permissions: [],
+      releaseStatuses: [],
+    });
+  };
+
+  // Reset the instance breadcrumb trail when the user returns to the editor home so that each new navigation
+  // session starts fresh.
+  useEffect(() => {
+    try {
+      sessionStorage.removeItem(BREADCRUMB_TRAIL_STORAGE_KEY);
+    } catch {
+      // Ignore storage errors.
+    }
+  }, []);
+
+  // The types (filtered by their identifier) and spaces to filter by
+  const availableTypes = useMemo(() => {
+    return types
+      .map((type) => ({
+        name: typeLabel(type),
+        url: type.identifier,
+        description: type.description,
+      }))
+      .sort((a, b) => a.name.localeCompare(b.name));
+  }, [types]);
+
+  const availableSpaces = useMemo(() => {
+    return Array.from(new Set(spaces.map((space) => space.identifier))).sort();
+  }, [spaces]);
+
+  // Infinite scrolling: load the following page once the sentinel below the table becomes visible. The observer is
+  // recreated after each page so it fires again if the sentinel is still visible (e.g. the rows don't fill the
+  // container yet).
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const loadMoreRef = useRef<HTMLDivElement>(null);
+  const showLoadMore = !loading && hasMore;
+  useEffect(() => {
+    const sentinel = loadMoreRef.current;
+    if (!showLoadMore || loadingMore || !sentinel) {
+      return;
+    }
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries.some((entry) => entry.isIntersecting)) {
+          loadMore();
+        }
+      },
+      { root: scrollContainerRef.current, rootMargin: "0px 0px 200px 0px" },
+    );
+    observer.observe(sentinel);
+    return () => observer.disconnect();
+  }, [showLoadMore, loadingMore, loadMore]);
+
+  const handleSearch = () => {
+    setSearchTerm(searchQuery.trim());
+  };
+
+  const handleRemoveFilter = (
+    filterType: keyof InstanceFilters,
+    value: string,
+  ) => {
+    setFilters({
+      ...filters,
+      [filterType]: filters[filterType].filter((item) => item !== value),
+    });
+  };
+
+  const handleSort = (field: InstanceSortBy) => {
+    // Cycle through: asc -> desc -> none (the default order of the backend: by name)
+    if (sort?.by !== field) {
+      setSort({ by: field, direction: "ASC" });
+    } else if (sort.direction === "ASC") {
+      setSort({ by: field, direction: "DESC" });
+    } else {
+      setSort(null);
+    }
+  };
+
+  const handleSelectInstance = (instanceId: string) => {
+    setSelectedInstances((prev) => {
+      const newSet = new Set(prev);
+      if (newSet.has(instanceId)) {
+        newSet.delete(instanceId);
+      } else {
+        newSet.add(instanceId);
+      }
+      return newSet;
+    });
+  };
+
+  const handleSelectAll = () => {
+    if (
+      selectedInstances.size ===
+      instances.length
+    ) {
+      setSelectedInstances(new Set());
+    } else {
+      const allIds = new Set(
+        instances.map((inst) => inst.instanceId),
+      );
+      setSelectedInstances(allIds);
+    }
+  };
+
+  const canDeleteSelected = () => {
+    return Array.from(selectedInstances).every((id) => {
+      const inst = instances.find((i) => i.instanceId === id);
+      return (
+        inst?.permissions.includes("Edit") ||
+        inst?.permissions.includes("Release")
+      );
+    });
+  };
+
+  const selectedSummaries = instances.filter((inst) =>
+    selectedInstances.has(inst.instanceId),
+  );
+  const releasedDeletable = selectedSummaries.filter(
+    (inst) => isReleased(inst) && canDeleteReleased(inst),
+  );
+  const releasedBlocked = selectedSummaries.filter(
+    (inst) => isReleased(inst) && !canDeleteReleased(inst),
+  );
+  const instancesToDelete = selectedSummaries.filter(
+    (inst) => !isReleased(inst) || (deleteReleased && canDeleteReleased(inst)),
+  );
+
+  const handleDeleteClick = () => {
+    if (selectedInstances.size > 0 && canDeleteSelected()) {
+      setDeleteError(undefined);
+      setDeleteReleased(false);
+      setShowDeleteModal(true);
+    }
+  };
+
+  /**
+   * Deletes the selection without the released instances which are left out. What the backend rejects stays selected,
+   * so the dialog offers it for another attempt.
+   */
+  const handleConfirmDelete = async () => {
+    const ids = instancesToDelete.map((inst) => inst.instanceId);
+    setDeleting(true);
+    setDeleteError(undefined);
+    try {
+      const token = await getAccessToken();
+      const results = await Promise.allSettled(
+        ids.map((id) => deleteInstance(token, id)),
+      );
+      const deleted = ids.filter((_, index) => results[index].status === "fulfilled");
+      deleted.forEach((id) => removeDraft(id));
+      deleteInstances(deleted);
+      const failedIds = ids.filter((_, index) => results[index].status === "rejected");
+      setSelectedInstances(new Set(failedIds));
+      const failure = results.find(
+        (result): result is PromiseRejectedResult => result.status === "rejected",
+      );
+      if (failure) {
+        const reason = failure.reason instanceof Error ? failure.reason.message : String(failure.reason);
+        setDeleteError(`${failedIds.length} of ${ids.length} could not be deleted: ${reason}`);
+      } else {
+        setShowDeleteModal(false);
+      }
+    } catch (e) {
+      setDeleteError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setDeleting(false);
+    }
+  };
+
+  const getSortIcon = (field: InstanceSortBy) => {
+    if (sort?.by !== field) {
+      return <FontAwesomeIcon icon={faSort} className="ms-1 text-muted" />;
+    }
+    return (
+      <FontAwesomeIcon
+        icon={sort.direction === "ASC" ? faSortUp : faSortDown}
+        className="ms-1"
+      />
+    );
+  };
+
+  const getAriaSort = (field: InstanceSortBy) => {
+    if (sort?.by !== field) {
+      return undefined;
+    }
+    return sort.direction === "ASC" ? "ascending" : "descending";
+  };
+
+  const handleToggleFavorite = (instanceId: string) => {
+    toggleFavorite(instanceId).catch((e: unknown) =>
+      console.error("Failed to change the favorite", e),
+    );
+  };
+
+  const handleRowClick = (instanceId: string) => {
+    setPreviewInstanceId(instanceId);
+  };
+
+  const handleRowDoubleClick = (
+    event: React.MouseEvent,
+    instanceId: string,
+  ) => {
+    if ((event.target as HTMLElement).closest('input[type="checkbox"]')) {
+      return;
+    }
+    navigate(`/editor/instances/${instanceId}`);
+  };
+
+  const openInstance = (instanceId: string, search = "") => {
+    navigate(`/editor/instances/${instanceId}${search}`);
+  };
+
+  const previewInstance = instances.find(
+    (instance) => instance.instanceId === previewInstanceId,
+  );
+
+  useEffect(() => {
+    if (
+      previewInstanceId &&
+      !instances.some(
+        (instance) => instance.instanceId === previewInstanceId,
+      )
+    ) {
+      setPreviewInstanceId(null);
+    }
+  }, [instances, previewInstanceId]);
+
+  return (
+    <div className="editor-home">
+      <div className="mb-4">
+        <h2>Instances</h2>
+      </div>
+
+      {/* Search Bar */}
+      <Row className="mb-3">
+        <Col md={6}>
+          <SearchBar
+            value={searchQuery}
+            onChange={setSearchQuery}
+            onSearch={handleSearch}
+            placeholder="Search instance"
+            ariaLabel="Search instances"
+          />
+        </Col>
+      </Row>
+
+      {/* Filters. On a phone they collapse into one button so the list stays in view. */}
+      <Row className="mb-3">
+        <Col>
+          {isMobile ? (
+            <Button
+              type="button"
+              variant={activeFilterCount > 0 ? "dark" : "outline-secondary"}
+              size="sm"
+              className="d-inline-flex align-items-center gap-2"
+              onClick={() => setShowMobileFilters(true)}
+              aria-haspopup="dialog"
+            >
+              <FontAwesomeIcon icon={faFilter} />
+              Filters{activeFilterCount > 0 ? ` (${activeFilterCount})` : ""}
+            </Button>
+          ) : (
+            <div className="d-flex gap-3 align-items-center flex-wrap">
+              <Form.Check
+                type="checkbox"
+                id="favorites-filter-editor"
+                label="Show favorites only"
+                checked={favoritesOnly}
+                onChange={(e) => setFavoritesOnly(e.target.checked)}
+              />
+              <Form.Check
+                type="checkbox"
+                id="contributed-filter-editor"
+                label="Show my contributions only"
+                checked={contributedOnly}
+                onChange={(e) => setContributedOnly(e.target.checked)}
+              />
+              <InstanceFilterPanel
+                filters={filters}
+                onFiltersChange={setFilters}
+                availableTypes={availableTypes}
+                availableSpaces={availableSpaces}
+              />
+            </div>
+          )}
+        </Col>
+      </Row>
+
+      {isMobile && (
+        <Modal
+          show={showMobileFilters}
+          onHide={() => setShowMobileFilters(false)}
+          centered
+          scrollable
+          fullscreen="md-down"
+        >
+          <Modal.Header closeButton>
+            <Modal.Title>Filters</Modal.Title>
+          </Modal.Header>
+          <Modal.Body>
+            <Form.Check
+              type="checkbox"
+              id="favorites-filter-editor"
+              label="Show favorites only"
+              checked={favoritesOnly}
+              onChange={(e) => setFavoritesOnly(e.target.checked)}
+              className="mb-2"
+            />
+            <Form.Check
+              type="checkbox"
+              id="contributed-filter-editor"
+              label="Show my contributions only"
+              checked={contributedOnly}
+              onChange={(e) => setContributedOnly(e.target.checked)}
+              className="mb-3"
+            />
+            <InstanceFilterPanel
+              variant="stacked"
+              filters={filters}
+              onFiltersChange={setFilters}
+              availableTypes={availableTypes}
+              availableSpaces={availableSpaces}
+            />
+          </Modal.Body>
+          <Modal.Footer className="d-flex justify-content-between">
+            <Button
+              variant="outline-danger"
+              onClick={clearFilters}
+              disabled={activeFilterCount === 0}
+            >
+              Clear all
+            </Button>
+            <Button variant="dark" onClick={() => setShowMobileFilters(false)}>
+              Done
+            </Button>
+          </Modal.Footer>
+        </Modal>
+      )}
+
+      {/* Active Filter Pills */}
+      {(filters.types.length > 0 ||
+        filters.spaces.length > 0 ||
+        filters.releaseStatuses.length > 0) && (
+        <Row className="mb-3">
+          <Col>
+            <div className="d-flex flex-wrap">
+              {filters.types.map((type) => (
+                <FilterPill
+                  key={type}
+                  label="Type"
+                  value={
+                    availableTypes.find((t) => t.url === type)?.name ?? type
+                  }
+                  title={
+                    availableTypes.find((t) => t.url === type)?.description
+                  }
+                  onRemove={() => handleRemoveFilter("types", type)}
+                />
+              ))}
+              {filters.spaces.map((space) => (
+                <FilterPill
+                  key={space}
+                  label="Space"
+                  value={space}
+                  onRemove={() => handleRemoveFilter("spaces", space)}
+                />
+              ))}
+              {filters.releaseStatuses.map((status) => (
+                <FilterPill
+                  key={status}
+                  label="Status"
+                  value={status}
+                  onRemove={() => handleRemoveFilter("releaseStatuses", status)}
+                />
+              ))}
+            </div>
+          </Col>
+        </Row>
+      )}
+
+      {selectedInstances.size > 0 && (
+        <div className="bulk-actions-bar">
+          <div className="d-flex align-items-center justify-content-between">
+            <span className="text-muted">
+              {selectedInstances.size} instance
+              {selectedInstances.size !== 1 ? "s" : ""} selected
+            </span>
+            <DisabledHint
+              reason={canDeleteSelected() ? undefined : noPermission("delete all the selected instances")}
+            >
+              <Button
+                variant="danger"
+                size="sm"
+                onClick={handleDeleteClick}
+                disabled={!canDeleteSelected()}
+              >
+                Delete Selected
+              </Button>
+            </DisabledHint>
+          </div>
+        </div>
+      )}
+
+      {isMobile && (
+        <div className="instance-card-toolbar">
+          <Form.Check
+            type="checkbox"
+            id="select-all-instances"
+            label="Select all"
+            checked={
+              selectedInstances.size ===
+                instances.length &&
+              selectedInstances.size > 0
+            }
+            onChange={handleSelectAll}
+            disabled={loading || instances.length === 0}
+          />
+          <div
+            className="instance-card-sort"
+            role="group"
+            aria-label="Sort instances"
+          >
+            {(
+              [
+                ["TYPE", "Type"],
+                ["NAME", "Name"],
+                ["LAST_MODIFICATION", "Last modified"],
+              ] as const
+            ).map(([field, label]) => (
+              <Button
+                key={field}
+                type="button"
+                size="sm"
+                variant={sort?.by === field ? "dark" : "outline-secondary"}
+                onClick={() => handleSort(field)}
+              >
+                {label}
+                {getSortIcon(field)}
+              </Button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      <div className="instances-result-count text-muted small">
+        {!loading &&
+          `${total} result${total !== 1 ? "s" : ""}`}
+      </div>
+
+      {/* The table takes the remaining height of the page and only scrolls its body (the header is sticky) */}
+      <div className="editor-home-body">
+        <div className="table-scroll-container" ref={scrollContainerRef}>
+          {isMobile ? (
+            <InstanceCardList
+              instances={instances}
+              loading={loading}
+              selectedInstances={selectedInstances}
+              previewInstanceId={previewInstance?.instanceId}
+              expandedIds={expandedCardIds}
+              copiedId={copiedId}
+              onOpen={handleRowClick}
+              onOpenDetail={handleRowDoubleClick}
+              onToggleSelected={handleSelectInstance}
+              onToggleFavorite={handleToggleFavorite}
+              onOpenPermission={openInstance}
+              onToggleDetails={(instanceId) =>
+                setExpandedCardIds((prev) => {
+                  const next = new Set(prev);
+                  if (next.has(instanceId)) {
+                    next.delete(instanceId);
+                  } else {
+                    next.add(instanceId);
+                  }
+                  return next;
+                })
+              }
+              onCopyId={(instanceId) => {
+                navigator.clipboard.writeText(instanceId);
+                setCopiedId(instanceId);
+                setTimeout(() => setCopiedId(null), 2000);
+              }}
+            />
+          ) : (
+            <Table className="shared-queries-table instances-table" striped>
+              <thead>
+                <tr>
+                  <th style={{ width: "40px" }}>
+                    <Form.Check
+                      type="checkbox"
+                      checked={
+                        selectedInstances.size ===
+                          instances.length && selectedInstances.size > 0
+                      }
+                      onChange={handleSelectAll}
+                    />
+                  </th>
+                  <th>Fav</th>
+                  <th
+                    onClick={() => handleSort("TYPE")}
+                    aria-sort={getAriaSort("TYPE")}
+                    style={{ cursor: "pointer", userSelect: "none" }}
+                  >
+                    Type {getSortIcon("TYPE")}
+                  </th>
+                  <th
+                    onClick={() => handleSort("NAME")}
+                    aria-sort={getAriaSort("NAME")}
+                    style={{ cursor: "pointer", userSelect: "none" }}
+                  >
+                    Instance Name {getSortIcon("NAME")}
+                  </th>
+                  <th
+                    onClick={() => handleSort("LAST_MODIFICATION")}
+                    aria-sort={getAriaSort("LAST_MODIFICATION")}
+                    style={{ cursor: "pointer", userSelect: "none" }}
+                  >
+                    Last modified {getSortIcon("LAST_MODIFICATION")}
+                  </th>
+                  <th>Status</th>
+                  <th aria-label="Permissions" />
+                </tr>
+              </thead>
+              <tbody>
+                {loading && (
+                  <tr>
+                    <td colSpan={7} className="text-center py-4">
+                      <Spinner
+                        animation="border"
+                        size="sm"
+                        role="status"
+                        className="me-2"
+                      />
+                      Loading instances...
+                    </td>
+                  </tr>
+                )}
+                {!loading &&
+                  instances.map((instance) => (
+                      <tr
+                        key={instance.instanceId}
+                        className={
+                          previewInstance?.instanceId === instance.instanceId
+                            ? "instance-row-selected"
+                            : undefined
+                        }
+                        onClick={(e) => {
+                          // Don't open the preview when clicking the checkbox
+                          if (
+                            (e.target as HTMLElement).closest(
+                              'input[type="checkbox"]',
+                            )
+                          ) {
+                            return;
+                          }
+                          handleRowClick(instance.instanceId);
+                        }}
+                        onDoubleClick={(e) =>
+                          handleRowDoubleClick(e, instance.instanceId)
+                        }
+                        style={{ cursor: "pointer" }}
+                      >
+                        <td onClick={(e) => e.stopPropagation()}>
+                          <Form.Check
+                            type="checkbox"
+                            aria-label={`Select ${instance.instanceName}`}
+                            checked={selectedInstances.has(instance.instanceId)}
+                            onChange={() =>
+                              handleSelectInstance(instance.instanceId)
+                            }
+                          />
+                        </td>
+                        <td>
+                          <FavoriteToggle
+                            instance={instance}
+                            onToggle={handleToggleFavorite}
+                          />
+                        </td>
+                        <td title={instance.typeDescription}>
+                          <FontAwesomeIcon
+                            icon={faCircle}
+                            className="type-color-icon me-2"
+                            style={{
+                              color:
+                                instance.typeColor ||
+                                typeColors[instance.type] ||
+                                "#999",
+                            }}
+                          />
+                          {instance.type}
+                        </td>
+                        <td>
+                          <div>{instance.instanceName}</div>
+                          <div className="instance-id-info">
+                            <span className="instance-id-text">
+                              {instance.instanceId}
+                            </span>
+                            <span
+                              className="copy-id-wrapper"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                navigator.clipboard.writeText(
+                                  instance.instanceId,
+                                );
+                                setCopiedId(instance.instanceId);
+                                setTimeout(() => setCopiedId(null), 2000);
+                              }}
+                            >
+                              <FontAwesomeIcon
+                                icon={faCopy}
+                                className="ms-2 copy-icon"
+                              />
+                              <span className="copy-id-tooltip">
+                                {copiedId === instance.instanceId
+                                  ? "ID copied!"
+                                  : "Copy ID"}
+                              </span>
+                            </span>
+                          </div>
+                          <div className="instance-space-info">
+                            Saved in space {instance.space}
+                          </div>
+                        </td>
+                        <td>
+                          <Timestamp value={instance.lastModified} fallback="" />
+                        </td>
+                        <td>
+                          <InstanceStatusTags
+                            releaseStatus={instance.releaseStatus}
+                            contributed={instance.contributed}
+                            validation={instance.validation}
+                          />
+                        </td>
+                        <td>
+                          <InstancePermissionButtons
+                            instance={instance}
+                            onOpen={openInstance}
+                          />
+                        </td>
+                      </tr>
+                    ))}
+              </tbody>
+            </Table>
+          )}
+          {showLoadMore && (
+            <div
+              ref={loadMoreRef}
+              className="text-center text-muted small py-2"
+            >
+              <Spinner animation="border" size="sm" className="me-2" />
+              Loading more instances...
+            </div>
+          )}
+        </div>
+        {previewInstance && (
+          <InstancePreview
+            instance={previewInstance}
+            onToggleFavorite={handleToggleFavorite}
+            onClose={() => setPreviewInstanceId(null)}
+            onOpen={() =>
+              navigate(`/editor/instances/${previewInstance.instanceId}`)
+            }
+            onEdit={() =>
+              navigate(`/editor/instances/${previewInstance.instanceId}?edit=1`)
+            }
+            onRaw={() =>
+              navigate(`/editor/instances/${previewInstance.instanceId}?raw=1`)
+            }
+          />
+        )}
+      </div>
+
+      {/* Delete Confirmation Modal */}
+      <Modal
+        show={showDeleteModal}
+        onHide={() => {
+          if (!deleting) {
+            setShowDeleteModal(false);
+          }
+        }}
+        keyboard={!deleting}
+        backdrop={deleting ? "static" : true}
+        centered
+      >
+        <Modal.Header closeButton={!deleting}>
+          <Modal.Title>Confirm Delete</Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          <p>
+            Are you sure you want to delete the following instance
+            {selectedInstances.size !== 1 ? "s" : ""}?
+          </p>
+          <p className="text-muted small">
+            Click on an instance to remove it from the deletion list.
+          </p>
+          <ul className="list-unstyled mb-0">
+            {Array.from(selectedInstances).map((id) => {
+              const inst = instances.find((i) => i.instanceId === id);
+              const kept =
+                inst && isReleased(inst) && !instancesToDelete.includes(inst);
+              return inst ? (
+                <li
+                  key={id}
+                  className="delete-modal-item"
+                  onClick={() => {
+                    if (!deleting) {
+                      handleSelectInstance(id);
+                    }
+                  }}
+                  style={{
+                    cursor: deleting ? "default" : "pointer",
+                    padding: "8px 12px",
+                    marginBottom: "4px",
+                    backgroundColor: "#f8f9fa",
+                    border: "1px solid #dee2e6",
+                    borderRadius: "4px",
+                    transition: "all 0.2s",
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.backgroundColor = "#e9ecef";
+                    e.currentTarget.style.borderColor = "#adb5bd";
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.backgroundColor = "#f8f9fa";
+                    e.currentTarget.style.borderColor = "#dee2e6";
+                  }}
+                >
+                  <strong>{inst.instanceName}</strong> ({inst.type})
+                  <span className="ms-2 text-muted small">✕</span>
+                  {isReleased(inst) && (
+                    <div className="delete-modal-item-status">
+                      <InstanceStatusTags releaseStatus={inst.releaseStatus} />
+                      {kept && (
+                        <span className="text-muted small">Will not be deleted</span>
+                      )}
+                    </div>
+                  )}
+                </li>
+              ) : null;
+            })}
+          </ul>
+          {selectedInstances.size === 0 && (
+            <p className="text-muted text-center mt-3 mb-0">
+              No instances selected for deletion.
+            </p>
+          )}
+          {releasedBlocked.length > 0 && (
+            <p className="delete-modal-warning">
+              <FontAwesomeIcon icon={faTriangleExclamation} aria-hidden="true" />
+              <span>
+                {releasedBlocked.length === 1
+                  ? "1 selected instance is released and can't be deleted"
+                  : `${releasedBlocked.length} selected instances are released and can't be deleted`}
+                {" "}without the Release permission.
+                {selectedSummaries.length > releasedBlocked.length &&
+                  " Only the remaining ones are deleted."}
+              </span>
+            </p>
+          )}
+          {releasedDeletable.length > 0 && (
+            <Form.Check
+              type="checkbox"
+              id="delete-released-instances"
+              className="delete-modal-released-option"
+              label={`Also delete released instances (${releasedDeletable.length}) - this removes them from search as well`}
+              checked={deleteReleased}
+              disabled={deleting}
+              onChange={(e) => setDeleteReleased(e.target.checked)}
+            />
+          )}
+          {deleteError && (
+            <Alert variant="danger" className="mt-3 mb-0">
+              {deleteError}
+            </Alert>
+          )}
+        </Modal.Body>
+        <Modal.Footer>
+          <Button
+            variant="outline-secondary"
+            onClick={() => setShowDeleteModal(false)}
+            disabled={deleting}
+          >
+            Cancel
+          </Button>
+          <Button
+            variant="danger"
+            onClick={handleConfirmDelete}
+            disabled={deleting || instancesToDelete.length === 0}
+            aria-busy={deleting}
+          >
+            {deleting && (
+              <Spinner animation="border" size="sm" className="me-2" aria-hidden="true" />
+            )}
+            {deleting ? "Deleting…" : "Delete"}
+          </Button>
+        </Modal.Footer>
+      </Modal>
+      <UnsavedInstancesPanel />
+    </div>
+  );
+}
+
+/** Whether the instance has a released version - also if it has changed since. */
+function isReleased(instance: InstanceSummary) {
+  return instance.releaseStatus === "released" || instance.releaseStatus === "has changed";
+}
+
+/** Deleting a released instance takes it out of search as well, which is up to those who may release it. */
+function canDeleteReleased(instance: InstanceSummary) {
+  return instance.permissions.includes("Release");
+}
+
+/** The star flagging an instance as favorite of the user - toggles the flag without opening the instance. */
+function FavoriteToggle({
+  instance,
+  onToggle,
+}: {
+  instance: InstanceSummary;
+  onToggle: (instanceId: string) => void;
+}) {
+  const label = instance.favorite
+    ? `Remove ${instance.instanceName} from favorites`
+    : `Add ${instance.instanceName} to favorites`;
+  return (
+    <button
+      type="button"
+      className={
+        instance.favorite
+          ? "favorite-toggle favorite-toggle--active"
+          : "favorite-toggle"
+      }
+      aria-pressed={instance.favorite}
+      aria-label={label}
+      title={instance.favorite ? "Remove from favorites" : "Add to favorites"}
+      onClick={(event) => {
+        event.stopPropagation();
+        onToggle(instance.instanceId);
+      }}
+      onDoubleClick={(event) => event.stopPropagation()}
+    >
+      <FontAwesomeIcon icon={instance.favorite ? faStarSolid : faStarRegular} />
+    </button>
+  );
+}
+
+/**
+ * Permissions shown as icons, in display order, the instance-page mode each one opens and what the user may not do
+ * without it. Review is the right to invite reviewers; the instance page has no review mode, so it opens in view.
+ */
+const permissionItems = [
+  { key: "View", icon: faEye, search: "", action: "view this instance" },
+  { key: "Edit", icon: faPen, search: "?edit=1", action: "edit this instance" },
+  { key: "Review", icon: faClipboardCheck, search: "?review=1", action: "invite reviewers for this instance" },
+  { key: "Release", icon: faRocket, search: "?release=1", action: "release this instance" },
+] as const;
+
+function InstancePermissionButtons({
+  instance,
+  labeled = false,
+  onOpen,
+}: {
+  instance: InstanceSummary;
+  /** Shows the permission name beside the icon (the narrow-screen card). */
+  labeled?: boolean;
+  onOpen: (instanceId: string, search: string) => void;
+}) {
+  // All permissions are shown - the ones the user lacks disabled - so the icons line up from row to row
+  return (
+    <div className="instance-permissions">
+      {permissionItems.map((item) => {
+        const permitted = instance.permissions.includes(item.key);
+        return (
+          <DisabledHint key={item.key} reason={permitted ? undefined : noPermission(item.action)}>
+            <button
+              type="button"
+              className={
+                labeled
+                  ? "instance-permission-btn instance-permission-btn--labeled"
+                  : "instance-permission-btn"
+              }
+              disabled={!permitted}
+              aria-label={`Open ${instance.instanceName} in ${item.key.toLowerCase()} mode`}
+              title={permitted ? `Open in ${item.key.toLowerCase()} mode` : undefined}
+              onClick={(event) => {
+                event.stopPropagation();
+                onOpen(instance.instanceId, item.search);
+              }}
+              onDoubleClick={(event) => event.stopPropagation()}
+            >
+              <FontAwesomeIcon icon={item.icon} aria-hidden="true" />
+              {labeled && item.key}
+            </button>
+          </DisabledHint>
+        );
+      })}
+    </div>
+  );
+}
+
+function InstanceCardList({
+  instances,
+  loading,
+  selectedInstances,
+  previewInstanceId,
+  expandedIds,
+  copiedId,
+  onOpen,
+  onOpenDetail,
+  onToggleSelected,
+  onToggleFavorite,
+  onOpenPermission,
+  onToggleDetails,
+  onCopyId,
+}: {
+  instances: InstanceSummary[];
+  loading: boolean;
+  selectedInstances: Set<string>;
+  previewInstanceId?: string;
+  expandedIds: Set<string>;
+  copiedId: string | null;
+  onOpen: (instanceId: string) => void;
+  onOpenDetail: (event: React.MouseEvent, instanceId: string) => void;
+  onToggleSelected: (instanceId: string) => void;
+  onToggleFavorite: (instanceId: string) => void;
+  onOpenPermission: (instanceId: string, search: string) => void;
+  onToggleDetails: (instanceId: string) => void;
+  onCopyId: (instanceId: string) => void;
+}) {
+  if (loading) {
+    return (
+      <div className="text-center py-4">
+        <Spinner animation="border" size="sm" role="status" className="me-2" />
+        Loading instances...
+      </div>
+    );
+  }
+
+  return (
+    <div className="instance-cards">
+      {instances.map((instance) => {
+        const typeColor =
+          instance.typeColor || typeColors[instance.type] || "#999";
+        const detailsOpen = expandedIds.has(instance.instanceId);
+        return (
+          <article
+            key={instance.instanceId}
+            className={
+              previewInstanceId === instance.instanceId
+                ? "instance-card instance-card-selected"
+                : "instance-card"
+            }
+            aria-label={instance.instanceName}
+            onClick={(event) => {
+              if (
+                (event.target as HTMLElement).closest('input[type="checkbox"]')
+              ) {
+                return;
+              }
+              onOpen(instance.instanceId);
+            }}
+            onDoubleClick={(event) => onOpenDetail(event, instance.instanceId)}
+          >
+            <div className="instance-card-main">
+              <div onClick={(event) => event.stopPropagation()}>
+                <Form.Check
+                  type="checkbox"
+                  aria-label={`Select ${instance.instanceName}`}
+                  checked={selectedInstances.has(instance.instanceId)}
+                  onChange={() => onToggleSelected(instance.instanceId)}
+                />
+              </div>
+              <div className="instance-card-content">
+                <div className="instance-card-kicker">
+                  <span title={instance.typeDescription}>
+                    <FontAwesomeIcon
+                      icon={faCircle}
+                      className="type-color-icon me-2"
+                      style={{ color: typeColor }}
+                    />
+                    {instance.type}
+                  </span>
+                  <FavoriteToggle
+                    instance={instance}
+                    onToggle={onToggleFavorite}
+                  />
+                </div>
+                <h3 className="instance-card-name">{instance.instanceName}</h3>
+                <div className="instance-card-id">
+                  <span
+                    className="instance-card-id-text"
+                    title={instance.instanceId}
+                  >
+                    {instance.instanceId}
+                  </span>
+                  <button
+                    type="button"
+                    className="instance-preview-copy"
+                    aria-label={
+                      copiedId === instance.instanceId ? "ID copied" : "Copy ID"
+                    }
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      onCopyId(instance.instanceId);
+                    }}
+                  >
+                    <FontAwesomeIcon icon={faCopy} />
+                  </button>
+                </div>
+              </div>
+            </div>
+            <button
+              type="button"
+              className="instance-card-details-toggle"
+              aria-expanded={detailsOpen}
+              onClick={(event) => {
+                event.stopPropagation();
+                onToggleDetails(instance.instanceId);
+              }}
+            >
+              <FontAwesomeIcon
+                icon={detailsOpen ? faChevronUp : faChevronDown}
+                className="me-2"
+              />
+              {detailsOpen ? "Hide details" : "Details"}
+            </button>
+            {detailsOpen && (
+              <div className="instance-card-details">
+                <div>
+                  <span className="instance-preview-meta-label">Status</span>
+                  <InstanceStatusTags
+                    releaseStatus={instance.releaseStatus}
+                    contributed={instance.contributed}
+                    validation={instance.validation}
+                  />
+                </div>
+                <div>
+                  <span className="instance-preview-meta-label">Space</span>
+                  {instance.space}
+                </div>
+                <InstancePermissionButtons
+                  instance={instance}
+                  labeled
+                  onOpen={onOpenPermission}
+                />
+                <div>
+                  <span className="instance-preview-meta-label">
+                    Last modified
+                  </span>
+                  <Timestamp value={instance.lastModified} fallback="Unknown" />
+                </div>
+              </div>
+            )}
+          </article>
+        );
+      })}
+    </div>
+  );
+}
+
+function InstancePreview({
+  instance,
+  onToggleFavorite,
+  onClose,
+  onOpen,
+  onEdit,
+  onRaw,
+}: {
+  instance: InstanceSummary;
+  onToggleFavorite: (instanceId: string) => void;
+  onClose: () => void;
+  onOpen: () => void;
+  onEdit: () => void;
+  onRaw: () => void;
+}) {
+  const navigate = useNavigate();
+  const { getAccessToken } = useAuth();
+  const [detail, setDetail] = useState<InstanceDetail | undefined>();
+  const [fieldsLoading, setFieldsLoading] = useState(true);
+  const [fieldsError, setFieldsError] = useState<string>();
+  const [copied, setCopied] = useState(false);
+  const canEdit = instance.permissions.includes("Edit");
+  const typeColor =
+    instance.typeColor || typeColors[instance.type] || "#6c757d";
+
+  useEffect(() => {
+    let cancelled = false;
+    setFieldsLoading(true);
+    setFieldsError(undefined);
+    setDetail(undefined);
+    getAccessToken()
+      .then((token) => fetchInstance(token, instance.instanceId))
+      .then((loaded) => {
+        if (!cancelled) {
+          setDetail(loaded);
+          setFieldsLoading(false);
+        }
+      })
+      .catch((e: unknown) => {
+        console.error("Failed to load the instance preview", e);
+        if (!cancelled) {
+          setFieldsError(e instanceof Error ? e.message : String(e));
+          setFieldsLoading(false);
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [getAccessToken, instance.instanceId]);
+
+  useEffect(() => {
+    if (!copied) {
+      return;
+    }
+    const timer = window.setTimeout(() => setCopied(false), 2000);
+    return () => window.clearTimeout(timer);
+  }, [copied]);
+
+  const handleCopyId = () => {
+    navigator.clipboard.writeText(instance.instanceId);
+    setCopied(true);
+  };
+
+  const fields = detail?.fields ?? [];
+  const supportedFields = fields.filter(
+    (field) => field.kind !== "UNSUPPORTED",
+  );
+  const unsupportedFields = fields
+    .filter((field) => field.kind === "UNSUPPORTED")
+    .sort((a, b) => a.label.localeCompare(b.label));
+
+  return (
+    <aside
+      className="instance-preview"
+      style={{ "--instance-type-color": typeColor } as React.CSSProperties}
+      aria-label={`Preview of ${instance.instanceName}`}
+    >
+      <div className="instance-preview-header">
+        <div className="instance-preview-toolbar">
+          <FavoriteToggle instance={instance} onToggle={onToggleFavorite} />
+          <button
+            type="button"
+            className="instance-preview-close"
+            onClick={onClose}
+            aria-label="Close preview"
+          >
+            <FontAwesomeIcon icon={faXmark} />
+          </button>
+        </div>
+        <div className="instance-preview-type" title={instance.typeDescription}>
+          <FontAwesomeIcon
+            icon={faCircle}
+            className="type-color-icon me-2"
+            style={{ color: typeColor }}
+          />
+          {instance.type}
+        </div>
+        <h3 className="instance-preview-name">{instance.instanceName}</h3>
+        <div className="instance-preview-id">
+          <span
+            className="instance-preview-id-text"
+            title={instance.instanceId}
+          >
+            {instance.instanceId}
+          </span>
+          <button
+            type="button"
+            className="instance-preview-copy"
+            onClick={handleCopyId}
+            aria-label={copied ? "ID copied" : "Copy ID"}
+            title={copied ? "ID copied!" : "Copy ID"}
+          >
+            <FontAwesomeIcon icon={faCopy} />
+          </button>
+        </div>
+        <div className="instance-preview-space">
+          <span className="instance-preview-meta-label">Space</span>
+          {instance.space}
+        </div>
+        <div
+          className="instance-preview-actions"
+          role="group"
+          aria-label="Open instance"
+        >
+          <Button
+            variant="dark"
+            size="sm"
+            onClick={onOpen}
+            aria-label="Open instance"
+          >
+            <FontAwesomeIcon icon={faEye} aria-hidden="true" />
+            Open
+          </Button>
+          <DisabledHint reason={canEdit ? undefined : noPermission("edit this instance")}>
+            <Button
+              variant="outline-secondary"
+              size="sm"
+              onClick={onEdit}
+              disabled={!canEdit}
+              aria-label="Edit instance"
+            >
+              <FontAwesomeIcon icon={faPen} aria-hidden="true" />
+              Edit
+            </Button>
+          </DisabledHint>
+          <Button
+            variant="outline-secondary"
+            size="sm"
+            onClick={onRaw}
+            aria-label="Open instance in raw mode"
+          >
+            <FontAwesomeIcon icon={faCode} aria-hidden="true" />
+            Raw
+          </Button>
+        </div>
+      </div>
+      <div className="instance-preview-fields">
+        {fieldsLoading && (
+          <div className="instance-preview-fields-status text-muted">
+            <Spinner
+              animation="border"
+              size="sm"
+              role="status"
+              className="me-2"
+            />
+            Loading fields...
+          </div>
+        )}
+        {!fieldsLoading && fieldsError && (
+          <p className="instance-preview-fields-status text-muted mb-0">
+            The fields could not be loaded.
+          </p>
+        )}
+        {!fieldsLoading && !fieldsError && fields.length === 0 && (
+          <p className="instance-preview-fields-status text-muted mb-0">
+            This instance has no fields.
+          </p>
+        )}
+        {!fieldsLoading &&
+          !fieldsError &&
+          supportedFields.map((field) => (
+            <PreviewField
+              key={field.identifier}
+              field={field}
+              onInstanceClick={(linkedId) =>
+                navigate(`/editor/instances/${linkedId}`)
+              }
+            />
+          ))}
+        {!fieldsLoading && !fieldsError && unsupportedFields.length > 0 && (
+          <PreviewUnsupportedFields
+            fields={unsupportedFields}
+            onInstanceClick={(linkedId) =>
+              navigate(`/editor/instances/${linkedId}`)
+            }
+          />
+        )}
+      </div>
+    </aside>
+  );
+}
+
+function PreviewField({
+  field,
+  onInstanceClick,
+}: {
+  field: InstanceField;
+  onInstanceClick: (instanceId: string) => void;
+}) {
+  return (
+    <div className="instance-preview-field">
+      <div className="instance-preview-field-label" title={field.tooltip}>
+        {field.label}
+      </div>
+      <InstanceFieldControl
+        field={field}
+        value={field.value ?? null}
+        onChange={() => undefined}
+        isEditMode={false}
+        onInstanceClick={onInstanceClick}
+      />
+    </div>
+  );
+}
+
+function PreviewUnsupportedFields({
+  fields,
+  onInstanceClick,
+}: {
+  fields: InstanceField[];
+  onInstanceClick: (instanceId: string) => void;
+}) {
+  const [isExpanded, setIsExpanded] = useState(false);
+  return (
+    <div className="instance-preview-unsupported">
+      <button
+        type="button"
+        className="instance-preview-unsupported-toggle"
+        onClick={() => setIsExpanded((previous) => !previous)}
+        aria-expanded={isExpanded}
+      >
+        Unsupported fields ({fields.length})
+        <FontAwesomeIcon
+          icon={isExpanded ? faChevronUp : faChevronDown}
+          className="ms-2"
+        />
+      </button>
+      <Collapse in={isExpanded}>
+        <div>
+          {fields.map((field) => (
+            <PreviewField
+              key={field.identifier}
+              field={field}
+              onInstanceClick={onInstanceClick}
+            />
+          ))}
+        </div>
+      </Collapse>
+    </div>
+  );
+}

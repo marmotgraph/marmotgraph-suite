@@ -1,0 +1,105 @@
+.linked-instances-edit-modal .modal-body {
+  padding-top: 0.75rem;
+}
+
+.linked-instances-edit-modal-count {
+  font-size: 0.95rem;
+  font-weight: 400;
+  color: #6c757d;
+}
+
+.linked-instances-edit-modal-help {
+  font-size: 0.875rem;
+  margin-bottom: 0.75rem;
+}
+
+.linked-instances-edit-modal-filters {
+  border: 1px solid #dee2e6;
+  border-radius: 6px;
+  padding: 8px 10px;
+  background-color: #f8f9fa;
+}
+
+.linked-instances-edit-modal-filters--available {
+  margin-bottom: 0.5rem;
+  padding: 8px;
+  background-color: #f8f9fa;
+}
+
+.linked-instances-edit-modal-filters--available
+  .linked-instances-edit-modal-filter-row {
+  gap: 8px;
+}
+
+.linked-instances-edit-modal-filters--available
+  .linked-instances-edit-modal-filter-controls {
+  flex: 1;
+  min-width: 0;
+}
+
+.linked-instances-edit-modal-filters--available
+  .linked-instances-edit-modal-filter-pills {
+  margin-top: 6px;
+  padding-top: 6px;
+}
+
+.linked-instances-edit-modal-filter-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.linked-instances-edit-modal-filter-controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.linked-instances-edit-modal-filter-label {
+  flex-shrink: 0;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.35px;
+  color: #6c757d;
+  margin-bottom: 0;
+}
+
+.linked-instances-edit-modal-filter-pills {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid #e9ecef;
+}
+
+.linked-instances-edit-modal-filter-pills-groups {
+  display: flex;
+  flex: 1;
+  flex-wrap: wrap;
+  gap: 10px 16px;
+  min-width: 0;
+}
+
+.linked-instances-edit-modal-clear-filters {
+  flex-shrink: 0;
+  font-size: 0.75rem;
+  white-space: nowrap;
+  text-decoration: none !important;
+  color: #6c757d !important;
+  align-self: flex-start;
+  margin-top: 2px;
+}
+
+.linked-instances-edit-modal-clear-filters:hover {
+  color: #343a40 !important;
+  text-decoration: underline !important;
+}
+
+.linked-instances-edit-modal-badge {
+  margin-right: auto;
+  border: 1px solid #dee2e6;
+}

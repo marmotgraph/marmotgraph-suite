@@ -1,0 +1,84 @@
+.filter-pills-overflow {
+  flex: 1 1 200px;
+  min-width: 0;
+}
+
+.filter-pills-overflow-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 4px;
+}
+
+.filter-pills-overflow-label {
+  font-size: 0.7rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.35px;
+  color: #868e96;
+}
+
+.filter-pills-overflow-count {
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: 999px;
+  background-color: #dee2e6;
+  color: #495057;
+  font-size: 0.65rem;
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.filter-pills-overflow-clear {
+  margin-left: auto;
+  font-size: 0.75rem;
+  text-decoration: none !important;
+  color: #6c757d !important;
+}
+
+.filter-pills-overflow-clear:hover {
+  color: #343a40 !important;
+  text-decoration: underline !important;
+}
+
+.filter-pills-overflow-list {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+
+.filter-pills-overflow-list--expanded {
+  max-height: 88px;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
+.filter-pills-overflow-toggle {
+  font-size: 0.75rem;
+  white-space: nowrap;
+  text-decoration: none !important;
+  color: #495057 !important;
+}
+
+.filter-pills-overflow-toggle:hover {
+  text-decoration: underline !important;
+  color: #212529 !important;
+}
+
+.filter-pill-compact.badge {
+  font-size: 0.75rem !important;
+  padding: 0.25rem 0.5rem !important;
+  margin: 0 !important;
+  max-width: 100%;
+}
+
+.filter-pill-compact .filter-pill-value {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 220px;
+}
