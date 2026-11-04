@@ -25,6 +25,7 @@ import { useAuth } from "../../contexts/AuthContext";
 import { useInstances } from "../../contexts/InstancesContext";
 import { useUnsavedInstances } from "../../contexts/UnsavedInstancesContext";
 import { SearchBar } from "../../components/SearchBar";
+import UnsavedInstancesPanel from "../../components/UnsavedInstancesPanel";
 import { InstanceFilterPanel } from "../../components/InstanceFilterPanel";
 import { FilterPill } from "../../components/FilterPill";
 import InstanceFieldControl from "../../components/InstanceFieldControl";
@@ -949,6 +950,7 @@ export default function EditorHome() {
           </Button>
         </Modal.Footer>
       </Modal>
+      <UnsavedInstancesPanel />
     </div>
   );
 }

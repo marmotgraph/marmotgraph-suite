@@ -18,7 +18,12 @@ vi.mock("../../contexts/AuthContext", () => {
 vi.mock("../../services/instances", () => ({ deleteInstance: vi.fn(), fetchInstance: vi.fn() }));
 const { removeDraft } = vi.hoisted(() => ({ removeDraft: vi.fn() }));
 vi.mock("../../contexts/UnsavedInstancesContext", () => ({
-  useUnsavedInstances: () => ({ removeDraft }),
+  useUnsavedInstances: () => ({
+    removeDraft,
+    drafts: [],
+    getDraft: () => undefined,
+    upsertDraft: vi.fn(),
+  }),
 }));
 
 const instance: InstanceSummary = {

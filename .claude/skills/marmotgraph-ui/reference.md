@@ -125,7 +125,7 @@ A highlighted link card uses fill `#f3f7fc` and a `#6c8ebf` ring. Unresolved car
 
 ### Unsaved rail
 
-Fixed to the right edge, `z-index: 1040`, gray shell `#f1f3f5`, left corners radius 8px. Expanded 300px, collapsed 52px with the label set vertical. The count is a `#495057` pill with white text. New fixed UI must leave this rail reachable. Breadcrumb menus stack above it (`z-index: 1600`).
+Fixed to the right edge, `z-index: 1040`, gray shell `#f1f3f5`, left corners radius 8px. Expanded 400px, collapsed 52px with the label set vertical. The list and the action row inset 16px on the left. The count is a `#495057` pill with white text. Drafts are kept in `sessionStorage` for the browser tab, including across a refresh, and the rail is also on the instance list. Each draft has a save icon and an X that cancels that draft’s unsaved changes. With more than one draft, Select all sits above the list, and a selection pins Save and Cancel underneath. Save and Cancel each ask for confirmation. The dialog is 800px wide. It states how many instances and changes are included, warns when a save cannot proceed, a value will be cleared, a new draft has never been stored, or raw JSON will replace the document, and lists each instance on a card with its id and the previous and next value. When more than one instance is listed, each can be left out before confirming. Cancel drops the edits. The instances are not deleted. New fixed UI must leave this rail reachable. Breadcrumb menus stack above it (`z-index: 1600`).
 
 ## States
 

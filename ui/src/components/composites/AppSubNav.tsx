@@ -60,10 +60,13 @@ export default function AppSubNav({ title, ctas }: AppSubNavProps) {
       handleCloseModal();
       return;
     }
-    // The id of the new instance is generated on the client - it is marked as new since it is not known to the core yet
+    // The id of the new instance is generated on the client - it is marked as new since it is not known to the core yet.
+    // A client navigation keeps the other unsaved drafts. A full page load would drop them.
     const instanceId = crypto.randomUUID();
-    // Navigate to the instance form with the type as query param - the name is given by the label field of the type
-    window.location.href = `/editor/instances/${instanceId}?new=1&type=${encodeURIComponent(selectedType || '')}`;
+    navigate(
+      `/editor/instances/${instanceId}?new=1&type=${encodeURIComponent(selectedType || "")}`,
+    );
+    handleCloseModal();
   };
 
   return (

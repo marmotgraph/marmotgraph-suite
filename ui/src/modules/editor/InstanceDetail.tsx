@@ -551,12 +551,19 @@ function InstanceDetailView({ instanceId }: { instanceId: string }) {
       return;
     }
 
+    // The form is still the empty initial values until the loaded instance, or its stored draft, is taken over.
+    // Removing here would drop a draft that was restored for this session.
+    if (!isFieldValuesReady) {
+      return;
+    }
+
     if (!areInstanceFieldValuesEqual(currentFieldValues, baseline)) {
       upsertDraft({
         instanceId,
         instanceName: instanceName ?? instance.instanceName,
         type: instance.type,
         fieldValues: currentFieldValues,
+        baseline,
         updatedAt: Date.now(),
         isNew: isNewInstance,
         typeIdentifier: isNewInstance ? newInstanceType : undefined,
@@ -578,6 +585,7 @@ function InstanceDetailView({ instanceId }: { instanceId: string }) {
     instanceId,
     instanceName,
     isEditMode,
+    isFieldValuesReady,
     isNewInstance,
     newInstanceSpace,
     newInstanceType,
@@ -597,10 +605,16 @@ function InstanceDetailView({ instanceId }: { instanceId: string }) {
 
   if (loading) {
     return (
-      <div className="text-center py-4">
-        <Spinner animation="border" size="sm" role="status" className="me-2" />
-        Loading instance...
-      </div>
+      <>
+        <div className="text-center py-4">
+          <Spinner animation="border" size="sm" role="status" className="me-2" />
+          Loading instance...
+        </div>
+        <UnsavedInstancesPanel
+          currentInstanceId={instanceId}
+          onDiscardCurrent={resetToSaved}
+        />
+      </>
     );
   }
 
@@ -610,6 +624,10 @@ function InstanceDetailView({ instanceId }: { instanceId: string }) {
         <h2>Instance not found</h2>
         <p>No instance found with ID: {instanceId}</p>
         {loadError && <p className="text-muted">{loadError}</p>}
+        <UnsavedInstancesPanel
+          currentInstanceId={instanceId}
+          onDiscardCurrent={resetToSaved}
+        />
       </div>
     );
   }
@@ -727,7 +745,7 @@ function InstanceDetailView({ instanceId }: { instanceId: string }) {
     );
     setSaving(true);
     setSaveError(undefined);
-    getAccessToken()
+    return getAccessToken()
       .then((token) =>
         isNewInstance
           ? createInstance(token, instanceId, newInstanceType, changes, newInstanceSpace)
@@ -761,6 +779,7 @@ function InstanceDetailView({ instanceId }: { instanceId: string }) {
       .catch((e: unknown) => {
         console.error("Failed to save the instance", e);
         setSaveError(e instanceof Error ? e.message : String(e));
+        throw e;
       })
       .finally(() => setSaving(false));
   };
@@ -1122,7 +1141,9 @@ function InstanceDetailView({ instanceId }: { instanceId: string }) {
                         <Button
                           type="button"
                           variant="dark"
-                          onClick={handleSave}
+                          onClick={() => {
+                            handleSave().catch(() => undefined);
+                          }}
                           disabled={changedFieldKeys.size === 0 || saving}
                         >
                           {saving && (
@@ -1165,6 +1186,7 @@ function InstanceDetailView({ instanceId }: { instanceId: string }) {
       <UnsavedInstancesPanel
         currentInstanceId={instanceId}
         onDiscardCurrent={resetToSaved}
+        onSaveCurrent={handleSave}
       />
       <DeleteInstanceModal
         show={confirmDelete && isEditMode}

@@ -18,7 +18,7 @@ import {
 } from "../../services/instances";
 import { fetchTypeFields, fetchTypes } from "../../services/types";
 import { addComment, deleteComment, fetchComments, InstanceComment, updateComment } from "../../services/comments";
-import { UnsavedInstanceDraft, UnsavedInstancesProvider, useUnsavedInstances } from "../../contexts/UnsavedInstancesContext";
+import { UNSAVED_INSTANCES_STORAGE_KEY, UnsavedInstanceDraft, UnsavedInstancesProvider, useUnsavedInstances } from "../../contexts/UnsavedInstancesContext";
 
 vi.mock("../../contexts/AuthContext", () => {
   const getAccessToken = () => Promise.resolve("token");
@@ -137,6 +137,56 @@ function WithDraft({ draft, children }: { draft: UnsavedInstanceDraft; children:
 }
 
 describe("InstanceDetail", () => {
+  beforeEach(() => {
+    sessionStorage.clear();
+  });
+
+  it("keeps unsaved instances from the session after a refresh", async () => {
+    const name = "https://example.org/name";
+    sessionStorage.setItem(
+      UNSAVED_INSTANCES_STORAGE_KEY,
+      JSON.stringify({
+        "inst-1": {
+          instanceId: "inst-1",
+          instanceName: "Headquarters",
+          type: "Building",
+          fieldValues: { [name]: "Renamed" },
+          baseline: { [name]: "Headquarters" },
+          updatedAt: 1,
+        },
+        "inst-2": {
+          instanceId: "inst-2",
+          instanceName: "Warehouse",
+          type: "Building",
+          fieldValues: { [name]: "WH" },
+          updatedAt: 2,
+        },
+      }),
+    );
+
+    renderDetail("?edit=1", [
+      {
+        identifier: name,
+        label: "Name",
+        kind: "TEXT",
+        value: "Headquarters",
+        required: false,
+        readOnly: false,
+      },
+    ]);
+
+    await screen.findByRole("heading", { name: "Headquarters" });
+    fireEvent.click(
+      screen.getByRole("button", { name: "Expand unsaved instances panel, 2 unsaved" }),
+    );
+    expect(await screen.findByRole("button", { name: "Save Headquarters" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Save Warehouse" })).toBeInTheDocument();
+    await waitFor(() => {
+      const stored = JSON.parse(sessionStorage.getItem(UNSAVED_INSTANCES_STORAGE_KEY) ?? "{}");
+      expect(Object.keys(stored).sort()).toEqual(["inst-1", "inst-2"]);
+    });
+  });
+
   describe("contributions to a field", () => {
     const nameField: InstanceField = {
       identifier: "https://example.org/name",
