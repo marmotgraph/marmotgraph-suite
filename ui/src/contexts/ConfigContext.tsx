@@ -1,5 +1,6 @@
 import React, { createContext, ReactNode, useCallback, useContext, useEffect, useState } from "react";
 import { AppConfig, fetchConfig } from "../services/config";
+import { applyTenantStylesheet } from "../services/tenants";
 import StartupStatus from "../components/StartupStatus";
 
 const ConfigContext = createContext<AppConfig | undefined>(undefined);
@@ -12,7 +13,10 @@ export function ConfigProvider({ children }: { children: ReactNode }) {
   const load = useCallback(() => {
     setError(undefined);
     fetchConfig()
-      .then(setConfig)
+      .then((loaded) => {
+        applyTenantStylesheet(loaded.coreUrl, loaded.tenant);
+        setConfig(loaded);
+      })
       .catch((e: Error) => setError(e.message));
   }, []);
 

@@ -92,5 +92,31 @@ export function imageUrl(coreUrl: string, name: string, image: TenantImage, dark
     params.set("darkMode", String(darkMode));
   }
   const query = params.toString();
-  return `${coreUrl.replace(/\/+$/, "")}/v4/tenants/${encodeURIComponent(name)}/theme/${image}${query ? `?${query}` : ""}`;
+  return `${themeUrl(coreUrl, name)}/${image}${query ? `?${query}` : ""}`;
+}
+
+/** The url of the stylesheet of the tenant as provided (publicly) by the core - generated from its theme. */
+export function stylesheetUrl(coreUrl: string, name: string): string {
+  return `${themeUrl(coreUrl, name)}/css`;
+}
+
+function themeUrl(coreUrl: string, name: string): string {
+  return `${coreUrl.replace(/\/+$/, "")}/v4/tenants/${encodeURIComponent(name)}/theme`;
+}
+
+const STYLESHEET_ID = "tenant-stylesheet";
+
+/**
+ * Applies the stylesheet of the tenant to the page. It is added at the end of the head so it takes precedence over the
+ * styles of the UI. The page isn't blocked while it loads - if the core can't provide it, the default styles remain.
+ */
+export function applyTenantStylesheet(coreUrl: string, name: string) {
+  let link = document.getElementById(STYLESHEET_ID) as HTMLLinkElement | null;
+  if (!link) {
+    link = document.createElement("link");
+    link.id = STYLESHEET_ID;
+    link.rel = "stylesheet";
+    document.head.appendChild(link);
+  }
+  link.href = stylesheetUrl(coreUrl, name);
 }
