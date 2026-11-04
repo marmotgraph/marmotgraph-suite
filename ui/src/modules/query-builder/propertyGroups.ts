@@ -1,8 +1,13 @@
+import { IDENTIFIER } from "../../services/instances";
 import type { QueryProperty } from "../../services/queries";
-import { propertyLabel, simpleName, TypesById } from "./queryModel";
+import { INTRINSIC_PROPERTIES, propertyLabel, simpleName, TypesById } from "./queryModel";
 
-/** Properties of the core itself - only offered on request */
+/** Properties of the core itself and technical identifiers - only offered on request */
 const ADVANCED_PROPERTY_PREFIX = "https://core.kg.ebrains.eu/vocab/meta";
+
+function isAdvanced(property: QueryProperty): boolean {
+  return property.identifier.startsWith(ADVANCED_PROPERTY_PREFIX) || property.identifier === IDENTIFIER;
+}
 
 export interface PropertyGroup {
   /** The type the properties are specific to */
@@ -50,8 +55,8 @@ export function availableProperties(
     if (!type) {
       return [];
     }
-    const properties = type.properties.filter(
-      (p) => (includeAdvanced || !p.identifier.startsWith(ADVANCED_PROPERTY_PREFIX)) && matches(p, filter),
+    const properties = [...type.properties, ...(includeAdvanced ? INTRINSIC_PROPERTIES : [])].filter(
+      (p) => (includeAdvanced || !isAdvanced(p)) && matches(p, filter),
     );
     return properties.length ? [{ type: typeId, properties }] : [];
   });

@@ -164,6 +164,37 @@ describe("fromSpecification", () => {
     expect(fieldProblem(unknown, false)).toBeDefined();
   });
 
+  it("resolves the rest of a flattened path against the types the path leads to", () => {
+    const model = fromSpecification(
+      {
+        meta: { type: PERSON },
+        structure: [
+          { propertyName: "country", path: [{ property: LIVES_IN }, { property: IN_COUNTRY }, { property: NAME }] },
+          { propertyName: "cityName", path: [{ property: LIVES_IN, typeFilter: [COUNTRY] }, { property: NAME }] },
+        ],
+      },
+      types,
+    );
+    const [livesIn, filtered] = model.root.children;
+    const inCountry = livesIn.children[0];
+    const countryName = inCountry.children[0];
+    expect(inCountry.isUnknown).toBe(false);
+    expect(inCountry.schema).toMatchObject({ label: "Country", targetTypes: [COUNTRY] });
+    expect(countryName.isUnknown).toBe(false);
+    expect(countryName.schema.label).toBe("Name");
+    expect(filtered.children[0].isUnknown).toBe(true);
+  });
+
+  it("knows attributes which come with an empty structure", () => {
+    const specification: QuerySpecification = {
+      meta: { type: PERSON },
+      structure: [{ propertyName: "name", path: [{ property: NAME }], structure: [] }],
+    };
+    const model = fromSpecification(specification, types);
+    expect(model.root.children[0].isUnknown).toBe(false);
+    expect(toSpecification(model).structure).toEqual([{ propertyName: "name", path: [{ property: NAME }] }]);
+  });
+
   it("produces the same specification again", () => {
     expect(toSpecification(fromSpecification(specification, types))).toEqual(specification);
   });
@@ -199,6 +230,32 @@ describe("fromSpecification", () => {
       types,
     );
     expect(model.root.children[0].options).toEqual({});
+  });
+
+  it("keeps the intrinsic properties known and round trips them", () => {
+    const specification: QuerySpecification = {
+      meta: { type: PERSON },
+      structure: [
+        { propertyName: "id", path: [{ property: "@id" }] },
+        { propertyName: "type", path: [{ property: "@type" }] },
+        { propertyName: "space", path: [{ property: "_space" }] },
+      ],
+    };
+    const model = fromSpecification(specification, types);
+    expect(model.root.children.map((f) => [f.schema.label, f.isUnknown, f.alias])).toEqual([
+      ["@id", false, undefined],
+      ["@type", false, undefined],
+      ["_space", false, undefined],
+    ]);
+    expect(toSpecification(model)).toEqual(specification);
+  });
+
+  it("doesn't know the intrinsic properties in reverse", () => {
+    const model = fromSpecification(
+      { meta: { type: PERSON }, structure: [{ path: [{ property: "@id", reverse: true }] }] },
+      types,
+    );
+    expect(model.root.children[0].isUnknown).toBe(true);
   });
 
   it("flags an unknown root type", () => {
@@ -265,5 +322,26 @@ describe("availableProperties", () => {
     const available = availableProperties(types, [PERSON], "city", false);
     expect(available.commonLinks.map((p) => p.identifier)).toEqual([LIVES_IN]);
     expect(available.commonAttributes).toEqual([]);
+  });
+
+  it("only offers schema.org/identifier as advanced attribute", () => {
+    const identifier = "http://schema.org/identifier";
+    const withIdentifier: TypesById = new Map([
+      [PERSON, { identifier: PERSON, properties: [{ identifier, reverse: false, targetTypes: [] }] }],
+    ]);
+    const identifiers = (includeAdvanced: boolean) =>
+      availableProperties(withIdentifier, [PERSON], "", includeAdvanced).commonAttributes.map((p) => p.identifier);
+    expect(identifiers(false)).toEqual([]);
+    expect(identifiers(true)).toContain(identifier);
+  });
+
+  it("only offers the intrinsic properties as advanced attributes", () => {
+    const intrinsic = ["@id", "@type", "_space"];
+    const identifiers = (includeAdvanced: boolean, lookups = [PERSON]) =>
+      availableProperties(types, lookups, "", includeAdvanced).commonAttributes.map((p) => p.identifier);
+    expect(identifiers(false)).toEqual([NAME]);
+    expect(identifiers(true)).toEqual(expect.arrayContaining([...intrinsic, NAME]));
+    expect(identifiers(true, [CITY, COUNTRY])).toEqual(expect.arrayContaining(intrinsic));
+    expect(availableProperties(types, [PERSON], "_spa", true).commonAttributes.map((p) => p.identifier)).toEqual(["_space"]);
   });
 });

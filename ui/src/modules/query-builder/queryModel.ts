@@ -80,15 +80,23 @@ export interface QueryModel {
 
 export type TypesById = Map<string, QueryType>;
 
+/** The properties every instance has - they are not part of the structure of the types */
+export const INTRINSIC_PROPERTIES: QueryProperty[] = ["@id", "@type", "_space"].map((identifier) => ({
+  identifier,
+  label: identifier,
+  reverse: false,
+  targetTypes: [],
+}));
+
 let nextKey = 0;
 function newKey(): string {
   nextKey += 1;
   return `field-${nextKey}`;
 }
 
-/** The last segment of an identifier ("name" for "https://schema.org/name", "id" for "@id") */
+/** The last segment of an identifier ("name" for "https://schema.org/name", "id" for "@id", "space" for "_space") */
 export function simpleName(identifier: string): string {
-  if (identifier.startsWith("@")) {
+  if (identifier.startsWith("@") || identifier.startsWith("_")) {
     return identifier.substring(1);
   }
   return identifier.substring(
@@ -311,11 +319,8 @@ export function typeFilterOptions(field: QueryField): { identifier: string; sele
   return [...known, ...unknown];
 }
 
-/** The types whose properties can be added to the field - none for a flattened field (it has its only child). */
+/** The types the field leads to - its child fields are properties of these types. */
 export function lookupTypes(field: QueryField): string[] {
-  if (field.isFlattened) {
-    return [];
-  }
   return field.typeFilter
     ? field.schema.targetTypes.filter((type) => field.typeFilter?.includes(type))
     : field.schema.targetTypes;
@@ -495,15 +500,15 @@ function resolveSchema(
       property.targetTypes.forEach((t) => targetTypes.add(t));
     }
   });
-  const isKeyword = identifier === "@id";
+  const intrinsic = INTRINSIC_PROPERTIES.find((p) => p.identifier === identifier && p.reverse === reverse);
   return {
     schema: {
       identifier,
-      label: found?.label ?? (isKeyword ? identifier : undefined),
+      label: found?.label ?? intrinsic?.label,
       reverse,
       targetTypes: Array.from(targetTypes),
     },
-    isUnknown: !found && !isKeyword,
+    isUnknown: !found && !intrinsic,
   };
 }
 
@@ -523,7 +528,8 @@ function parseField(types: TypesById, parent: QueryField, json: Record<string, u
   const rawPaths = asArray(json.path as unknown);
   const first = parsePath(rawPaths[0]);
   const isFlattened = rawPaths.length > 1;
-  const isLeaf = isFlattened ? false : json.structure === undefined;
+  // A field without children may come with an empty structure (the SDK binds a missing list as an empty one)
+  const isLeaf = !isFlattened && !asArray(json.structure as unknown).length;
   const resolved = first
     ? resolveSchema(types, lookupTypes(parent), first.property, !!first.reverse, isLeaf)
     : { schema: { identifier: "", reverse: false, targetTypes: [] }, isUnknown: true };
