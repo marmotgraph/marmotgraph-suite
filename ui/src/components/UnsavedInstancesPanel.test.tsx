@@ -8,7 +8,7 @@ import {
   UnsavedInstancesProvider,
   useUnsavedInstances,
 } from "../contexts/UnsavedInstancesContext";
-import { updateInstance } from "../services/instances";
+import { createInstance, updateInstance } from "../services/instances";
 
 const { addInstance } = vi.hoisted(() => ({ addInstance: vi.fn() }));
 
@@ -335,14 +335,14 @@ describe("UnsavedInstancesPanel", () => {
     fireEvent.click(screen.getByRole("checkbox", { name: "Select all" }));
     fireEvent.click(screen.getByRole("button", { name: "Save all (2)" }));
     const dialog = await screen.findByRole("dialog", { name: "Save all changes?" });
-    expect(within(dialog).getByRole("checkbox", { name: "Include Warehouse" })).toBeChecked();
+    expect(within(dialog).getByRole("checkbox", { name: "Include Warehouse (Building)" })).toBeChecked();
 
-    fireEvent.click(within(dialog).getByRole("checkbox", { name: "Include Warehouse" }));
-    fireEvent.click(within(dialog).getByRole("checkbox", { name: "Include Headquarters" }));
+    fireEvent.click(within(dialog).getByRole("checkbox", { name: "Include Warehouse (Building)" }));
+    fireEvent.click(within(dialog).getByRole("checkbox", { name: "Include Headquarters (Building)" }));
     expect(within(dialog).getByRole("button", { name: "Save" })).toBeDisabled();
     expect(dialog).toHaveTextContent("Choose at least one instance.");
 
-    fireEvent.click(within(dialog).getByRole("checkbox", { name: "Include Headquarters" }));
+    fireEvent.click(within(dialog).getByRole("checkbox", { name: "Include Headquarters (Building)" }));
     expect(screen.getByRole("checkbox", { name: "Select Warehouse" })).not.toBeChecked();
     fireEvent.click(within(dialog).getByRole("button", { name: "Save" }));
 
@@ -382,8 +382,134 @@ describe("UnsavedInstancesPanel", () => {
     expect(dialog).toHaveTextContent("Lobby: Open this instance to save it. Its type is missing.");
     expect(within(dialog).getByRole("button", { name: "Save all" })).toBeDisabled();
 
-    fireEvent.click(within(dialog).getByRole("checkbox", { name: "Include Lobby" }));
+    fireEvent.click(within(dialog).getByRole("checkbox", { name: "Include Lobby (Building)" }));
     expect(dialog).toHaveTextContent("1 of 2 instances");
     expect(within(dialog).getByRole("button", { name: "Save" })).toBeEnabled();
+  });
+
+  it("shows the link status of each draft", async () => {
+    const parent: UnsavedInstanceDraft = {
+      instanceId: "range-1",
+      instanceName: "test-002",
+      type: "Mountain range",
+      fieldValues: {
+        countries: [{ instanceId: "country-1", instanceName: "test-001", type: "Country", space: "demo" }],
+      },
+      baseline: { countries: [] },
+      changedFieldLabels: ["Countries"],
+      updatedAt: 1,
+    };
+    const country: UnsavedInstanceDraft = {
+      instanceId: "country-1",
+      instanceName: "test-001",
+      type: "Country",
+      isNew: true,
+      fieldValues: {},
+      updatedAt: 2,
+    };
+    const stored: UnsavedInstanceDraft = {
+      instanceId: "inst-3",
+      instanceName: "Warehouse",
+      type: "Building",
+      fieldValues: { name: "WH" },
+      baseline: { name: "Warehouse" },
+      hasReverseLinks: true,
+      updatedAt: 3,
+    };
+    render(
+      <MemoryRouter>
+        <UnsavedInstancesProvider>
+          <Seed item={parent} />
+          <Seed item={country} />
+          <Seed item={stored} />
+          <UnsavedInstancesPanel />
+        </UnsavedInstancesProvider>
+      </MemoryRouter>,
+    );
+
+    await openRail();
+    expect(screen.getByRole("img", { name: "Outgoing links" })).toBeInTheDocument();
+    expect(screen.getAllByRole("img", { name: "Incoming links" })).toHaveLength(2);
+  });
+
+  it("offers linked unsaved drafts and creates them before the instance that links to them", async () => {
+    const countryType = "https://example.org/types/Country";
+    const parent: UnsavedInstanceDraft = {
+      instanceId: "range-1",
+      instanceName: "test-002",
+      type: "Mountain range",
+      fieldValues: {
+        countries: [{ instanceId: "country-1", instanceName: "test-001", type: "Country", space: "demo" }],
+      },
+      baseline: { countries: [] },
+      changedFieldLabels: ["Countries"],
+      updatedAt: 1,
+    };
+    const country: UnsavedInstanceDraft = {
+      instanceId: "country-1",
+      instanceName: "test-001",
+      type: "Country",
+      typeIdentifier: countryType,
+      space: "demo",
+      isNew: true,
+      fieldValues: { name: "test-001" },
+      changedFieldLabels: ["Name"],
+      updatedAt: 2,
+    };
+    const order: string[] = [];
+    vi.mocked(createInstance).mockImplementation(async () => {
+      order.push("create");
+      return {
+        instanceId: "country-1",
+        type: "Country",
+        instanceName: "test-001",
+        space: "demo",
+        permissions: "View, Edit",
+        releaseStatus: "in progress",
+      };
+    });
+    vi.mocked(updateInstance).mockImplementation(async () => {
+      order.push("update");
+      return {
+        instanceId: "range-1",
+        type: "Mountain range",
+        instanceName: "test-002",
+        space: "demo",
+        permissions: "View, Edit",
+        releaseStatus: "has changed",
+      };
+    });
+    render(
+      <MemoryRouter>
+        <UnsavedInstancesProvider>
+          <Seed item={parent} />
+          <Seed item={country} />
+          <UnsavedInstancesPanel />
+        </UnsavedInstancesProvider>
+      </MemoryRouter>,
+    );
+
+    await openRail();
+    fireEvent.click(screen.getByRole("button", { name: "Save test-002" }));
+    const dialog = await screen.findByRole("dialog", { name: "Save these changes?" });
+    expect(dialog).toHaveTextContent("1 linked instance is still unsaved and not part of this save.");
+    expect(dialog).toHaveTextContent("test-001 has not been stored, so this link points at a draft.");
+    expect(dialog).toHaveTextContent("Linked from test-002");
+    expect(within(dialog).getByRole("checkbox", { name: "Include test-001 (Country)" })).not.toBeChecked();
+    expect(createInstance).not.toHaveBeenCalled();
+
+    fireEvent.click(within(dialog).getByRole("button", { name: "Include linked drafts" }));
+    expect(within(dialog).getByRole("checkbox", { name: "Include test-001 (Country)" })).toBeChecked();
+    expect(dialog).toHaveTextContent("Included linked drafts are saved first");
+    fireEvent.click(within(dialog).getByRole("button", { name: "Save" }));
+
+    await waitFor(() => expect(order).toEqual(["create", "update"]));
+    expect(createInstance).toHaveBeenCalledWith(
+      "token",
+      "country-1",
+      countryType,
+      { name: "test-001" },
+      "demo",
+    );
   });
 });

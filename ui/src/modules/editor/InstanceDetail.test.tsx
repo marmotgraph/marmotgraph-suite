@@ -27,6 +27,12 @@ vi.mock("../../contexts/AuthContext", () => {
 
 const { deleteInstances } = vi.hoisted(() => ({ deleteInstances: vi.fn() }));
 
+async function confirmInstanceSave() {
+  fireEvent.click(screen.getByRole("button", { name: "Save" }));
+  const dialog = await screen.findByRole("dialog", { name: "Save these changes?" });
+  fireEvent.click(within(dialog).getByRole("button", { name: "Save" }));
+}
+
 vi.mock("../../contexts/InstancesContext", () => ({
   useInstances: () => ({ addInstance: vi.fn(), deleteInstances, instances: [] }),
 }));
@@ -500,7 +506,7 @@ describe("InstanceDetail", () => {
 
     await screen.findByRole("button", { name: "Save" });
     fireEvent.change(within(document.querySelector(".instance-form") as HTMLElement).getByRole("textbox"), { target: { value: "SN-42" } });
-    fireEvent.click(screen.getByRole("button", { name: "Save" }));
+    await confirmInstanceSave();
 
     await waitFor(() =>
       expect(createInstance).toHaveBeenCalledWith("token", instanceId, device, {
@@ -573,7 +579,8 @@ describe("InstanceDetail", () => {
       vi.mocked(fetchIncomingLinks).mockResolvedValue([]);
       renderDraft({ [serialNumber]: "SN-1" });
 
-      fireEvent.click(await screen.findByRole("button", { name: "Save" }));
+      await screen.findByRole("button", { name: "Save" });
+      await confirmInstanceSave();
 
       // Right away - it doesn't pass the read mode on the way
       expect(await screen.findByRole("group", { name: "Mode" })).toBeInTheDocument();
@@ -591,7 +598,7 @@ describe("InstanceDetail", () => {
       expect(await screen.findByRole("heading", { name: "SN-1" })).toBeInTheDocument();
       expect(fetchTypeFields).toHaveBeenCalledWith("token", device);
       expect(screen.getByText("shared")).toBeInTheDocument();
-      fireEvent.click(screen.getByRole("button", { name: "Save" }));
+      await confirmInstanceSave();
 
       await waitFor(() =>
         expect(createInstance).toHaveBeenCalledWith("token", instanceId, device, { [serialNumber]: "SN-1" }, "shared"),
@@ -602,10 +609,10 @@ describe("InstanceDetail", () => {
       vi.mocked(createInstance).mockClear();
       renderDraft({});
 
-      const save = await screen.findByRole("button", { name: "Save" });
+      await screen.findByRole("button", { name: "Save" });
       expect(screen.getByTestId("drafts")).toHaveTextContent("1");
       fireEvent.change(within(document.querySelector(".instance-form") as HTMLElement).getByRole("textbox"), { target: { value: "SN-1" } });
-      fireEvent.click(save);
+      await confirmInstanceSave();
 
       await waitFor(() =>
         expect(createInstance).toHaveBeenCalledWith("token", instanceId, device, { [serialNumber]: "SN-1" }, "shared"),
@@ -936,7 +943,7 @@ describe("InstanceDetail", () => {
 
       fireEvent.click(await screen.findByRole("button", { name: "Edit" }));
       fireEvent.change(await screen.findByDisplayValue("Headquarters"), { target: { value: "Renamed" } });
-      fireEvent.click(screen.getByRole("button", { name: "Save" }));
+      await confirmInstanceSave();
 
       const form = document.querySelector(".instance-form") as HTMLElement;
       await waitFor(() => expect(within(form).queryByText("Unsaved")).not.toBeInTheDocument());
@@ -946,7 +953,7 @@ describe("InstanceDetail", () => {
 
       // What was saved is the starting point of the next changes
       fireEvent.change(screen.getByDisplayValue("Renamed"), { target: { value: "Again" } });
-      fireEvent.click(screen.getByRole("button", { name: "Save" }));
+      await confirmInstanceSave();
       await waitFor(() => expect(updateInstance).toHaveBeenLastCalledWith("token", "inst-1", { name: "Again" }));
     });
   });
@@ -1315,6 +1322,85 @@ describe("InstanceDetail", () => {
     expect(fetchReleaseTree).toHaveBeenCalledWith("token", "inst-1");
   });
 
+  it("warns about linked unsaved instances and can save them with this instance", async () => {
+    const countries = "https://example.org/countries";
+    const countryType = "https://example.org/types/Country";
+    sessionStorage.setItem(
+      UNSAVED_INSTANCES_STORAGE_KEY,
+      JSON.stringify({
+        "country-1": {
+          instanceId: "country-1",
+          instanceName: "test-001",
+          type: "Country",
+          typeIdentifier: countryType,
+          space: "demo",
+          isNew: true,
+          fieldValues: { name: "test-001" },
+          changedFieldLabels: ["Name"],
+          updatedAt: 1,
+        },
+      }),
+    );
+    const order: string[] = [];
+    vi.mocked(createInstance).mockImplementation(async () => {
+      order.push("create");
+      return {
+        instanceId: "country-1",
+        type: "Country",
+        instanceName: "test-001",
+        space: "demo",
+        permissions: "View, Edit",
+        releaseStatus: "in progress",
+      };
+    });
+    vi.mocked(updateInstance).mockImplementation(async () => {
+      order.push("update");
+      return {
+        instanceId: "inst-1",
+        type: "Mountain range",
+        instanceName: "test-002b",
+        space: "demo",
+        permissions: "View, Edit",
+        releaseStatus: "has changed",
+        fields: [],
+        directLinks: [],
+      };
+    });
+    renderDetail(
+      "?edit=1",
+      [
+        { identifier: "name", label: "Name", kind: "TEXT", value: "test-002", required: false, readOnly: false },
+        {
+          identifier: countries,
+          label: "Countries",
+          kind: "LINKS",
+          value: [
+            { instanceId: "austria", instanceName: "Austria", type: "Country", space: "demo" },
+            { instanceId: "country-1", instanceName: "test-001", type: "Country", space: "demo", isNew: true },
+          ],
+          required: false,
+          readOnly: false,
+        },
+      ],
+      "inst-1",
+      { instanceName: "test-002", type: "Mountain range", space: "demo" },
+    );
+
+    fireEvent.change(await screen.findByDisplayValue("test-002"), { target: { value: "test-002b" } });
+    fireEvent.click(screen.getByRole("button", { name: "Save" }));
+    const dialog = await screen.findByRole("dialog", { name: "Save these changes?" });
+    expect(dialog).toHaveTextContent("test-001 has not been stored, so this link points at a draft.");
+    expect(dialog).toHaveTextContent("Linked from Countries on test-002");
+    expect(within(dialog).queryByRole("checkbox", { name: /Austria/ })).not.toBeInTheDocument();
+    expect(createInstance).not.toHaveBeenCalled();
+
+    fireEvent.click(within(dialog).getByRole("checkbox", { name: "Include test-001 (Country)" }));
+    fireEvent.click(within(dialog).getByRole("button", { name: "Save" }));
+
+    await waitFor(() => expect(order).toEqual(["create", "update"]));
+    expect(updateInstance).toHaveBeenCalledWith("token", "inst-1", { name: "test-002b" });
+  });
+
   it("saves only the changed fields", async () => {
     const field = (identifier: string, value: string): InstanceField => ({
       identifier,
@@ -1339,7 +1425,7 @@ describe("InstanceDetail", () => {
     fireEvent.change(await screen.findByDisplayValue("Headquarters"), {
       target: { value: "Renamed" },
     });
-    fireEvent.click(screen.getByRole("button", { name: "Save" }));
+    await confirmInstanceSave();
 
     await waitFor(() =>
       expect(updateInstance).toHaveBeenCalledWith("token", "inst-1", {
@@ -1427,7 +1513,7 @@ describe("InstanceDetail", () => {
     expect(within(identifiers).getByRole("button", { name: "Remove the new identifier bern-hq" })).toBeInTheDocument();
     expect(screen.getByRole("status")).toHaveTextContent("Identifiers");
 
-    fireEvent.click(screen.getByRole("button", { name: "Save" }));
+    await confirmInstanceSave();
 
     await waitFor(() =>
       expect(updateInstance).toHaveBeenCalledWith("token", "inst-1", {

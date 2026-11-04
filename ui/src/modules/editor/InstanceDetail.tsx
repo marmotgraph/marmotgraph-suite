@@ -52,6 +52,8 @@ import InstanceLinksPanel, {
 } from "../../components/InstanceLinksPanel";
 import IncomingLinksPanel from "../../components/IncomingLinksPanel";
 import InstanceLinkConnectors from "../../components/InstanceLinkConnectors";
+import UnsavedActionDialog, { orderDraftsForSave } from "../../components/UnsavedActionDialog";
+import { isCreatedInstance, persistUnsavedDraft } from "../../components/persistUnsavedDraft";
 import UnsavedInstancesPanel from "../../components/UnsavedInstancesPanel";
 import RawInstanceEditor from "../../components/RawInstanceEditor";
 import InstanceRelease from "../../components/InstanceRelease";
@@ -169,7 +171,7 @@ function InstanceDetailView({ instanceId }: { instanceId: string }) {
   const navigate = useNavigate();
   const { getAccessToken } = useAuth();
   const { addInstance, deleteInstances, instances } = useInstances();
-  const { getDraft, upsertDraft, removeDraft } = useUnsavedInstances();
+  const { drafts: unsavedDrafts, getDraft, upsertDraft, removeDraft } = useUnsavedInstances();
   const [searchParams, setSearchParams] = useSearchParams();
   const [baseline, setBaseline] = useState<InstanceFieldValues>(
     emptyInstanceFieldValues,
@@ -277,6 +279,8 @@ function InstanceDetailView({ instanceId }: { instanceId: string }) {
   >(new Set());
   const [saving, setSaving] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [confirmSave, setConfirmSave] = useState(false);
+  const [saveIncludedIds, setSaveIncludedIds] = useState<string[]>([]);
   const [saveError, setSaveError] = useState<string>();
 
   useEffect(() => {
@@ -542,6 +546,11 @@ function InstanceDetailView({ instanceId }: { instanceId: string }) {
     (isEditMode && changedFieldKeys.size > 0) || rawDraft !== undefined;
   const unsavedChangeLabels =
     rawDraft !== undefined ? [RAW_JSON_LABEL] : changedFieldLabels;
+  const hasReverseLinks = incomingLinksLoading
+    ? getDraft(instanceId)?.hasReverseLinks
+    : incomingLinks.some((group) =>
+        group.types.some((entry) => (entry.total ?? entry.links.length) > 0),
+      );
 
   useEffect(() => {
     if (!instanceId || !instance || !isEditMode) {
@@ -566,6 +575,7 @@ function InstanceDetailView({ instanceId }: { instanceId: string }) {
         typeIdentifier: isNewInstance ? newInstanceType : undefined,
         space: isNewInstance ? newInstanceSpace : undefined,
         changedFieldLabels,
+        hasReverseLinks,
       });
       return;
     }
@@ -580,6 +590,7 @@ function InstanceDetailView({ instanceId }: { instanceId: string }) {
     currentFieldValues,
     instance,
     instanceId,
+    hasReverseLinks,
     instanceName,
     isEditMode,
     isFieldValuesReady,
@@ -647,6 +658,7 @@ function InstanceDetailView({ instanceId }: { instanceId: string }) {
       updatedAt: Date.now(),
       changedFieldLabels: [RAW_JSON_LABEL],
       rawJson,
+      hasReverseLinks,
     });
   };
 
@@ -759,6 +771,71 @@ function InstanceDetailView({ instanceId }: { instanceId: string }) {
         throw e;
       })
       .finally(() => setSaving(false));
+  };
+
+  const confirmIncludedSave = () => {
+    const currentDraft: (typeof unsavedDrafts)[number] = {
+      instanceId,
+      instanceName: instanceName || instance.instanceName || instanceId,
+      type: instance.type,
+      fieldValues: currentFieldValues,
+      baseline,
+      changedFieldLabels,
+      updatedAt: 0,
+      isNew: isNewInstance,
+      typeIdentifier: isNewInstance ? newInstanceType : undefined,
+      space: isNewInstance ? newInstanceSpace : instance.space,
+    };
+    const catalog = [
+      currentDraft,
+      ...unsavedDrafts.filter((draft) => draft.instanceId !== instanceId),
+    ];
+    const ordered = orderDraftsForSave(catalog, saveIncludedIds);
+    setConfirmSave(false);
+    const failures: string[] = [];
+    void (async () => {
+      const token = await getAccessToken();
+      let parentError: string | undefined;
+      for (const draft of ordered) {
+        if (draft.instanceId === instanceId) {
+          try {
+            await handleSave();
+          } catch (error) {
+            parentError = error instanceof Error ? error.message : String(error);
+          }
+          continue;
+        }
+        try {
+          const stored = await persistUnsavedDraft(token, draft);
+          removeDraft(draft.instanceId);
+          if (draft.isNew && isCreatedInstance(stored)) {
+            addInstance({
+              id: instances.length + 1,
+              instanceId: stored.instanceId,
+              type: stored.type,
+              typeColor: stored.typeColor,
+              instanceName: stored.instanceName,
+              space: stored.space,
+              permissions: stored.permissions,
+              favorite: false,
+              contributed: true,
+              releaseStatus: stored.releaseStatus,
+            });
+          }
+        } catch (error) {
+          failures.push(
+            `${draft.instanceName}: ${error instanceof Error ? error.message : String(error)}`,
+          );
+        }
+      }
+      if (parentError || failures.length > 0) {
+        setSaveError(
+          [parentError, failures.length > 0 ? `Could not save linked instances. ${failures.join(" ")}` : undefined]
+            .filter(Boolean)
+            .join(" "),
+        );
+      }
+    })();
   };
 
   const handleDelete = async () => {
@@ -1096,7 +1173,8 @@ function InstanceDetailView({ instanceId }: { instanceId: string }) {
                           type="button"
                           variant="dark"
                           onClick={() => {
-                            handleSave().catch(() => undefined);
+                            setSaveIncludedIds([instanceId]);
+                            setConfirmSave(true);
                           }}
                           disabled={changedFieldKeys.size === 0 || saving}
                         >
@@ -1164,6 +1242,45 @@ function InstanceDetailView({ instanceId }: { instanceId: string }) {
         currentInstanceId={instanceId}
         onDiscardCurrent={resetToSaved}
         onSaveCurrent={handleSave}
+      />
+      <UnsavedActionDialog
+        show={confirmSave}
+        action="save"
+        scope="one"
+        drafts={[
+          {
+            instanceId,
+            instanceName: instanceName || instance.instanceName || instanceId,
+            type: instance.type,
+            fieldValues: currentFieldValues,
+            baseline,
+            changedFieldLabels,
+            updatedAt: 0,
+            isNew: isNewInstance,
+            typeIdentifier: isNewInstance ? newInstanceType : undefined,
+            space: isNewInstance ? newInstanceSpace : instance.space,
+          },
+          ...unsavedDrafts.filter((draft) => draft.instanceId !== instanceId),
+        ]}
+        offeredIds={[instanceId]}
+        includedIds={saveIncludedIds}
+        saveErrors={saveError ? { [instanceId]: saveError } : undefined}
+        typeColorFor={() => typeColor}
+        linkFieldLabel={(draftId, fieldKey) =>
+          draftId === instanceId
+            ? fields.find((field) => field.identifier === fieldKey)?.label
+            : undefined
+        }
+        onToggle={(id) => {
+          if (id === instanceId) {
+            return;
+          }
+          setSaveIncludedIds((current) =>
+            current.includes(id) ? current.filter((item) => item !== id) : [...current, id],
+          );
+        }}
+        onDismiss={() => setConfirmSave(false)}
+        onConfirm={confirmIncludedSave}
       />
       <DeleteInstanceModal
         show={confirmDelete && isEditMode}

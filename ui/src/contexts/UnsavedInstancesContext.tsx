@@ -28,6 +28,8 @@ export type UnsavedInstanceDraft = {
   changedFieldLabels?: string[];
   /** The edited JSON document if the instance was changed in the raw mode (the field values are unchanged then) */
   rawJson?: string;
+  /** The stored instance has incoming links. Other drafts that link here count as well. */
+  hasReverseLinks?: boolean;
 };
 
 type UnsavedInstancesContextType = {
