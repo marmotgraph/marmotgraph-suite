@@ -1,6 +1,7 @@
 import React, { createContext, useCallback, useContext, useEffect, useRef, useState, ReactNode } from 'react';
 import { InstanceSummary, ReleaseStatus } from '../modules/editor/editorMockData';
 import { useAuth } from './AuthContext';
+import { parseInstanceList } from '../modules/editor/instanceListUrl';
 import { fetchInstances, InstanceQuery, InstanceSortBy, InstanceSortDirection, setFavorite } from '../services/instances';
 
 interface InstancesContextType {
@@ -61,13 +62,15 @@ export function InstancesProvider({ children }: { children: ReactNode }) {
   const [loadingMore, setLoadingMore] = useState<boolean>(false);
   // The query of the loaded instances - a following page only belongs to them if the query didn't change meanwhile
   const queryRef = useRef<InstanceQuery | null>(null);
-  const [searchTerm, setSearchTerm] = useState<string>('');
-  const [typeFilter, setTypeFilter] = useState<string[]>([]);
-  const [spaceFilter, setSpaceFilter] = useState<string[]>([]);
-  const [favoritesOnly, setFavoritesOnly] = useState<boolean>(false);
-  const [contributedOnly, setContributedOnly] = useState<boolean>(false);
-  const [releaseStatusFilter, setReleaseStatusFilter] = useState<ReleaseStatus[]>([]);
-  const [sort, setSort] = useState<InstanceSort | null>({ by: 'LAST_MODIFICATION', direction: 'DESC' });
+  // The list starts as described by its URL if it is opened directly (EditorHome keeps the URL up to date from then on)
+  const [initial] = useState(() => parseInstanceList(new URLSearchParams(window.location.pathname === '/editor' ? window.location.search : '')));
+  const [searchTerm, setSearchTerm] = useState<string>(initial.searchTerm);
+  const [typeFilter, setTypeFilter] = useState<string[]>(initial.typeFilter);
+  const [spaceFilter, setSpaceFilter] = useState<string[]>(initial.spaceFilter);
+  const [favoritesOnly, setFavoritesOnly] = useState<boolean>(initial.favoritesOnly);
+  const [contributedOnly, setContributedOnly] = useState<boolean>(initial.contributedOnly);
+  const [releaseStatusFilter, setReleaseStatusFilter] = useState<ReleaseStatus[]>(initial.releaseStatusFilter);
+  const [sort, setSort] = useState<InstanceSort | null>(initial.sort);
   const [requested, setRequested] = useState<boolean>(false);
   const requestInstances = useCallback(() => setRequested(true), []);
 

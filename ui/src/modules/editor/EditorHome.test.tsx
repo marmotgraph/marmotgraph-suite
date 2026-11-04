@@ -706,4 +706,10 @@ describe("EditorHome", () => {
     ).not.toBeInTheDocument();
     expect(screen.getByTestId("location")).toHaveTextContent("/editor");
   });
+
+  it("reflects the list in the URL so it can be opened again as it is", () => {
+    renderHome([instance], 1, { searchTerm: "brain", typeFilter: ["Dataset"], sort: { by: "NAME", direction: "ASC" } });
+
+    expect(screen.getByTestId("location")).toHaveTextContent("/editor?q=brain&type=Dataset&sort=NAME%3AASC");
+  });
 });

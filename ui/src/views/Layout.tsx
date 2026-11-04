@@ -5,6 +5,8 @@ import Footer from "../components/composites/Footer";
 import { useAppSubNav } from "../hooks/useAppSubNav";
 import { SubNavActionsProvider } from "../contexts/SubNavActionsContext";
 import { MOBILE_VIEWPORT_QUERY, useMediaQuery } from "../hooks/useMediaQuery";
+import { isEmbedded } from "../services/embedding";
+import EmbeddedBar from "./EmbeddedBar";
 import "./Layout.css";
 
 interface LayoutProps {
@@ -53,16 +55,20 @@ export default function Layout({ subNav, children }: LayoutProps) {
   }, [isMobile]);
   const routeSubNav = useAppSubNav();
   const effectiveSubNav = subNav ?? routeSubNav;
+  const embedded = isEmbedded();
 
   return (
     <SubNavActionsProvider>
       <div className="d-flex layout-container">
-        <SidebarMG
-          isCollapsed={isSidebarCollapsed}
-          onToggle={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
-        />
+        {!embedded && (
+          <SidebarMG
+            isCollapsed={isSidebarCollapsed}
+            onToggle={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
+          />
+        )}
 
-        <div className="d-flex flex-column layout-content">
+        <div className={`d-flex flex-column layout-content${embedded ? " layout-content--embedded" : ""}`}>
+          {embedded && <EmbeddedBar />}
           {effectiveSubNav && (
             <div className="layout-subnav-wrapper">
               <AppSubNav

@@ -35,6 +35,24 @@ npm install
   files)
 - Apply & OK.
 
+## Embedding in an iframe
+
+Every page of the suite can be embedded in another application:
+
+```html
+<iframe src="https://suite.example.org/editor/instances/1234" sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox allow-modals"></iframe>
+```
+
+The suite detects that it is framed and shows a reduced view: no general navigation, but a link to continue at the same
+place in a new tab. Unsaved changes stay in the frame (the link says so).
+
+- `FRAME_ANCESTORS` of the service lists who may embed the suite (the value of the CSP directive `frame-ancestors`, e.g.
+  `'self' https://app.example.org`). Without it, only the suite itself may.
+- Signing in: the frame first tries to reuse the session of the user at the OIDC provider (the redirect URI
+  `/silent-check-sso.html` needs to be allowed). This needs third party cookies unless the host is on the same site. Otherwise,
+  the user is asked to sign in in a popup window. This needs the provider to issue a refresh token and not to send
+  `Cross-Origin-Opener-Policy` on its login pages. The session in the frame ends with the page being reloaded.
+
 ## Copyright
 
 TODO

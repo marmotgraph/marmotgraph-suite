@@ -62,3 +62,51 @@
     border-bottom-width: 1px;
     border-left-color: rgba(0, 0, 0, 0);
 }
+
+/* Embedded in an iframe: The canvas fills the frame, the host application provides the surroundings */
+.layout-content--embedded {
+    margin: 0;
+    border-radius: 0;
+    height: 100vh;
+}
+
+.layout-embedded-bar {
+    flex-shrink: 0;
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 8px;
+    padding: 4px 12px;
+    border-bottom: 1px solid #dee2e6;
+}
+
+.layout-embedded-unsaved {
+    padding: 2px 8px;
+    border-radius: 999px;
+    background-color: #fff4e5;
+    color: #856404;
+    font-size: 0.75rem;
+}
+
+.layout-embedded-open {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    min-height: 32px;
+    padding: 0 8px;
+    border-radius: 6px;
+    color: #6c757d;
+    font-size: 0.85rem;
+    text-decoration: none;
+}
+
+.layout-embedded-open:hover {
+    background-color: #f1f3f5;
+    color: #495057;
+}
+
+.layout-embedded-open:focus-visible {
+    outline: 2px solid #2563EB;
+    outline-offset: 2px;
+}

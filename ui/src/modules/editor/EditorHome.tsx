@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Alert, Button, Col, Collapse, Form, Modal, Row, Spinner, Table } from "react-bootstrap";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
+import { instanceListSearch, PREVIEW_PARAM } from "./instanceListUrl";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
   faChevronDown,
@@ -102,8 +103,9 @@ export default function EditorHome() {
   const [selectedInstances, setSelectedInstances] = useState<Set<string>>(
     new Set(),
   );
+  const [searchParams, setSearchParams] = useSearchParams();
   const [previewInstanceId, setPreviewInstanceId] = useState<string | null>(
-    null,
+    () => searchParams.get(PREVIEW_PARAM),
   );
   const [expandedCardIds, setExpandedCardIds] = useState<Set<string>>(
     new Set(),
@@ -371,6 +373,7 @@ export default function EditorHome() {
 
   useEffect(() => {
     if (
+      !loading &&
       previewInstanceId &&
       !instances.some(
         (instance) => instance.instanceId === previewInstanceId,
@@ -378,7 +381,18 @@ export default function EditorHome() {
     ) {
       setPreviewInstanceId(null);
     }
-  }, [instances, previewInstanceId]);
+  }, [instances, loading, previewInstanceId]);
+
+  // The URL reflects the list, so it can be opened again as it is (e.g. in a new tab when embedded in an iframe)
+  const listSearch = instanceListSearch(
+    { searchTerm, typeFilter, spaceFilter, favoritesOnly, contributedOnly, releaseStatusFilter, sort },
+    previewInstanceId,
+  );
+  useEffect(() => {
+    if (listSearch !== searchParams.toString()) {
+      setSearchParams(listSearch, { replace: true });
+    }
+  }, [listSearch, searchParams, setSearchParams]);
 
   return (
     <div className="editor-home">
