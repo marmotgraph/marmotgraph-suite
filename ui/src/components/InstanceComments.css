@@ -30,8 +30,45 @@
     margin-top: 8px;
 }
 
-/* The panel already sets the thread apart from the field */
-.instance-field-panel .comment-thread {
+/* Below the dialog to confirm the deletion of a comment (a modal starts at 1050, a popover would be above it) */
+.field-comments-popover.popover {
+    --bs-popover-max-width: min(380px, calc(100vw - 32px));
+    --bs-popover-border-color: #E2E8F0;
+    --bs-popover-border-radius: 8px;
+    --bs-popover-inner-border-radius: 7px;
+    --bs-popover-body-padding-x: 12px;
+    --bs-popover-body-padding-y: 12px;
+    z-index: 1040;
+    width: var(--bs-popover-max-width);
+    box-shadow: 0 8px 24px rgba(15, 23, 42, 0.12);
+    font-family: inherit;
+}
+
+.field-comments-popover.popover:focus {
+    outline: none;
+}
+
+.field-comments-popover.popover:focus-visible {
+    outline: 2px solid #6c8ebf;
+    outline-offset: 2px;
+}
+
+.field-comments-popover .popover-body {
+    max-height: min(60vh, 480px);
+    overflow-y: auto;
+}
+
+.field-comments-popover-title {
+    margin: 0 0 8px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: #6c757d;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    overflow-wrap: anywhere;
+}
+
+.field-comments-popover .comment-thread {
     margin-top: 0;
 }
 

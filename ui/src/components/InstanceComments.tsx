@@ -1,5 +1,5 @@
-import React, { useState } from "react";
-import { Alert, Button, Form, Modal, Spinner } from "react-bootstrap";
+import React, { useEffect, useRef, useState } from "react";
+import { Alert, Button, Form, Modal, Overlay, Popover, Spinner } from "react-bootstrap";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faComment, faPencil, faTrash } from "@fortawesome/free-solid-svg-icons";
 import { faComment as faCommentRegular } from "@fortawesome/free-regular-svg-icons";
@@ -14,7 +14,8 @@ const errorMessage = (e: unknown) => (e instanceof Error ? e.message : String(e)
 const propertyName = (property: string) => property.split(/[/#]/).pop() || property;
 
 /** Shows or hides the comments on the given subject - it tells how many there are. */
-export function CommentsToggle({
+function CommentsToggle({
+  buttonRef,
   subject,
   count,
   expanded,
@@ -22,6 +23,7 @@ export function CommentsToggle({
   className,
   onClick,
 }: {
+  buttonRef?: React.Ref<HTMLButtonElement>;
   subject: string;
   count: number;
   expanded: boolean;
@@ -32,11 +34,13 @@ export function CommentsToggle({
   const label = `Comments on ${subject}${count > 0 ? ` (${count})` : ""}`;
   return (
     <Button
+      ref={buttonRef}
       type="button"
       variant="link"
       className={`edit-icon-btn comments-toggle ${className}${expanded ? " edit-icon-btn--active" : ""}`}
       aria-label={label}
       aria-expanded={expanded}
+      aria-haspopup="dialog"
       title={disabled ? undefined : label}
       disabled={disabled}
       onClick={onClick}
@@ -52,13 +56,11 @@ export function InstanceCommentsOverview({
   comments,
   fieldProperties,
   canModerate,
-  onClose,
 }: {
   comments: Comments;
   /** The properties shown as fields - their comments are listed with the field */
   fieldProperties: Set<string>;
   canModerate: boolean;
-  onClose: () => void;
 }) {
   const onInstance = comments.comments.filter((comment) => !comment.property);
   const otherProperties = [
@@ -89,7 +91,8 @@ export function InstanceCommentsOverview({
           ) : (
             onInstance.length === 0 && <p className="instance-comments-empty">No comments on this instance yet.</p>
           )}
-          <CommentThread comments={comments} canModerate={canModerate} subject="this instance" onClose={onClose} />
+          {/* Shown right away - writing a comment is up to the user (it would draw the focus to the end of the page) */}
+          <CommentThread comments={comments} canModerate={canModerate} subject="this instance" startAdding={false} />
           {otherProperties.map((property) => (
             <div key={property} className="instance-comments-other" title={property}>
               <div className="view-label">{propertyName(property)}</div>
@@ -98,7 +101,6 @@ export function InstanceCommentsOverview({
                 property={property}
                 canModerate={canModerate}
                 subject={propertyName(property)}
-                onClose={onClose}
               />
             </div>
           ))}
@@ -109,14 +111,15 @@ export function InstanceCommentsOverview({
 }
 
 /**
- * The comments on the given property (on the instance as a whole if there is none) - and the means to add one. It is
- * opened to comment if there are none yet - so canceling closes it again.
+ * The comments on the given property (on the instance as a whole if there is none) - and the means to add one. Unless
+ * told otherwise, it is opened to comment if there are none yet - so canceling closes it again.
  */
 export function CommentThread({
   comments,
   property,
   canModerate,
   subject,
+  startAdding = true,
   onClose,
 }: {
   comments: Comments;
@@ -124,10 +127,11 @@ export function CommentThread({
   canModerate: boolean;
   /** What the comments are about - names the controls */
   subject: string;
-  onClose: () => void;
+  startAdding?: boolean;
+  onClose?: () => void;
 }) {
   const thread = comments.comments.filter((comment) => comment.property === property);
-  const [isAdding, setIsAdding] = useState(thread.length === 0);
+  const [isAdding, setIsAdding] = useState(startAdding && thread.length === 0);
   return (
     <div className="comment-thread">
       {thread.length > 0 && (
@@ -148,7 +152,7 @@ export function CommentThread({
           onCancel={() => {
             setIsAdding(false);
             if (thread.length === 0) {
-              onClose();
+              onClose?.();
             }
           }}
         />
@@ -167,31 +171,92 @@ export function CommentThread({
   );
 }
 
-/** The comments on a field - set apart from its value. */
-export function FieldCommentThread({
+/** The comments on a field - in a popup at their toggle, so they don't get in the way of the fields. */
+export function FieldComments({
   comments,
   property,
   canModerate,
   subject,
-  onClose,
 }: {
   comments: Comments;
   property: string;
   canModerate: boolean;
   subject: string;
-  onClose: () => void;
 }) {
+  const [show, setShow] = useState(false);
+  const [popup, setPopup] = useState<HTMLElement | null>(null);
+  const toggleRef = useRef<HTMLButtonElement>(null);
+  const count = comments.comments.filter((comment) => comment.property === property).length;
+
+  // Keyboard users continue in the popup (which isn't next to the toggle in the document) - unless a comment is started
+  useEffect(() => {
+    if (popup && !popup.contains(document.activeElement)) {
+      popup.focus({ preventScroll: true });
+    }
+  }, [popup]);
+
+  const closeToToggle = () => {
+    setShow(false);
+    toggleRef.current?.focus();
+  };
+
+  /** Whether closing would lose the text of a comment - it stays open until that is canceled or stored */
+  const isWriting = () =>
+    [...(popup?.querySelectorAll("textarea") ?? [])].some((textarea) => textarea.value.trim() !== "");
+
+  const handleOutside = (event: Event) => {
+    // The confirmation to delete a comment is no part of the popup in the document
+    const inDialog = event.target instanceof Element && event.target.closest(".modal, .modal-backdrop");
+    if (inDialog || isWriting()) {
+      return;
+    }
+    if (event.type === "click") {
+      setShow(false);
+    } else {
+      closeToToggle();
+    }
+  };
+
   return (
-    <div className="instance-field-panel" role="group" aria-label={`Comments on ${subject}`}>
-      <p className="instance-field-panel-title">Comments</p>
-      <CommentThread
-        comments={comments}
-        property={property}
-        canModerate={canModerate}
+    <>
+      <CommentsToggle
+        buttonRef={toggleRef}
+        className="instance-field-comments-toggle"
         subject={subject}
-        onClose={onClose}
+        count={count}
+        expanded={show}
+        onClick={() => {
+          if (!show) {
+            setShow(true);
+          } else if (!isWriting()) {
+            setShow(false);
+          }
+        }}
       />
-    </div>
+      <Overlay
+        ref={setPopup}
+        show={show}
+        target={toggleRef}
+        placement="bottom-end"
+        flip
+        transition={false}
+        rootClose
+        onHide={handleOutside}
+      >
+        <Popover className="field-comments-popover" role="dialog" aria-label={`Comments on ${subject}`} tabIndex={-1}>
+          <Popover.Body>
+            <p className="field-comments-popover-title">Comments on {subject}</p>
+            <CommentThread
+              comments={comments}
+              property={property}
+              canModerate={canModerate}
+              subject={subject}
+              onClose={closeToToggle}
+            />
+          </Popover.Body>
+        </Popover>
+      </Overlay>
+    </>
   );
 }
 

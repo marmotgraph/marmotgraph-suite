@@ -5,8 +5,8 @@ import { faChevronDown, faChevronUp } from "@fortawesome/free-solid-svg-icons";
 import "./InstanceHeaderSection.css";
 
 /**
- * A section of the instance header which isn't a property of the instance (see "instance-header-sections"). The title
- * and the summary stay visible, the content is collapsed by default. Without content, there is nothing to expand.
+ * A section of the instance which isn't a property of it (see "instance-header-sections"). The title and the summary
+ * stay visible, the content is collapsed by default. Without content, there is nothing to expand.
  */
 export default function InstanceHeaderSection({
   title,

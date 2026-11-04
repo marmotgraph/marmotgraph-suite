@@ -7,6 +7,18 @@
     background-color: #f8f9fa;
 }
 
+/* What follows the fields - the comments on the instance. Set apart like the header is from the fields */
+.instance-footer-sections {
+    margin-top: 24px;
+    padding-top: 16px;
+    min-width: 0;
+    border-top: 1px solid #dee2e6;
+}
+
+.instance-footer-sections .instance-header-section {
+    padding: 0;
+}
+
 /* The sections hide themselves if they have nothing to show */
 .instance-header-sections:empty {
     display: none;

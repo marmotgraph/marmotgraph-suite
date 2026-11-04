@@ -58,7 +58,7 @@ import InstanceRelease from "../../components/InstanceRelease";
 import InstanceInfo from "../../components/InstanceInfo";
 import { DisabledHint, noPermission } from "../../components/DisabledHint";
 import InstanceReview from "../../components/InstanceReview";
-import { CommentsToggle, FieldCommentThread, InstanceCommentsOverview } from "../../components/InstanceComments";
+import { FieldComments, InstanceCommentsOverview } from "../../components/InstanceComments";
 import { useInstanceComments } from "../../hooks/useInstanceComments";
 import { InstanceStatusTags } from "../../components/InstanceStatusTags";
 import {
@@ -214,9 +214,7 @@ function InstanceDetailView({ instanceId }: { instanceId: string }) {
     [requestedMode, setSearchParams],
   );
   /** Shows the comments on the instance as a whole */
-  const [isInstanceCommentsOpen, setIsInstanceCommentsOpen] = useState(false);
-  /** The fields (identifiers) with their comments shown */
-  const [openCommentFields, setOpenCommentFields] = useState<ReadonlySet<string>>(new Set());
+  const [isInstanceCommentsOpen, setIsInstanceCommentsOpen] = useState(true);
   const [currentFieldValues, setCurrentFieldValues] =
     useState<InstanceFieldValues>(emptyInstanceFieldValues);
   /** Whether the values of the loaded instance (or its draft) were taken over - they are empty until then */
@@ -255,8 +253,7 @@ function InstanceDetailView({ instanceId }: { instanceId: string }) {
   const comments = useInstanceComments(instanceId, canComment && !isNewInstance);
 
   useEffect(() => {
-    setIsInstanceCommentsOpen(false);
-    setOpenCommentFields(new Set());
+    setIsInstanceCommentsOpen(true);
   }, [instanceId]);
   // The release tree is only shown with the right to release the instance (also when requested by the URL)
   const isReleaseMode = requestedMode === "release" && canRelease;
@@ -690,34 +687,14 @@ function InstanceDetailView({ instanceId }: { instanceId: string }) {
     (comment) => !comment.property || !fieldProperties.has(comment.property),
   ).length;
 
-  const toggleFieldComments = (identifier: string) =>
-    setOpenCommentFields((open) => {
-      const next = new Set(open);
-      if (!next.delete(identifier)) {
-        next.add(identifier);
-      }
-      return next;
-    });
-
-  const fieldCommentsToggle = (field: InstanceField) =>
+  const fieldComments = (field: InstanceField) =>
     canComment && !comments.loadError ? (
-      <CommentsToggle
-        className="instance-field-comments-toggle"
-        subject={field.label}
-        count={comments.comments.filter((comment) => comment.property === field.identifier).length}
-        expanded={openCommentFields.has(field.identifier)}
-        onClick={() => toggleFieldComments(field.identifier)}
-      />
-    ) : null;
-
-  const fieldCommentThread = (field: InstanceField) =>
-    canComment && !comments.loadError && openCommentFields.has(field.identifier) ? (
-      <FieldCommentThread
+      <FieldComments
+        key={instanceId}
         comments={comments}
         property={field.identifier}
         canModerate={canModerateComments}
         subject={field.label}
-        onClose={() => toggleFieldComments(field.identifier)}
       />
     ) : null;
 
@@ -971,27 +948,6 @@ function InstanceDetailView({ instanceId }: { instanceId: string }) {
                       onChange={(identifiers) => setFieldValue(IDENTIFIER, identifiers)}
                     />
                   )}
-                  {canComment && !isNewInstance && (
-                    <InstanceHeaderSection
-                      key={instanceId}
-                      title="Comments on this instance"
-                      count={
-                        instanceCommentCount > 0 && (
-                          <span className="instance-header-section-count">({instanceCommentCount})</span>
-                        )
-                      }
-                      expanded={showInstanceComments}
-                      onToggle={() => setIsInstanceCommentsOpen((open) => !open)}
-                      mountOnExpand
-                    >
-                      <InstanceCommentsOverview
-                        comments={comments}
-                        fieldProperties={fieldProperties}
-                        canModerate={canModerateComments}
-                        onClose={() => setIsInstanceCommentsOpen(false)}
-                      />
-                    </InstanceHeaderSection>
-                  )}
                 </div>
               </div>
             </div>
@@ -1039,7 +995,7 @@ function InstanceDetailView({ instanceId }: { instanceId: string }) {
                   <div className="instance-view">
                     {supportedFields.map((field) => (
                       <div key={field.identifier} {...fieldSectionProps(field)}>
-                        {fieldCommentsToggle(field)}
+                        {fieldComments(field)}
                         <ViewFieldLabel
                           tooltip={field.tooltip}
                           required={field.required}
@@ -1059,7 +1015,6 @@ function InstanceDetailView({ instanceId }: { instanceId: string }) {
                           {...linkHoverProps(field)}
                         />
                         <FieldErrors errors={fieldErrors.get(field.identifier)} />
-                        {fieldCommentThread(field)}
                       </div>
                     ))}
                   </div>
@@ -1067,7 +1022,7 @@ function InstanceDetailView({ instanceId }: { instanceId: string }) {
                   <div className="instance-form">
                     {supportedFields.map((field) => (
                       <Form.Group key={field.identifier} {...fieldSectionProps(field)}>
-                        {fieldCommentsToggle(field)}
+                        {fieldComments(field)}
                         {fieldAlternatives.toggle(field)}
                         <InstanceFieldLabel
                           isChanged={changedFieldKeys.has(field.identifier)}
@@ -1092,7 +1047,6 @@ function InstanceDetailView({ instanceId }: { instanceId: string }) {
                         />
                         <FieldErrors errors={fieldErrors.get(field.identifier)} />
                         {fieldAlternatives.panel(field)}
-                        {fieldCommentThread(field)}
                       </Form.Group>
                     ))}
 
@@ -1168,6 +1122,29 @@ function InstanceDetailView({ instanceId }: { instanceId: string }) {
                   />
                 )}
               </>
+            )}
+
+            {canComment && !isNewInstance && (
+              <div className="instance-footer-sections">
+                <InstanceHeaderSection
+                  key={instanceId}
+                  title="Comments on this instance"
+                  count={
+                    instanceCommentCount > 0 && (
+                      <span className="instance-header-section-count">({instanceCommentCount})</span>
+                    )
+                  }
+                  expanded={showInstanceComments}
+                  onToggle={() => setIsInstanceCommentsOpen((open) => !open)}
+                  mountOnExpand
+                >
+                  <InstanceCommentsOverview
+                    comments={comments}
+                    fieldProperties={fieldProperties}
+                    canModerate={canModerateComments}
+                  />
+                </InstanceHeaderSection>
+              </div>
             )}
           </div>
         </div>

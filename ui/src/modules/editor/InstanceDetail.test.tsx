@@ -1011,6 +1011,14 @@ describe("InstanceDetail", () => {
       expect(fetchComments).not.toHaveBeenCalled();
     });
 
+    it("on the instance come after the fields", async () => {
+      render([]);
+
+      const section = await screen.findByRole("region", { name: /Comments on this instance/ });
+      expect(document.querySelector(".instance-header-sections")).not.toContainElement(section);
+      expect(document.querySelector(".instance-view")!.compareDocumentPosition(section) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    });
+
     it("are no mode of their own", async () => {
       render([]);
 
@@ -1030,8 +1038,9 @@ describe("InstanceDetail", () => {
       fireEvent.click(toggle);
 
       expect(toggle).toHaveAttribute("aria-expanded", "true");
-      const panel = screen.getByRole("group", { name: "Comments on Name" });
-      expect(within(panel).getByText("Comments")).toBeInTheDocument();
+      const panel = screen.getByRole("dialog", { name: "Comments on Name" });
+      expect(panel).toHaveFocus();
+      expect(document.querySelector(".instance-field-section")).not.toContainElement(panel);
       expect(within(panel).getByText("About the name")).toBeInTheDocument();
       expect(within(panel).getByText("Jane Doe")).toBeInTheDocument();
 
@@ -1047,10 +1056,10 @@ describe("InstanceDetail", () => {
         comment({ id: "c3", text: "About something else", property: "https://example.org/gone" }),
       ]);
 
-      await open(/Comments on this instance \(2\)/);
+      await screen.findByRole("button", { name: /Comments on this instance \(2\)/ });
 
       const overview = screen.getByRole("region", { name: /Comments on this instance/ });
-      expect(document.querySelector(".instance-header-sections")).toContainElement(overview);
+      expect(document.querySelector(".instance-footer-sections")).toContainElement(overview);
       expect(within(overview).getByText("About the instance")).toBeInTheDocument();
       expect(within(overview).getAllByText("A reviewer")).toHaveLength(2);
       expect(within(overview).getByText("gone")).toBeInTheDocument();
@@ -1084,21 +1093,69 @@ describe("InstanceDetail", () => {
       expect(screen.getByRole("button", { name: "Comments on Name" })).toHaveAttribute("aria-expanded", "false");
     });
 
-    it("on the instance only offer to add one once they are opened - and close again if it is canceled", async () => {
+    describe("in the popup of a field", () => {
+      const NAME_COMMENT = { text: "About the name", property: NAME.identifier };
+
+      it("close on a click elsewhere and with escape - the latter returns to the toggle", async () => {
+        render([comment(NAME_COMMENT)]);
+
+        await open(/Comments on Name/);
+        fireEvent.click(document.body);
+        expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+
+        await open(/Comments on Name/);
+        fireEvent.keyUp(screen.getByRole("dialog"), { key: "Escape", code: "Escape", keyCode: 27 });
+        expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+        expect(screen.getByRole("button", { name: "Comments on Name (1)" })).toHaveFocus();
+      });
+
+      it("stay open while a comment is written - so its text doesn't get lost", async () => {
+        render([comment(NAME_COMMENT)]);
+
+        await open(/Comments on Name \(1\)/);
+        fireEvent.click(screen.getByRole("button", { name: "Add comment on Name" }));
+        fireEvent.change(screen.getByRole("textbox", { name: "Comment on Name" }), { target: { value: "Typo?" } });
+
+        fireEvent.click(document.body);
+        fireEvent.click(screen.getByRole("button", { name: "Comments on Name (1)" }));
+        expect(screen.getByRole("textbox", { name: "Comment on Name" })).toHaveValue("Typo?");
+
+        fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
+        fireEvent.click(document.body);
+        expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+      });
+
+      it("stay open while the deletion of a comment is confirmed", async () => {
+        render([comment({ ...NAME_COMMENT, own: true })]);
+        vi.mocked(deleteComment).mockResolvedValue();
+
+        await open(/Comments on Name \(1\)/);
+        fireEvent.click(screen.getByRole("button", { name: "Delete comment" }));
+        fireEvent.click(within(document.querySelector<HTMLElement>(".modal")!).getByRole("button", { name: "Delete comment" }));
+
+        await waitFor(() => expect(deleteComment).toHaveBeenCalledWith("token", "inst-1", "c1"));
+        await waitFor(() => expect(screen.queryByText("About the name")).not.toBeInTheDocument());
+        expect(screen.getByRole("dialog", { name: "Comments on Name" })).toBeInTheDocument();
+      });
+    });
+
+    it("on the instance are shown right away - a comment is only started on request and can be canceled", async () => {
       render([]);
 
       const toggle = await screen.findByRole("button", { name: "Comments on this instance" });
-      expect(toggle).toHaveAttribute("aria-expanded", "false");
+      expect(toggle).toHaveAttribute("aria-expanded", "true");
+      expect(await screen.findByText("No comments on this instance yet.")).toBeInTheDocument();
       expect(screen.queryByRole("textbox", { name: "Comment on this instance" })).not.toBeInTheDocument();
 
-      fireEvent.click(toggle);
-      expect(toggle).toHaveAttribute("aria-expanded", "true");
+      await open(/Add comment on this instance/);
+      expect(screen.getByRole("textbox", { name: "Comment on this instance" })).toHaveFocus();
       fireEvent.click(within(screen.getByRole("region", { name: /Comments on this instance/ })).getByRole("button", { name: "Cancel" }));
 
+      expect(screen.queryByRole("textbox", { name: "Comment on this instance" })).not.toBeInTheDocument();
+      expect(toggle).toHaveAttribute("aria-expanded", "true");
+
+      fireEvent.click(toggle);
       expect(toggle).toHaveAttribute("aria-expanded", "false");
-      await waitFor(() =>
-        expect(screen.queryByRole("textbox", { name: "Comment on this instance" })).not.toBeInTheDocument(),
-      );
     });
 
     it("can be added in the edit mode - without touching the unsaved changes", async () => {
@@ -1123,7 +1180,7 @@ describe("InstanceDetail", () => {
 
       await open(/^Raw|raw JSON/);
       expect(screen.getByRole("button", { name: /raw JSON/ })).toHaveAttribute("aria-pressed", "true");
-      await open(/Comments on this instance \(1\)/);
+      await screen.findByRole("button", { name: /Comments on this instance \(1\)/ });
 
       expect(screen.getByText("About the instance")).toBeInTheDocument();
     });
@@ -1132,7 +1189,7 @@ describe("InstanceDetail", () => {
       render([]);
       vi.mocked(addComment).mockRejectedValue(new Error("Failed to add the comment"));
 
-      await open(/Comments on this instance/);
+      await open(/Add comment on this instance/);
       const input = screen.getByRole("textbox", { name: "Comment on this instance" });
       fireEvent.change(input, { target: { value: "Looks good" } });
       fireEvent.click(screen.getByRole("button", { name: "Add comment" }));
@@ -1144,7 +1201,7 @@ describe("InstanceDetail", () => {
     it("can only be edited and deleted by their author", async () => {
       render([comment({ text: "Theirs" })]);
 
-      await open(/Comments on this instance \(1\)/);
+      await screen.findByRole("button", { name: /Comments on this instance \(1\)/ });
 
       expect(screen.getByText("Theirs")).toBeInTheDocument();
       expect(screen.queryByRole("button", { name: "Edit comment" })).not.toBeInTheDocument();
@@ -1154,7 +1211,7 @@ describe("InstanceDetail", () => {
     it("of others can be deleted by those managing the space - but not edited", async () => {
       render([comment({ text: "Theirs" })], "View, Comment, Manage");
 
-      await open(/Comments on this instance \(1\)/);
+      await screen.findByRole("button", { name: /Comments on this instance \(1\)/ });
 
       expect(screen.getByRole("button", { name: "Delete comment" })).toBeInTheDocument();
       expect(screen.queryByRole("button", { name: "Edit comment" })).not.toBeInTheDocument();
@@ -1164,7 +1221,7 @@ describe("InstanceDetail", () => {
       render([comment({ text: "Mine", own: true })]);
       vi.mocked(updateComment).mockResolvedValue(comment({ text: "Changed", own: true, updatedAt: "2026-11-02T11:00:00Z" }));
 
-      await open(/Comments on this instance \(1\)/);
+      await screen.findByRole("button", { name: /Comments on this instance \(1\)/ });
       fireEvent.click(screen.getByRole("button", { name: "Edit comment" }));
       fireEvent.change(screen.getByRole("textbox", { name: "Edit comment" }), { target: { value: "Changed" } });
       fireEvent.click(screen.getByRole("button", { name: "Save comment" }));
@@ -1178,7 +1235,7 @@ describe("InstanceDetail", () => {
       render([comment({ text: "Mine", own: true })]);
       vi.mocked(deleteComment).mockResolvedValue();
 
-      await open(/Comments on this instance \(1\)/);
+      await screen.findByRole("button", { name: /Comments on this instance \(1\)/ });
       fireEvent.click(screen.getByRole("button", { name: "Delete comment" }));
       expect(deleteComment).not.toHaveBeenCalled();
       fireEvent.click(within(screen.getByRole("dialog")).getByRole("button", { name: "Delete comment" }));
@@ -1192,7 +1249,7 @@ describe("InstanceDetail", () => {
       render([comment({ text: "Loaded" })]);
 
       fireEvent.click(await screen.findByRole("button", { name: "Retry" }));
-      await open(/Comments on this instance \(1\)/);
+      await screen.findByRole("button", { name: /Comments on this instance \(1\)/ });
 
       expect(screen.getByText("Loaded")).toBeInTheDocument();
     });
