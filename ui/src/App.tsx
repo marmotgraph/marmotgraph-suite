@@ -13,6 +13,7 @@ import InstanceDetail from "./modules/editor/InstanceDetail";
 import InvitationRedemption from "./modules/editor/InvitationRedemption";
 import VisualizerHome from "./modules/visualizer/VisualizerHome";
 import ModelerHome from "./modules/modeler/ModelerHome";
+import StatisticsHome from "./modules/statistics/StatisticsHome";
 import ApiHome from "./modules/api/ApiHome";
 import AdminHome from "./modules/admin/AdminHome";
 
@@ -32,6 +33,7 @@ function App() {
           <Route path="invitations/:token" element={<InvitationRedemption />} />
           <Route path="visualizer/*" element={<VisualizerHome />} />
           <Route path="modeler/*" element={<ModelerHome />} />
+          <Route path="statistics" element={<StatisticsHome />} />
           <Route path="core-api" element={<ApiHome />} />
           <Route path="admin/*" element={<AdminHome />} />
           <Route path="*" element={<h4>Page not found</h4>} />

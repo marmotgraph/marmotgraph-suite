@@ -18,6 +18,7 @@ import { modelerAvailable } from "../services/modeler";
 import {
   Blocks,
   BookmarkCheck,
+  ChartColumn,
   ChartScatter,
   CodeXml,
   Edit3Icon,
@@ -109,6 +110,15 @@ function SidebarMG({ isCollapsed, onToggle }: SidebarMGProps) {
             {!isCollapsed && <span className="ms-2">Modeler</span>}
           </NavLink>
         )}
+        <NavLink
+          to="/statistics"
+          className={({ isActive }) =>
+            `d-flex align-items-center py-2 px-3 mb-1 text-dark rounded sidebar-nav-link ${isActive ? "active" : ""}`
+          }
+        >
+          <ChartColumn size={18} />
+          {!isCollapsed && <span className="ms-2">Statistics</span>}
+        </NavLink>
         <NavLink
           to="/core-api"
           className={({ isActive }) =>

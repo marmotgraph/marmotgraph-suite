@@ -1,0 +1,280 @@
+.statistics-home {
+    padding: 8px 0 24px;
+}
+
+.statistics-kicker {
+    margin: 0;
+    font-size: 0.75rem;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+    color: #6c757d;
+}
+
+.statistics-meta {
+    font-size: 0.85rem;
+    color: #6c757d;
+}
+
+.statistics-note {
+    margin: 8px 0 0;
+    font-size: 0.8rem;
+    color: #6c757d;
+}
+
+.statistics-empty {
+    padding: 24px 12px;
+    text-align: center;
+    font-size: 0.875rem;
+}
+
+.statistics-card {
+    padding: 16px 20px;
+    background-color: #fff;
+    border: 1px solid #dee2e6;
+    border-radius: 10px;
+}
+
+/* Totals */
+.statistics-totals {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 16px;
+    margin-bottom: 28px;
+}
+
+.statistics-figures {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px 40px;
+    margin: 12px 0 0;
+}
+
+.statistics-figures > div {
+    display: flex;
+    flex-direction: column;
+}
+
+.statistics-figure {
+    order: 1;
+    margin: 0;
+    font-size: 1.85rem;
+    font-weight: 600;
+    line-height: 1.2;
+    letter-spacing: -0.01em;
+    color: #212529;
+    font-variant-numeric: tabular-nums;
+}
+
+.statistics-figure-label {
+    order: 2;
+    font-size: 0.85rem;
+    font-weight: 400;
+    color: #6c757d;
+}
+
+/* Sections */
+.statistics-section-header {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 8px;
+}
+
+.statistics-home section + section {
+    margin-top: 28px;
+}
+
+/* Most occurring types */
+.statistics-table {
+    margin-bottom: 0;
+}
+
+.statistics-table thead th {
+    padding: 0.5rem 1rem;
+    font-size: 1rem;
+    font-weight: 500;
+    color: #333;
+    white-space: nowrap;
+    background-color: transparent;
+    border-bottom: 1px solid #dee2e6;
+}
+
+.statistics-table tbody td {
+    padding: 0.6rem 1rem;
+    font-size: 0.95rem;
+    color: #333;
+    vertical-align: middle;
+    background-color: transparent;
+    border-bottom: 1px solid #f1f3f5;
+    overflow-wrap: anywhere;
+}
+
+.statistics-type-dot {
+    display: inline-block;
+    width: 10px;
+    height: 10px;
+    margin-right: 8px;
+    border-radius: 50%;
+}
+
+.statistics-table .statistics-number {
+    width: 1%;
+    text-align: right;
+    white-space: nowrap;
+    font-variant-numeric: tabular-nums;
+}
+
+.statistics-bar-cell {
+    width: 45%;
+}
+
+.statistics-type-bar {
+    min-width: 2px;
+    height: 12px;
+    background-color: #868e96;
+    border-radius: 0 4px 4px 0;
+}
+
+.statistics-show-all {
+    padding-left: 1rem;
+    color: #2563EB;
+    text-decoration: none;
+}
+
+.statistics-show-all:hover {
+    color: #1D4ED8;
+    text-decoration: underline;
+}
+
+.statistics-show-all:focus-visible {
+    outline: 2px solid #2563EB;
+    outline-offset: 2px;
+    box-shadow: none;
+}
+
+/* Compliance per validation schema */
+.statistics-schema + .statistics-schema {
+    margin-top: 12px;
+}
+
+.statistics-schema-header {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 4px 12px;
+    margin-bottom: 12px;
+}
+
+.statistics-schema-name {
+    margin: 0;
+    font-size: 1.05rem;
+    font-weight: 600;
+    color: #212529;
+    overflow-wrap: anywhere;
+}
+
+.statistics-compliance-bar {
+    display: flex;
+    gap: 2px;
+    height: 16px;
+    margin-bottom: 16px;
+    background-color: #fff;
+}
+
+.statistics-compliance-bar > div {
+    flex-basis: 3px;
+    min-width: 3px;
+}
+
+.statistics-compliance-bar > div:first-child {
+    border-radius: 4px 0 0 4px;
+}
+
+.statistics-compliance-bar > div:last-child {
+    border-radius: 0 4px 4px 0;
+}
+
+.statistics-compliance-bar > div:only-child {
+    border-radius: 4px;
+}
+
+/* A diverging scale: its neutral midpoint and the two arms keep apart for color blind readers (the text says the same) */
+.statistics-compliance-group--fullyCompliant {
+    background-color: #1e7a42;
+}
+
+.statistics-compliance-group--above80Percent {
+    background-color: #7cc29a;
+}
+
+.statistics-compliance-group--between40And80Percent {
+    background-color: #ced4da;
+}
+
+.statistics-compliance-group--below40Percent {
+    background-color: #f0a33a;
+}
+
+.statistics-compliance-group--notCompliant {
+    background-color: #a3410a;
+}
+
+.statistics-compliance-group--notAssessed {
+    background-image: repeating-linear-gradient(45deg, #adb5bd 0 2px, #f1f3f5 2px 5px);
+}
+
+.statistics-compliance-legend {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 12px 16px;
+    margin: 0;
+}
+
+.statistics-compliance-legend dt {
+    display: flex;
+    align-items: center;
+    font-size: 0.8rem;
+    font-weight: 400;
+    color: #6c757d;
+}
+
+.statistics-swatch {
+    flex-shrink: 0;
+    width: 10px;
+    height: 10px;
+    margin-right: 6px;
+    border-radius: 2px;
+}
+
+.statistics-compliance-legend dd {
+    margin: 2px 0 0 16px;
+    font-size: 1.05rem;
+    font-weight: 600;
+    color: #212529;
+    font-variant-numeric: tabular-nums;
+}
+
+.statistics-compliance-legend dd.statistics-none {
+    font-weight: 400;
+    color: #6c757d;
+}
+
+.statistics-share {
+    margin-left: 6px;
+    font-size: 0.8rem;
+    font-weight: 400;
+    color: #6c757d;
+}
+
+@media (max-width: 767.98px) {
+    .statistics-totals {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    .statistics-bar-cell {
+        display: none;
+    }
+}

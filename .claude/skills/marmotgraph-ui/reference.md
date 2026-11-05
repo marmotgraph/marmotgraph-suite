@@ -24,6 +24,7 @@ Source of truth: the CSS below. Use these values when the stylesheet does not al
 | Header sections | `ui/src/components/InstanceHeaderSection.css` (`InstanceHeaderSection.tsx`) | `instance-header-sections`, `instance-header-section` |
 | Comments | `ui/src/components/InstanceComments.css` (`InstanceComments.tsx`) | `instance-comments`, `comment-thread`, `comment-item` (on a field in the popup `field-comments-popover`) |
 | Contributed values | `ui/src/components/InstanceAlternatives.css` (`InstanceAlternatives.tsx`) | `instance-field-panel` (`InstanceDetail.css`), `instance-alternative` |
+| Statistics | `ui/src/modules/statistics/Statistics.css` | `statistics-card`, `statistics-table`, `statistics-compliance-bar`, `statistics-compliance-group--*` |
 | Unsaved | `ui/src/components/UnsavedInstancesPanel.css` | `unsaved-instances-panel` |
 | Footer | `ui/src/views/PoweredBy.tsx` | leave the credit line as it is |
 
