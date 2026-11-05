@@ -33,6 +33,7 @@ function DraftProbe({ onDrafts }: { onDrafts: (drafts: unknown[]) => void }) {
 
 describe("LinkedInstancesEditModal", () => {
   beforeEach(() => {
+    sessionStorage.clear();
     vi.mocked(useQuerySpaces).mockReturnValue({
       data: [{ identifier: "shared", isPrivate: false, canCreate: true, canWrite: true, canDelete: false }],
     });
