@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { Alert, Button, Col, Collapse, Form, Modal, Row, Spinner, Table } from "react-bootstrap";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { instanceListSearch, PREVIEW_PARAM } from "./instanceListUrl";
@@ -30,6 +30,7 @@ import UnsavedInstancesPanel from "../../components/UnsavedInstancesPanel";
 import { InstanceFilterPanel } from "../../components/InstanceFilterPanel";
 import { FilterPill } from "../../components/FilterPill";
 import InstanceFieldControl from "../../components/InstanceFieldControl";
+import { useInfiniteScroll } from "../../hooks/useInfiniteScroll";
 import { MOBILE_VIEWPORT_QUERY, useMediaQuery } from "../../hooks/useMediaQuery";
 import { useTypes } from "../../hooks/useTypes";
 import { useSpaces } from "../../hooks/useSpaces";
@@ -186,28 +187,12 @@ export default function EditorHome() {
     return Array.from(new Set(spaces.map((space) => space.identifier))).sort();
   }, [spaces]);
 
-  // Infinite scrolling: load the following page once the sentinel below the table becomes visible. The observer is
-  // recreated after each page so it fires again if the sentinel is still visible (e.g. the rows don't fill the
-  // container yet).
-  const scrollContainerRef = useRef<HTMLDivElement>(null);
-  const loadMoreRef = useRef<HTMLDivElement>(null);
+  // Infinite scrolling: load the following page once the sentinel below the table becomes visible
   const showLoadMore = !loading && hasMore;
-  useEffect(() => {
-    const sentinel = loadMoreRef.current;
-    if (!showLoadMore || loadingMore || !sentinel) {
-      return;
-    }
-    const observer = new IntersectionObserver(
-      (entries) => {
-        if (entries.some((entry) => entry.isIntersecting)) {
-          loadMore();
-        }
-      },
-      { root: scrollContainerRef.current, rootMargin: "0px 0px 200px 0px" },
-    );
-    observer.observe(sentinel);
-    return () => observer.disconnect();
-  }, [showLoadMore, loadingMore, loadMore]);
+  const { rootRef: scrollContainerRef, sentinelRef: loadMoreRef } = useInfiniteScroll<HTMLDivElement, HTMLDivElement>(
+    showLoadMore && !loadingMore,
+    loadMore,
+  );
 
   const handleSearch = () => {
     setSearchTerm(searchQuery.trim());

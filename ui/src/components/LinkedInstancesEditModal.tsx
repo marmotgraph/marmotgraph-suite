@@ -12,7 +12,7 @@ import {
   LinkedInstance,
   normalizeLinkedInstancesForField,
 } from "../modules/editor/editorMockData";
-import { fetchInstances } from "../services/instances";
+import { fetchInstances, InstanceQuery } from "../services/instances";
 import { typeLabel } from "../services/types";
 import {
   FilterPillsOverflow,
@@ -21,7 +21,7 @@ import {
 import LinkedInstancesCreatePanel from "./LinkedInstancesCreatePanel";
 import { MultiSelectFilterDropdown } from "./MultiSelectFilterDropdown";
 import InstanceSingleSelectList from "./InstanceSingleSelectList";
-import InstanceTransferList, { matchesSearch } from "./InstanceTransferList";
+import InstanceTransferList, { InstanceListPaging, matchesSearch } from "./InstanceTransferList";
 import "./LinkedInstancesEditModal.css";
 
 type LinkedInstancesEditModalProps = {
@@ -105,6 +105,12 @@ export default function LinkedInstancesEditModal({
   const [loadedInstances, setLoadedInstances] = useState<LinkedInstance[]>([]);
   const [loading, setLoading] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
+  // The further pages of the query the instances were loaded with - a page arriving after the query has changed is
+  // ignored (the query is identified by its generation)
+  const [nextMarker, setNextMarker] = useState<string | undefined>(undefined);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [loadMoreFailed, setLoadMoreFailed] = useState(false);
+  const queryRef = useRef<{ generation: number; query: InstanceQuery }>({ generation: 0, query: {} });
 
   useEffect(() => {
     const timeout = setTimeout(() => setAppliedSearch(search), SEARCH_DELAY_MS);
@@ -121,22 +127,26 @@ export default function LinkedInstancesEditModal({
       selectedTypes.length > 0
         ? selectedTypes.flatMap((label) => typeIdentifiersByLabel.get(label) ?? [])
         : allowedTypes;
+    const query: InstanceQuery = { search: appliedSearch, types: queriedTypes, spaces: selectedSpaces };
+    queryRef.current = { generation: queryRef.current.generation + 1, query };
     let cancelled = false;
     setLoading(true);
     setLoadError(null);
+    setNextMarker(undefined);
+    setLoadingMore(false);
+    setLoadMoreFailed(false);
     getAccessToken()
-      .then((token) =>
-        fetchInstances(token, { search: appliedSearch, types: queriedTypes, spaces: selectedSpaces }),
-      )
-      .then(
-        (loaded) =>
-          !cancelled &&
+      .then((token) => fetchInstances(token, query))
+      .then((loaded) => {
+        if (!cancelled) {
           setLoadedInstances(
             loaded.instances
               .filter((instance) => instance.instanceId !== currentInstanceId)
               .map(toLinkedInstance),
-          ),
-      )
+          );
+          setNextMarker(loaded.nextMarker);
+        }
+      })
       .catch((e: unknown) => {
         if (!cancelled) {
           setLoadedInstances([]);
@@ -157,6 +167,39 @@ export default function LinkedInstancesEditModal({
     appliedSearch,
     currentInstanceId,
   ]);
+
+  const loadMore = useCallback(() => {
+    if (!nextMarker || loading || loadingMore) {
+      return;
+    }
+    const { generation, query } = queryRef.current;
+    const isCurrent = () => queryRef.current.generation === generation;
+    setLoadingMore(true);
+    setLoadMoreFailed(false);
+    getAccessToken()
+      .then((token) => fetchInstances(token, { ...query, marker: nextMarker }))
+      .then((loaded) => {
+        if (!isCurrent()) {
+          return;
+        }
+        setLoadedInstances((previous) => {
+          const known = new Set(previous.map((instance) => instance.instanceId));
+          return [
+            ...previous,
+            ...loaded.instances
+              .filter((instance) => instance.instanceId !== currentInstanceId && !known.has(instance.instanceId))
+              .map(toLinkedInstance),
+          ];
+        });
+        setNextMarker(loaded.nextMarker);
+      })
+      .catch(() => isCurrent() && setLoadMoreFailed(true))
+      .finally(() => isCurrent() && setLoadingMore(false));
+  }, [currentInstanceId, getAccessToken, loading, loadingMore, nextMarker]);
+  const paging = useMemo<InstanceListPaging>(
+    () => ({ hasMore: !loading && Boolean(nextMarker), loadingMore, failed: loadMoreFailed, onLoadMore: loadMore }),
+    [loadMoreFailed, loading, loadMore, loadingMore, nextMarker],
+  );
 
   const selectableCatalog = useMemo(
     () => enrichLinkedInstancesWithDrafts(loadedInstances, getDraft),
@@ -441,6 +484,7 @@ export default function LinkedInstancesEditModal({
             filters={filters}
             search={search}
             onSearchChange={setSearch}
+            paging={paging}
           />
         ) : (
           <InstanceTransferList
@@ -451,6 +495,7 @@ export default function LinkedInstancesEditModal({
             availableFilters={filters}
             availableSearch={search}
             onAvailableSearchChange={setSearch}
+            availablePaging={paging}
           />
         )}
       </Modal.Body>

@@ -1,6 +1,6 @@
 import React from "react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import LinkedInstancesEditModal from "./LinkedInstancesEditModal";
 import { UnsavedInstancesProvider, useUnsavedInstances } from "../contexts/UnsavedInstancesContext";
 import { useQuerySpaces } from "../modules/query-builder/useQueryBuilderData";
@@ -205,6 +205,115 @@ describe("LinkedInstancesEditModal", () => {
 
       await waitFor(() => expect(searches()).toContain("rack-a"));
       expect(screen.getByRole("checkbox", { name: /Rack A1/, hidden: true })).toBeInTheDocument();
+    });
+  });
+  describe("paging", () => {
+    const device = (id: string) => ({ instanceId: id, instanceName: `Device ${id}`, type: "Device", space: "shared" });
+    let intersect: () => void;
+
+    beforeEach(() => {
+      intersect = () => undefined;
+      // Like the browser, only the observers which are still connected are notified
+      vi.stubGlobal(
+        "IntersectionObserver",
+        class {
+          constructor(private readonly callback: IntersectionObserverCallback) {}
+          observe() {
+            intersect = () =>
+              act(() => this.callback([{ isIntersecting: true } as IntersectionObserverEntry], this as never));
+          }
+          disconnect() {
+            intersect = () => undefined;
+          }
+        },
+      );
+      vi.mocked(useTypes).mockReturnValue([{ identifier: DEVICE, name: "Device" }]);
+      vi.mocked(fetchInstances).mockReset();
+    });
+
+    afterEach(() => vi.unstubAllGlobals());
+
+    function renderModal(single = true) {
+      render(
+        <UnsavedInstancesProvider>
+          <LinkedInstancesEditModal
+            show
+            single={single}
+            onHide={vi.fn()}
+            fieldLabel="Devices"
+            allowedTypes={[DEVICE]}
+            linkedInstances={[]}
+            onApply={vi.fn()}
+          />
+        </UnsavedInstancesProvider>,
+      );
+    }
+
+    it.each([
+      ["a single", true, "radio"],
+      ["a multiple", false, "checkbox"],
+    ] as const)("loads the following page of %s link with the same query once the end of the list is in view", async (_, single, role) => {
+      vi.mocked(fetchInstances).mockImplementation((_token, query) =>
+        Promise.resolve(
+          (query?.marker ? { instances: [device("2")] } : { instances: [device("1")], nextMarker: "page-2" }) as never,
+        ),
+      );
+      renderModal(single);
+      await screen.findByRole(role, { name: /Device 1/, hidden: true });
+      expect(screen.getByText("Loading more instances...")).toBeInTheDocument();
+
+      intersect();
+
+      expect(await screen.findByRole(role, { name: /Device 2/, hidden: true })).toBeInTheDocument();
+      expect(screen.getByRole(role, { name: /Device 1/, hidden: true })).toBeInTheDocument();
+      expect(fetchInstances).toHaveBeenLastCalledWith("token", expect.objectContaining({ types: [DEVICE], marker: "page-2" }));
+      // The last page has no marker - there is nothing more to load
+      expect(screen.queryByText("Loading more instances...")).toBeNull();
+    });
+
+    it("ignores a page of the previous search", async () => {
+      let resolveStalePage: (page: unknown) => void = () => undefined;
+      vi.mocked(fetchInstances).mockImplementation((_token, query) => {
+        if (query?.marker) {
+          return new Promise((resolve) => (resolveStalePage = resolve)) as never;
+        }
+        return Promise.resolve(
+          (query?.search ? { instances: [device("searched")] } : { instances: [device("1")], nextMarker: "page-2" }) as never,
+        );
+      });
+      renderModal();
+      await screen.findByRole("radio", { name: /Device 1/, hidden: true });
+      intersect();
+      await waitFor(() => expect(fetchInstances).toHaveBeenCalledWith("token", expect.objectContaining({ marker: "page-2" })));
+
+      fireEvent.change(screen.getByRole("searchbox", { name: "Search instances", hidden: true }), { target: { value: "searched" } });
+      await screen.findByRole("radio", { name: /Device searched/, hidden: true });
+      resolveStalePage({ instances: [device("stale")] });
+
+      await waitFor(() => expect(screen.queryByRole("radio", { name: /Device 1/, hidden: true })).toBeNull());
+      expect(screen.queryByRole("radio", { name: /Device stale/, hidden: true })).toBeNull();
+    });
+
+    it("offers to retry a page which could not be loaded instead of retrying on its own", async () => {
+      let failing = true;
+      vi.mocked(fetchInstances).mockImplementation((_token, query) => {
+        if (!query?.marker) {
+          return Promise.resolve({ instances: [device("1")], nextMarker: "page-2" } as never);
+        }
+        return (failing ? Promise.reject(new Error("unavailable")) : Promise.resolve({ instances: [device("2")] })) as never;
+      });
+      renderModal();
+      await screen.findByRole("radio", { name: /Device 1/, hidden: true });
+
+      intersect();
+      await screen.findByText(/Could not load more instances/);
+      intersect();
+      expect(vi.mocked(fetchInstances).mock.calls.filter(([, query]) => query?.marker)).toHaveLength(1);
+
+      failing = false;
+      fireEvent.click(screen.getByRole("button", { name: "Retry", hidden: true }));
+
+      expect(await screen.findByRole("radio", { name: /Device 2/, hidden: true })).toBeInTheDocument();
     });
   });
 });

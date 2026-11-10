@@ -1,5 +1,5 @@
 import React, { useMemo, useRef, useState } from "react";
-import { Button, Col, Form, ListGroup, Row } from "react-bootstrap";
+import { Button, Col, Form, ListGroup, Row, Spinner } from "react-bootstrap";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
   faAnglesLeft,
@@ -12,6 +12,7 @@ import {
 } from "@fortawesome/free-solid-svg-icons";
 import { LinkedInstance } from "../modules/editor/editorMockData";
 import LinkedInstanceDraftBadge from "./LinkedInstanceDraftBadge";
+import { useInfiniteScroll } from "../hooks/useInfiniteScroll";
 import "./InstanceTransferList.css";
 
 const typeColors: Record<string, string> = {
@@ -35,7 +36,58 @@ type InstanceTransferListProps = {
    */
   availableSearch?: string;
   onAvailableSearchChange?: (search: string) => void;
+  /** The further pages of the available instances - loaded once the end of the list is scrolled into view */
+  availablePaging?: InstanceListPaging;
 };
+
+/** The further pages of a list of instances (see {@link useInstanceListPaging}) */
+export type InstanceListPaging = {
+  hasMore: boolean;
+  loadingMore: boolean;
+  /** If loading the last page failed - it is only loaded again on request */
+  failed: boolean;
+  onLoadMore: () => void;
+};
+
+const noop = () => {};
+
+/** Infinite scrolling in a list of instances - the root goes to the scrolling panel, the sentinel to {@link LoadMoreItem} */
+export function useInstanceListPaging(paging?: InstanceListPaging) {
+  return useInfiniteScroll<HTMLDivElement, HTMLDivElement>(
+    Boolean(paging?.hasMore && !paging.loadingMore && !paging.failed),
+    paging?.onLoadMore ?? noop,
+  );
+}
+
+/** The last item of a list with further pages - loading them once it is scrolled into view */
+export function LoadMoreItem({
+  paging,
+  sentinelRef,
+}: {
+  paging?: InstanceListPaging;
+  sentinelRef: React.Ref<HTMLDivElement>;
+}) {
+  if (!paging?.hasMore) {
+    return null;
+  }
+  return (
+    <ListGroup.Item as="div" ref={sentinelRef} className="instance-transfer-list-more text-muted" role="status">
+      {paging.failed ? (
+        <>
+          Could not load more instances.{" "}
+          <Button type="button" variant="link" size="sm" className="instance-transfer-list-more-retry" onClick={paging.onLoadMore}>
+            Retry
+          </Button>
+        </>
+      ) : (
+        <>
+          <Spinner animation="border" size="sm" className="me-2" />
+          Loading more instances...
+        </>
+      )}
+    </ListGroup.Item>
+  );
+}
 
 export function matchesSearch(instance: LinkedInstance, search: string): boolean {
   const normalizedSearch = search.trim().toLowerCase();
@@ -165,6 +217,7 @@ function TransferListColumn({
   showOrderIndex = false,
   belowSearchContent,
   searchedByOwner = false,
+  paging,
 }: {
   columnId: string;
   title: string;
@@ -180,7 +233,9 @@ function TransferListColumn({
   belowSearchContent?: React.ReactNode;
   /** If the instances are already filtered by the search term */
   searchedByOwner?: boolean;
+  paging?: InstanceListPaging;
 }) {
+  const { rootRef, sentinelRef } = useInstanceListPaging(paging);
   const filteredInstances = useMemo(
     () => (searchedByOwner ? instances : instances.filter((instance) => matchesSearch(instance, search))),
     [instances, search, searchedByOwner],
@@ -285,6 +340,7 @@ function TransferListColumn({
             : ""}
       </div>
       <ListGroup
+        ref={rootRef}
         id={listId}
         className="instance-transfer-list-panel"
         aria-labelledby={headingId}
@@ -414,6 +470,7 @@ function TransferListColumn({
             );
           })
         )}
+        <LoadMoreItem paging={paging} sentinelRef={sentinelRef} />
       </ListGroup>
     </div>
   );
@@ -427,6 +484,7 @@ export default function InstanceTransferList({
   availableFilters,
   availableSearch: controlledAvailableSearch,
   onAvailableSearchChange,
+  availablePaging,
 }: InstanceTransferListProps) {
   const [localAvailableSearch, setLocalAvailableSearch] = useState("");
   const availableSearchedByOwner = controlledAvailableSearch !== undefined;
@@ -628,6 +686,7 @@ export default function InstanceTransferList({
           onSearchChange={setAvailableSearch}
           belowSearchContent={availableFilters}
           searchedByOwner={availableSearchedByOwner}
+          paging={availablePaging}
           onToggleHighlight={(instanceId) =>
             toggleHighlight(setAvailableHighlighted, instanceId)
           }

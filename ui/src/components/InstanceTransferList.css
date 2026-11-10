@@ -175,6 +175,20 @@
   border: none;
 }
 
+/* The last item of a list with further pages (LoadMoreItem) */
+.instance-transfer-list-more {
+  font-size: 0.875rem;
+  text-align: center;
+  padding: 0.5rem 1rem;
+  border: none;
+}
+
+.instance-transfer-list-more-retry {
+  padding: 0;
+  vertical-align: baseline;
+  font-size: inherit;
+}
+
 .instance-transfer-list-actions-col {
   display: flex;
   align-items: center;

@@ -4,7 +4,13 @@ import {
   LinkedInstance,
   linkedInstanceDisplayName,
 } from "../modules/editor/editorMockData";
-import { matchesSearch, TransferListItemLabel } from "./InstanceTransferList";
+import {
+  InstanceListPaging,
+  LoadMoreItem,
+  matchesSearch,
+  TransferListItemLabel,
+  useInstanceListPaging,
+} from "./InstanceTransferList";
 import "./InstanceTransferList.css";
 import "./InstanceSingleSelectList.css";
 
@@ -21,6 +27,8 @@ type InstanceSingleSelectListProps = {
    */
   search?: string;
   onSearchChange?: (search: string) => void;
+  /** The further pages of the instances - loaded once the end of the list is scrolled into view */
+  paging?: InstanceListPaging;
 };
 
 export default function InstanceSingleSelectList({
@@ -31,7 +39,9 @@ export default function InstanceSingleSelectList({
   filters,
   search: controlledSearch,
   onSearchChange,
+  paging,
 }: InstanceSingleSelectListProps) {
+  const { rootRef, sentinelRef } = useInstanceListPaging(paging);
   const [localSearch, setLocalSearch] = useState("");
   const searchedByOwner = controlledSearch !== undefined;
   const search = searchedByOwner ? controlledSearch : localSearch;
@@ -74,6 +84,7 @@ export default function InstanceSingleSelectList({
         )}
       </div>
       <ListGroup
+        ref={rootRef}
         className="instance-transfer-list-panel"
         role="radiogroup"
         aria-label="Instances"
@@ -121,6 +132,7 @@ export default function InstanceSingleSelectList({
             );
           })
         )}
+        <LoadMoreItem paging={paging} sentinelRef={sentinelRef} />
       </ListGroup>
     </div>
   );
