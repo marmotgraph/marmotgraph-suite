@@ -1,0 +1,306 @@
+/*
+ * CSCS look and feel.
+ *
+ * Applied ONLY for the tenant "CSCS": the file is loaded lazily by ../tenantStyles.ts and every rule is scoped to
+ * html[data-tenant="cscs"]. Without that attribute nothing in here has an effect, the default MarmotGraph style stays
+ * untouched. Do not add rules outside of that scope.
+ *
+ * The style follows the CSCS console: white surfaces with hairline borders on a very light page, small neutral type,
+ * rounded 8px controls and a dark green as the only accent color.
+ *
+ * Structure: 1. tokens  2. shell  3. sidebar  4. top bar and title  5. breadcrumbs  6. buttons  7. forms
+ *            8. tables and lists  9. tags and pills  10. cards  11. footer
+ */
+
+/* ------------------------------------------------------------------ 1. Tokens */
+html[data-tenant="cscs"] {
+    --cscs-brand: #3a6b20;
+    --cscs-brand-hover: #2b5416;
+    --cscs-brand-tint: #eef5ea;
+    --cscs-brand-tint-text: #243a1a;
+    --cscs-brand-ring: rgba(58, 107, 32, 0.22);
+
+    --cscs-page: #fafbfd;
+    --cscs-surface: #ffffff;
+    --cscs-hover: #f5f6f9;
+    --cscs-border: #e8eaee;
+    --cscs-border-strong: #d6dae1;
+
+    --cscs-text: #101620;
+    --cscs-text-body: #344054;
+    --cscs-text-muted: #6b7280;
+    --cscs-text-faint: #8a8f98;
+
+    --cscs-radius: 8px;
+    --cscs-radius-sm: 6px;
+
+    /* Bootstrap: links and focus use the brand color */
+    --bs-link-color: var(--cscs-brand);
+    --bs-link-color-rgb: 58, 107, 32;
+    --bs-link-hover-color: var(--cscs-brand-hover);
+    --bs-link-hover-color-rgb: 43, 84, 22;
+    --bs-border-color: var(--cscs-border);
+    --bs-body-color: var(--cscs-text-body);
+}
+
+/* ------------------------------------------------------------------ 2. Shell */
+html[data-tenant="cscs"] #root {
+    background-color: var(--cscs-surface);
+    color: var(--cscs-text-body);
+    font-size: 0.875rem;
+}
+
+/* The canvas fills the window - no floating rounded card around the app */
+html[data-tenant="cscs"] .layout-content {
+    margin: 0;
+    height: 100vh;
+    border-radius: 0;
+    background-color: var(--cscs-page);
+}
+
+html[data-tenant="cscs"] .layout-main {
+    background-color: var(--cscs-page);
+}
+
+/* ------------------------------------------------------------------ 3. Sidebar */
+html[data-tenant="cscs"] .sidebar-mg {
+    background-color: var(--cscs-surface);
+    border-right: 1px solid var(--cscs-border);
+}
+
+html[data-tenant="cscs"] .sidebar-nav-link {
+    color: var(--cscs-text-body) !important;
+    border-radius: var(--cscs-radius-sm);
+    font-size: 0.8125rem;
+    font-weight: 500;
+}
+
+html[data-tenant="cscs"] .sidebar-nav-link:hover {
+    background-color: var(--cscs-hover) !important;
+    color: var(--cscs-text) !important;
+}
+
+html[data-tenant="cscs"] .sidebar-nav-link.active {
+    background-color: var(--cscs-hover) !important;
+    color: var(--cscs-text) !important;
+    font-weight: 500 !important;
+}
+
+html[data-tenant="cscs"] .sidebar-bottom {
+    border-top: 1px solid var(--cscs-border);
+}
+
+html[data-tenant="cscs"] .sidebar-user-toggle:hover {
+    background-color: var(--cscs-hover) !important;
+}
+
+/* The avatar is a soft gray circle with the initial, not a black one */
+html[data-tenant="cscs"] .sidebar-user-avatar {
+    background-color: var(--cscs-hover) !important;
+    border: 1px solid var(--cscs-border);
+    color: var(--cscs-text-muted) !important;
+}
+
+html[data-tenant="cscs"] .sidebar-user-toggle .text-dark {
+    color: var(--cscs-text) !important;
+}
+
+/* ------------------------------------------------------------------ 4. Top bar and title */
+/* The sub navigation is the white top bar of the page, separated from the content by a hairline */
+html[data-tenant="cscs"] .layout-subnav-wrapper {
+    background-color: var(--cscs-surface);
+    border-bottom: 1px solid var(--cscs-border);
+}
+
+html[data-tenant="cscs"] .layout-subnav-wrapper .container-fluid {
+    padding-top: 0.75rem !important;
+    padding-bottom: 0.75rem !important;
+}
+
+html[data-tenant="cscs"] .layout-subnav-wrapper h5,
+html[data-tenant="cscs"] .layout-main h2 {
+    color: var(--cscs-text);
+    font-weight: 600;
+    letter-spacing: -0.005em;
+}
+
+/* ------------------------------------------------------------------ 5. Breadcrumbs */
+html[data-tenant="cscs"] .breadcrumb-link {
+    color: var(--cscs-brand);
+}
+
+html[data-tenant="cscs"] .breadcrumb-link:hover,
+html[data-tenant="cscs"] .breadcrumb-link:focus {
+    color: var(--cscs-brand-hover);
+}
+
+html[data-tenant="cscs"] .breadcrumb-link:focus-visible {
+    outline: 2px solid var(--cscs-brand);
+    outline-offset: 2px;
+}
+
+html[data-tenant="cscs"] .breadcrumb-text.is-current,
+html[data-tenant="cscs"] .breadcrumb-separator {
+    color: var(--cscs-text-faint);
+}
+
+/* ------------------------------------------------------------------ 6. Buttons */
+html[data-tenant="cscs"] .btn {
+    border-radius: var(--cscs-radius);
+    font-weight: 500;
+}
+
+/* Quiet actions: white with a hairline border (the "Export" button of the console) */
+html[data-tenant="cscs"] .btn-outline-secondary,
+html[data-tenant="cscs"] .btn-outline-dark {
+    --bs-btn-color: var(--cscs-text-body);
+    --bs-btn-bg: var(--cscs-surface);
+    --bs-btn-border-color: var(--cscs-border-strong);
+    --bs-btn-hover-color: var(--cscs-text);
+    --bs-btn-hover-bg: var(--cscs-hover);
+    --bs-btn-hover-border-color: var(--cscs-border-strong);
+    --bs-btn-active-color: var(--cscs-text);
+    --bs-btn-active-bg: var(--cscs-hover);
+    --bs-btn-active-border-color: var(--cscs-border-strong);
+    --bs-btn-disabled-color: #a8afb6;
+    --bs-btn-disabled-bg: var(--cscs-hover);
+    --bs-btn-disabled-border-color: var(--cscs-border);
+}
+
+html[data-tenant="cscs"] .btn:focus-visible,
+html[data-tenant="cscs"] .btn-check:focus-visible + .btn {
+    box-shadow: 0 0 0 3px var(--cscs-brand-ring);
+}
+
+html[data-tenant="cscs"] .edit-icon-btn:hover {
+    background-color: var(--cscs-hover);
+}
+
+/* ------------------------------------------------------------------ 7. Forms */
+html[data-tenant="cscs"] .form-control,
+html[data-tenant="cscs"] .form-select {
+    border-color: var(--cscs-border-strong);
+    border-radius: var(--cscs-radius);
+    color: var(--cscs-text);
+}
+
+html[data-tenant="cscs"] .form-control::placeholder {
+    color: var(--cscs-text-faint);
+}
+
+html[data-tenant="cscs"] .form-control:focus,
+html[data-tenant="cscs"] .form-select:focus {
+    border-color: var(--cscs-brand);
+    box-shadow: 0 0 0 3px var(--cscs-brand-ring);
+}
+
+html[data-tenant="cscs"] .form-control.is-invalid:focus,
+html[data-tenant="cscs"] .form-select.is-invalid:focus {
+    border-color: var(--bs-form-invalid-border-color);
+    box-shadow: 0 0 0 3px rgba(var(--bs-danger-rgb), 0.25);
+}
+
+html[data-tenant="cscs"] .form-label {
+    color: var(--cscs-text-body);
+    font-weight: 500;
+}
+
+html[data-tenant="cscs"] .form-check-input:checked[type="checkbox"],
+html[data-tenant="cscs"] .form-check-input:indeterminate[type="checkbox"],
+html[data-tenant="cscs"] .form-check-input:checked[type="radio"] {
+    background-color: var(--cscs-brand);
+    border-color: var(--cscs-brand);
+}
+
+html[data-tenant="cscs"] .form-check-input:focus {
+    border-color: var(--cscs-brand);
+    box-shadow: 0 0 0 3px var(--cscs-brand-ring);
+}
+
+/* ------------------------------------------------------------------ 8. Tables and lists */
+html[data-tenant="cscs"] .shared-queries-table thead th {
+    background-color: var(--cscs-page) !important;
+    color: var(--cscs-text-faint);
+    font-size: 0.75rem;
+    font-weight: 500;
+    padding: 0.625rem 1rem;
+}
+
+html[data-tenant="cscs"] .instances-table.shared-queries-table thead th {
+    background-color: var(--cscs-page) !important;
+    box-shadow: inset 0 -1px 0 var(--cscs-border);
+}
+
+html[data-tenant="cscs"] .shared-queries-table tbody td {
+    border-top: 1px solid var(--cscs-border);
+    color: var(--cscs-text-body);
+    font-size: 0.8125rem;
+    padding: 0.875rem 1rem;
+}
+
+html[data-tenant="cscs"] .shared-queries-table tbody td:nth-child(2),
+html[data-tenant="cscs"] .shared-queries-table tbody td:last-child {
+    color: var(--cscs-text-muted);
+}
+
+/* Hover and selection: neutral gray and the light green tint with a green bar - no purple */
+html[data-tenant="cscs"] .shared-queries-table tbody tr:hover {
+    background-color: var(--cscs-hover) !important;
+    border-left-color: var(--cscs-brand);
+}
+
+html[data-tenant="cscs"] .instances-table.shared-queries-table tbody tr.instance-row-selected,
+html[data-tenant="cscs"] .instances-table.shared-queries-table tbody tr.instance-row-selected:hover {
+    background-color: var(--cscs-brand-tint) !important;
+    border-left-color: var(--cscs-brand);
+}
+
+@media (hover: none) {
+    html[data-tenant="cscs"] .instances-table.shared-queries-table tbody tr.instance-row-selected,
+    html[data-tenant="cscs"] .instances-table.shared-queries-table tbody tr.instance-row-selected:hover {
+        background-color: var(--cscs-brand-tint) !important;
+        border-left-color: var(--cscs-brand);
+    }
+}
+
+html[data-tenant="cscs"] .bulk-actions-bar {
+    background-color: var(--cscs-brand-tint);
+    border-color: #cfe1c6;
+    border-radius: var(--cscs-radius);
+}
+
+/* ------------------------------------------------------------------ 9. Tags and pills */
+/* Neutral rounded pill with a hairline border (the "Regular" type of the console) */
+html[data-tenant="cscs"] .tag-badge,
+html[data-tenant="cscs"] .view-badge {
+    background-color: var(--cscs-hover);
+    border-color: var(--cscs-border-strong);
+    border-radius: 999px;
+    color: var(--cscs-text-body);
+    font-weight: 500;
+}
+
+/* ------------------------------------------------------------------ 10. Cards */
+html[data-tenant="cscs"] .instance-focus-panel {
+    border-color: var(--cscs-border);
+    border-radius: 12px;
+    box-shadow: 0 1px 2px rgba(16, 24, 40, 0.04);
+}
+
+/* Menus and dropdowns */
+html[data-tenant="cscs"] .dropdown-menu {
+    border-color: var(--cscs-border);
+    border-radius: var(--cscs-radius);
+    box-shadow: 0 8px 24px rgba(16, 24, 40, 0.1);
+}
+
+html[data-tenant="cscs"] .dropdown-item:active {
+    background-color: var(--cscs-brand-tint);
+    color: var(--cscs-brand-tint-text);
+}
+
+/* ------------------------------------------------------------------ 11. Footer */
+html[data-tenant="cscs"] .layout-footer-wrapper {
+    background-color: var(--cscs-surface);
+    border-top: 1px solid var(--cscs-border);
+}

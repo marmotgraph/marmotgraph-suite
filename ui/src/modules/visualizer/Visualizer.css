@@ -1,0 +1,928 @@
+/* Visualizer - the page is a toolbar and a stage: settings | canvas | selected instance */
+
+.viz-home {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    /* Fills the main area of the page (as the editor does) - there is no room left over at the bottom */
+    height: 100%;
+    min-height: 480px;
+}
+
+.viz-home .form-control:focus,
+.viz-home .form-select:focus,
+.viz-home .form-check-input:focus {
+    border-color: #6c8ebf;
+    box-shadow: 0 0 0 0.2rem rgba(108, 142, 191, 0.25);
+}
+
+.viz-kicker {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin: 0;
+    font-size: 0.75rem;
+    font-weight: 600;
+    letter-spacing: 0.4px;
+    text-transform: uppercase;
+    color: #5c636a;
+}
+
+.viz-muted {
+    margin: 0;
+    font-size: 0.85rem;
+    color: #5c636a;
+    overflow-wrap: anywhere;
+}
+
+.viz-dot {
+    flex: 0 0 auto;
+    display: inline-block;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+}
+
+.viz-count {
+    flex: 0 0 auto;
+    margin-left: auto;
+    padding: 0 7px;
+    border-radius: 999px;
+    background: #f1f3f5;
+    color: #495057;
+    font-size: 0.75rem;
+    font-variant-numeric: tabular-nums;
+}
+
+/* ---- Toolbar ---- */
+
+.viz-toolbar {
+    position: relative;
+    z-index: 20; /* the search results open over the graph */
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px 16px;
+    container: viz-toolbar / inline-size;
+}
+
+/* Search and the size of the graph on the left ... */
+.viz-toolbar-start {
+    display: flex;
+    flex: 1 1 360px;
+    align-items: center;
+    gap: 12px;
+    min-width: 0;
+}
+
+.viz-search {
+    position: relative;
+    flex: 1 1 260px;
+    min-width: 0;
+    max-width: 560px;
+}
+
+/* ... the representation on the right (with the options of the hive plot next to it) */
+.viz-toolbar-end {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 12px 16px;
+    margin-left: auto;
+}
+
+.viz-layouts {
+    display: inline-flex;
+    gap: 2px;
+    padding: 2px;
+    border: 1px solid #dee2e6;
+    border-radius: 8px;
+    background: #f8f9fa;
+}
+
+.viz-layout-option {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    min-height: 32px; /* 32 + padding + border = 38, as the search and the selects */
+    padding: 4px 12px;
+    border: 1px solid transparent;
+    border-radius: 6px;
+    background: transparent;
+    color: #495057;
+    font-size: 0.875rem;
+    font-weight: 500;
+    transition: background-color 0.15s ease;
+}
+
+.viz-layout-option:hover {
+    background: #e9ecef;
+}
+
+.viz-layout-option.active {
+    background: #eef0fb;
+    border-color: #5b5fc7;
+    color: #212529;
+}
+
+.viz-layout-option.active svg {
+    color: #5b5fc7;
+}
+
+.viz-layout-option:focus-visible,
+.viz-neighbour:focus-visible,
+.viz-result:focus-visible,
+.viz-chip:focus-visible {
+    outline: 2px solid #5b5fc7;
+    outline-offset: 2px;
+}
+
+.viz-hive-options {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+/* The name sits beside its select, so the options are as high as everything else in the row */
+.viz-hive-options label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin: 0;
+}
+
+.viz-hive-options .viz-kicker {
+    white-space: nowrap;
+}
+
+.viz-hive-options select {
+    min-width: 130px;
+}
+
+/* Search results - a menu, like the breadcrumb one */
+.viz-results {
+    position: absolute;
+    z-index: 30;
+    top: calc(100% + 6px);
+    left: 0;
+    right: 0;
+    max-height: 340px;
+    overflow-y: auto;
+    padding: 4px;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    background: #fff;
+    box-shadow: 0 8px 24px rgba(15, 23, 42, 0.12);
+}
+
+.viz-results-empty {
+    padding: 24px 12px;
+    text-align: center;
+    font-size: 0.875rem;
+    color: #5c636a;
+}
+
+.viz-result {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+    padding: 8px 10px;
+    border: 0;
+    border-left: 3px solid transparent;
+    border-radius: 6px;
+    background: transparent;
+    text-align: left;
+    font-size: 0.9rem;
+}
+
+.viz-result:hover {
+    background: #e8e9f3;
+    border-left-color: #5b5fc7;
+}
+
+.viz-result-type {
+    flex: 0 0 auto;
+    max-width: 130px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 0.8rem;
+    color: #5c636a;
+}
+
+.viz-result-name {
+    flex: 1 1 auto;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-weight: 600;
+    color: #212529;
+}
+
+.viz-result-id {
+    flex: 0 1 140px;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 0.75rem;
+    color: #5c636a;
+}
+
+.viz-result-space {
+    flex: 0 0 auto;
+    font-size: 0.8rem;
+    color: #5c636a;
+}
+
+.viz-results-close {
+    display: block;
+    width: 100%;
+    padding: 6px;
+    border: 0;
+    border-top: 1px solid #f1f3f5;
+    background: transparent;
+    font-size: 0.8rem;
+    color: #5c636a;
+}
+
+/* ---- Stage ---- */
+
+.viz-stage {
+    position: relative;
+    display: flex;
+    flex: 1;
+    gap: 12px;
+    min-height: 0;
+}
+
+.viz-side {
+    flex: 0 0 248px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    overflow-y: auto;
+    padding: 16px;
+    border: 1px solid #e4e7eb;
+    border-radius: 8px;
+    background: #fff;
+    box-shadow: 0 1px 2px rgba(16, 24, 40, 0.04);
+    font-size: 0.875rem;
+}
+
+.viz-side-header,
+.viz-node-panel-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.viz-side-toggle {
+    flex: 0 0 auto;
+    align-self: flex-start;
+    min-width: 32px;
+    min-height: 32px;
+    border: 1px solid #dee2e6 !important;
+    background: #fff !important;
+}
+
+.viz-summary {
+    display: flex;
+    gap: 8px;
+}
+
+.viz-summary div,
+.viz-stats div {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    padding: 8px 10px;
+    border-radius: 8px;
+    background: #f8f9fa;
+}
+
+.viz-summary strong,
+.viz-stats strong {
+    font-size: 1.25rem;
+    font-weight: 600;
+    line-height: 1.2;
+    color: #212529;
+    font-variant-numeric: tabular-nums;
+}
+
+.viz-summary span,
+.viz-stats span {
+    font-size: 0.75rem;
+    color: #5c636a;
+}
+
+.viz-expand .viz-hint {
+    margin: 0;
+    font-size: 0.75rem;
+    line-height: 1.4;
+    color: #5c636a;
+}
+
+.viz-section {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.viz-types-all {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin: 0;
+    padding: 6px 0 6px 1.5em;
+    border-bottom: 1px solid #e9ecef;
+}
+
+.viz-types-all .form-check-label {
+    flex: 1;
+    min-width: 0;
+    font-weight: 600;
+    color: #212529;
+}
+
+.viz-types-all .form-check-input {
+    cursor: pointer;
+}
+
+.viz-types {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    max-height: 240px;
+    overflow-y: auto;
+}
+
+.viz-types .form-check {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin: 0;
+    padding: 4px 0 4px 1.5em;
+}
+
+.viz-types .form-check-label {
+    flex: 1;
+    min-width: 0;
+}
+
+.viz-type-label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
+}
+
+.viz-type-name {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    color: #333;
+}
+
+.viz-side-footer {
+    margin-top: auto;
+    padding-top: 8px;
+    border-top: 1px solid #f1f3f5;
+}
+
+.viz-quiet {
+    padding: 4px 6px !important;
+    color: #5c636a !important;
+    text-decoration: none !important;
+    font-size: 0.85rem;
+}
+
+.viz-quiet:hover {
+    color: #212529 !important;
+    background: #f1f3f5;
+}
+
+.viz-more {
+    align-self: flex-start;
+    padding: 2px 0 !important;
+    font-size: 0.8rem;
+    color: #2563eb !important;
+}
+
+.viz-more:hover {
+    color: #1d4ed8 !important;
+}
+
+/* ---- Canvas ---- */
+
+.viz-main {
+    position: relative;
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    border: 1px solid #dee2e6;
+    border-radius: 10px;
+    background-color: #f7f8fb;
+}
+
+.viz-canvas {
+    position: absolute;
+    inset: 0;
+}
+
+/* The graph itself is painted on the canvas (see canvasRenderer) - nodes, links, guides and labels included */
+.viz-surface {
+    display: block;
+    width: 100%;
+    height: 100%;
+    cursor: grab;
+    touch-action: none;
+    user-select: none;
+    outline: none;
+}
+
+.viz-surface:active,
+.viz-surface.is-dragging {
+    cursor: grabbing;
+}
+
+.viz-surface:focus-visible {
+    box-shadow: inset 0 0 0 2px #5b5fc7;
+    border-radius: 10px;
+}
+
+.viz-pills {
+    position: absolute;
+    z-index: 5;
+    top: 10px;
+    left: 12px;
+    right: 60px;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    pointer-events: none;
+}
+
+.viz-pills > * {
+    pointer-events: auto;
+}
+
+.viz-pills .badge {
+    margin-bottom: 0 !important;
+}
+
+.viz-tools {
+    position: absolute;
+    z-index: 5;
+    top: 10px;
+    right: 10px;
+    display: flex;
+    flex-direction: column;
+    padding: 2px;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    background: #fff;
+    box-shadow: 0 1px 2px rgba(16, 24, 40, 0.06);
+}
+
+.viz-tools .edit-icon-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 32px;
+    min-height: 32px;
+    padding: 6px !important;
+}
+
+.viz-busy,
+.viz-notice,
+.viz-caption {
+    position: absolute;
+    z-index: 5;
+    padding: 6px 12px;
+    border: 1px solid #e2e8f0;
+    border-radius: 999px;
+    background: #fff;
+    box-shadow: 0 1px 2px rgba(16, 24, 40, 0.06);
+    font-size: 0.8rem;
+    color: #495057;
+}
+
+.viz-busy {
+    top: 10px;
+    left: 50%;
+    transform: translateX(-50%);
+}
+
+.viz-notice {
+    bottom: 12px;
+    left: 50%;
+    transform: translateX(-50%);
+    max-width: calc(100% - 32px);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    background: #fff8e6;
+    border-color: #ffe08a;
+    color: #856404;
+}
+
+.viz-notice-close {
+    padding: 0 4px !important;
+    line-height: 1;
+    color: #856404 !important;
+    text-decoration: none !important;
+}
+
+.viz-caption {
+    bottom: 12px;
+    left: 12px;
+    color: #5c636a;
+}
+
+.viz-count-chip {
+    display: inline-flex;
+    flex: 0 0 auto;
+    align-items: center;
+    margin: 0;
+    white-space: nowrap;
+    padding: 4px 10px;
+    border: 1px solid #e2e8f0;
+    border-radius: 999px;
+    background: #fff;
+    font-size: 0.8rem;
+    color: #495057;
+    font-variant-numeric: tabular-nums;
+}
+
+/* ---- Tooltip ---- */
+
+.viz-tooltip {
+    position: absolute;
+    z-index: 6;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    max-width: 280px;
+    padding: 8px 10px;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    background: #fff;
+    box-shadow: 0 8px 24px rgba(15, 23, 42, 0.12);
+    font-size: 0.85rem;
+    transform: translate(-50%, -100%);
+    pointer-events: none;
+}
+
+.viz-tooltip strong {
+    font-weight: 600;
+    color: #212529;
+    overflow-wrap: anywhere;
+}
+
+.viz-tooltip-type {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.7rem;
+    font-weight: 600;
+    letter-spacing: 0.4px;
+    text-transform: uppercase;
+    color: #5c636a;
+}
+
+.viz-tooltip-type i {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+}
+
+.viz-tooltip-meta {
+    font-size: 0.75rem;
+    color: #5c636a;
+}
+
+/* ---- Empty state ---- */
+
+.viz-empty {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+}
+
+/* Above the canvas, which is still there underneath (nothing to show, but the view is kept) */
+.viz-empty--over {
+    z-index: 3;
+    pointer-events: none;
+}
+
+.viz-empty--over .viz-empty-card {
+    pointer-events: auto;
+}
+
+.viz-empty-card {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+    max-width: 520px;
+    text-align: center;
+}
+
+.viz-empty-card h2 {
+    margin: 0;
+    font-size: 1.35rem;
+    font-weight: 600;
+    color: #212529;
+}
+
+.viz-empty-card p {
+    margin: 0;
+    color: #5c636a;
+}
+
+.viz-empty-mark {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 56px;
+    height: 56px;
+    border-radius: 50%;
+    background: #eef0fb;
+    color: #5b5fc7;
+    box-shadow: 0 0 0 8px rgba(91, 95, 199, 0.07);
+}
+
+.viz-chips {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 8px;
+}
+
+.viz-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    min-height: 32px;
+    padding: 4px 12px;
+    border: 1px solid #dee2e6;
+    border-radius: 999px;
+    background: #fff;
+    font-size: 0.875rem;
+    color: #333;
+    transition: background-color 0.15s ease;
+}
+
+.viz-chip:hover:not(:disabled) {
+    background: #e8e9f3;
+}
+
+/* ---- Selected instance ---- */
+
+.viz-node-panel {
+    flex: 0 0 340px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    overflow-y: auto;
+    padding: 16px;
+    border: 1px solid #e4e7eb;
+    border-top: 3px solid var(--viz-type-color, #6c757d);
+    border-radius: 8px;
+    background: #fff;
+    box-shadow: 0 1px 2px rgba(16, 24, 40, 0.04), 0 8px 24px rgba(0, 0, 0, 0.06);
+    font-size: 0.875rem;
+}
+
+.viz-node-name {
+    font-size: 1.15rem;
+    font-weight: 600;
+    color: #212529;
+    overflow-wrap: anywhere;
+}
+
+.viz-node-id {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    margin-top: -6px;
+}
+
+.viz-node-id code {
+    flex: 0 1 auto;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 0.75rem;
+    color: #5c636a;
+}
+
+.viz-copy {
+    padding: 4px !important;
+}
+
+.viz-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.viz-stats {
+    display: flex;
+    gap: 8px;
+}
+
+.viz-properties {
+    display: grid;
+    grid-template-columns: minmax(0, 0.8fr) minmax(0, 1.2fr);
+    gap: 6px 12px;
+    margin: 0;
+}
+
+.viz-properties dt {
+    font-weight: 500;
+    color: #5c636a;
+    overflow-wrap: anywhere;
+}
+
+.viz-properties dd {
+    margin: 0;
+    color: #212529;
+    overflow-wrap: anywhere;
+}
+
+.viz-skeleton {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.viz-skeleton span {
+    height: 12px;
+    border-radius: 4px;
+    background: #e9ecef;
+    animation: viz-pulse 1.4s ease-in-out infinite;
+}
+
+.viz-skeleton span:nth-child(2) {
+    width: 80%;
+}
+
+.viz-skeleton span:nth-child(3) {
+    width: 55%;
+}
+
+@keyframes viz-pulse {
+    50% {
+        opacity: 0.45;
+    }
+}
+
+.viz-neighbour-group {
+    border: 1px solid #e4e7eb;
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+.viz-neighbour-group-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 10px;
+    background: #f8f9fb;
+}
+
+.viz-neighbour-type {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-weight: 600;
+    color: #333;
+}
+
+.viz-neighbour-group ul {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.viz-neighbour-group li + li {
+    border-top: 1px solid #f1f3f5;
+}
+
+.viz-neighbour {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    padding: 6px 10px;
+    border: 0;
+    border-left: 3px solid transparent;
+    background: transparent;
+    text-align: left;
+}
+
+.viz-neighbour:hover {
+    background: #e8e9f3;
+    border-left-color: #5b5fc7;
+}
+
+.viz-neighbour-name {
+    color: #333;
+    overflow-wrap: anywhere;
+}
+
+.viz-neighbour-via {
+    font-size: 0.75rem;
+    color: #5c636a;
+}
+
+.viz-node-panel-footer {
+    margin-top: auto;
+    padding-top: 8px;
+    border-top: 1px solid #f1f3f5;
+}
+
+/* ---- Small screens: the settings fold away, the selection becomes a sheet ---- */
+
+@media (max-width: 768px) {
+    .viz-home {
+        height: auto;
+        min-height: 0;
+    }
+
+    .viz-stage {
+        flex-direction: column;
+    }
+
+    .viz-main {
+        flex: none;
+        height: 60vh;
+        min-height: 320px;
+    }
+
+    .viz-side {
+        flex: none;
+        max-height: 45vh;
+    }
+
+    .viz-node-panel {
+        position: fixed;
+        z-index: 1030;
+        left: 8px;
+        right: 8px;
+        bottom: 8px;
+        max-height: 55vh;
+        flex: none;
+    }
+
+    .viz-hive-options label {
+        min-width: 130px;
+    }
+
+    .viz-layout-option span {
+        display: none;
+    }
+}
+
+/* Less room: the representations shrink to their icons (they keep a name and a tooltip) */
+@container viz-toolbar (max-width: 840px) {
+    .viz-layout-option span {
+        display: none;
+    }
+
+    .viz-layout-option {
+        padding: 4px 10px;
+    }
+}
+
+@container viz-toolbar (max-width: 1260px) {
+    .viz-toolbar--hive .viz-layout-option span {
+        display: none;
+    }
+
+    .viz-toolbar--hive .viz-layout-option {
+        padding: 4px 10px;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .viz-layout-option,
+    .viz-chip {
+        transition: none;
+    }
+
+    .viz-skeleton span {
+        animation: none;
+    }
+}
