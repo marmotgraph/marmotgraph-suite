@@ -144,4 +144,64 @@
         </plugins>
     </build>
 
+    <profiles>
+        <!-- Bundles the documentation (zensical.toml at the repository root) into the jar, where it's served at /docs.
+             Requires Zensical, see docs/requirements.txt -->
+        <profile>
+            <id>docs</id>
+            <properties>
+                <zensical.executable>zensical</zensical.executable>
+                <docs.basedir>${project.basedir}/..</docs.basedir>
+            </properties>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.codehaus.mojo</groupId>
+                        <artifactId>exec-maven-plugin</artifactId>
+                        <version>3.6.4</version>
+                        <executions>
+                            <execution>
+                                <id>build-docs</id>
+                                <phase>generate-resources</phase>
+                                <goals>
+                                    <goal>exec</goal>
+                                </goals>
+                                <configuration>
+                                    <executable>${zensical.executable}</executable>
+                                    <workingDirectory>${docs.basedir}</workingDirectory>
+                                    <arguments>
+                                        <argument>build</argument>
+                                        <argument>--strict</argument>
+                                        <argument>--clean</argument>
+                                    </arguments>
+                                </configuration>
+                            </execution>
+                        </executions>
+                    </plugin>
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-resources-plugin</artifactId>
+                        <executions>
+                            <execution>
+                                <id>copy-docs</id>
+                                <phase>process-resources</phase>
+                                <goals>
+                                    <goal>copy-resources</goal>
+                                </goals>
+                                <configuration>
+                                    <outputDirectory>${project.build.outputDirectory}/public/docs</outputDirectory>
+                                    <resources>
+                                        <resource>
+                                            <directory>${docs.basedir}/site</directory>
+                                        </resource>
+                                    </resources>
+                                </configuration>
+                            </execution>
+                        </executions>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+    </profiles>
+
 </project>

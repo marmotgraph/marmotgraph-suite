@@ -29,6 +29,12 @@ type InstanceTransferListProps = {
   selectedIds: string[];
   onSelectedIdsChange: (selectedIds: string[]) => void;
   availableFilters?: React.ReactNode;
+  /**
+   * The search term of the available instances if it is applied by the owner (e.g. by the server) - they are then shown
+   * as they are. Without it, the list filters them itself. The selected instances are always filtered by the list.
+   */
+  availableSearch?: string;
+  onAvailableSearchChange?: (search: string) => void;
 };
 
 export function matchesSearch(instance: LinkedInstance, search: string): boolean {
@@ -158,6 +164,7 @@ function TransferListColumn({
   groupByType = true,
   showOrderIndex = false,
   belowSearchContent,
+  searchedByOwner = false,
 }: {
   columnId: string;
   title: string;
@@ -171,10 +178,12 @@ function TransferListColumn({
   groupByType?: boolean;
   showOrderIndex?: boolean;
   belowSearchContent?: React.ReactNode;
+  /** If the instances are already filtered by the search term */
+  searchedByOwner?: boolean;
 }) {
   const filteredInstances = useMemo(
-    () => instances.filter((instance) => matchesSearch(instance, search)),
-    [instances, search],
+    () => (searchedByOwner ? instances : instances.filter((instance) => matchesSearch(instance, search))),
+    [instances, search, searchedByOwner],
   );
   const orderIndexById = useMemo(
     () =>
@@ -416,8 +425,15 @@ export default function InstanceTransferList({
   selectedIds,
   onSelectedIdsChange,
   availableFilters,
+  availableSearch: controlledAvailableSearch,
+  onAvailableSearchChange,
 }: InstanceTransferListProps) {
-  const [availableSearch, setAvailableSearch] = useState("");
+  const [localAvailableSearch, setLocalAvailableSearch] = useState("");
+  const availableSearchedByOwner = controlledAvailableSearch !== undefined;
+  const availableSearch = availableSearchedByOwner ? controlledAvailableSearch : localAvailableSearch;
+  const setAvailableSearch = availableSearchedByOwner
+    ? (onAvailableSearchChange ?? (() => {}))
+    : setLocalAvailableSearch;
   const [selectedSearch, setSelectedSearch] = useState("");
   const [availableHighlighted, setAvailableHighlighted] = useState<Set<string>>(
     new Set(),
@@ -452,9 +468,9 @@ export default function InstanceTransferList({
   const visibleAvailableIds = useMemo(
     () =>
       availableList
-        .filter((instance) => matchesSearch(instance, availableSearch))
+        .filter((instance) => availableSearchedByOwner || matchesSearch(instance, availableSearch))
         .map((instance) => instance.instanceId),
-    [availableList, availableSearch],
+    [availableList, availableSearch, availableSearchedByOwner],
   );
 
   const visibleSelectedIds = useMemo(
@@ -611,6 +627,7 @@ export default function InstanceTransferList({
           emptyMessage="No available instances match your filters."
           onSearchChange={setAvailableSearch}
           belowSearchContent={availableFilters}
+          searchedByOwner={availableSearchedByOwner}
           onToggleHighlight={(instanceId) =>
             toggleHighlight(setAvailableHighlighted, instanceId)
           }

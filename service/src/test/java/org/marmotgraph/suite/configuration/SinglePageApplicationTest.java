@@ -19,13 +19,15 @@ import java.util.Optional;
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.forwardedUrl;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.redirectedUrl;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @SpringJUnitWebConfig(SinglePageApplicationTest.TestConfig.class)
 class SinglePageApplicationTest {
 
     @EnableWebMvc
-    @Import({ApiRoot.class, SinglePageApplication.class, Config.class})
+    @Import({ApiRoot.class, SinglePageApplication.class, Documentation.class, Config.class})
     static class TestConfig {
         @Bean
         AuthenticationInformation authenticationInformation() {
@@ -72,6 +74,24 @@ class SinglePageApplicationTest {
     void unknownApiPathsAreNotFound() throws Exception {
         mockMvc.perform(get("/api/doesNotExist")).andExpect(status().isNotFound());
         mockMvc.perform(get("/api")).andExpect(status().isNotFound());
+    }
+
+    @Test
+    void documentationRootForwardsToItsIndex() throws Exception {
+        mockMvc.perform(get("/docs")).andExpect(redirectedUrl("/docs/"));
+        mockMvc.perform(get("/docs/")).andExpect(forwardedUrl("/docs/index.html"));
+    }
+
+    @Test
+    void documentationPagesAreServed() throws Exception {
+        mockMvc.perform(get("/docs/index.html"))
+                .andExpect(status().isOk())
+                .andExpect(content().contentTypeCompatibleWith(MediaType.TEXT_HTML));
+    }
+
+    @Test
+    void unknownDocumentationPagesAreNotFound() throws Exception {
+        mockMvc.perform(get("/docs/doesNotExist.html")).andExpect(status().isNotFound());
     }
 
 }

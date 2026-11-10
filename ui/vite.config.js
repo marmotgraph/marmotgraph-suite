@@ -15,6 +15,11 @@ export default defineConfig({
         target: "http://localhost:8080",
         changeOrigin: true,
       },
+      // The documentation is served by the service as well (see Documentation.java)
+      "/docs": {
+        target: "http://localhost:8080",
+        changeOrigin: true,
+      },
     },
   },
   test: {

@@ -3,6 +3,7 @@ import { Navigate, Route, Routes } from "react-router-dom";
 import "bootstrap/dist/css/bootstrap.min.css";
 import "./App.css";
 import Layout from "./views/Layout";
+import NotFound from "./views/NotFound";
 import { InstancesProvider } from "./contexts/InstancesContext";
 import { UnsavedInstancesProvider } from "./contexts/UnsavedInstancesContext";
 
@@ -36,7 +37,7 @@ function App() {
           <Route path="statistics" element={<StatisticsHome />} />
           <Route path="core-api" element={<ApiHome />} />
           <Route path="admin/*" element={<AdminHome />} />
-          <Route path="*" element={<h4>Page not found</h4>} />
+          <Route path="*" element={<NotFound />} />
         </Routes>
       </Layout>
       </UnsavedInstancesProvider>

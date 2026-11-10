@@ -4,3 +4,5 @@
 !.claude/skills/**
 .idea
 **/*.iml
+# The built documentation (zensical build) - bundled into the jar by the Maven profile "docs"
+/site/

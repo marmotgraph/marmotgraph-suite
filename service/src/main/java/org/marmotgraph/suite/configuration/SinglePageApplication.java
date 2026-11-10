@@ -34,7 +34,8 @@ import java.io.IOException;
 
 /**
  * Serves the single page application: Static files are delivered as they are, all other requests outside of the
- * API root are answered with the index.html so the client side routing of the SPA can pick them up.
+ * API root and the documentation are answered with the index.html so the client side routing of the SPA can pick
+ * them up.
  */
 @Configuration
 public class SinglePageApplication implements WebMvcConfigurer {
@@ -56,14 +57,22 @@ public class SinglePageApplication implements WebMvcConfigurer {
         @Override
         protected Resource getResource(String resourcePath, Resource location) throws IOException {
             Resource resource = super.getResource(resourcePath, location);
-            if (resource != null || isApiPath(resourcePath)) {
+            if (resource != null || isExcluded(resourcePath)) {
                 return resource;
             }
             return super.getResource(INDEX, location);
         }
 
-        private static boolean isApiPath(String resourcePath) {
-            return resourcePath.equals("api") || resourcePath.startsWith("api/");
+        /**
+         * The API and the documentation answer unknown paths with a 404 - a broken link to a documentation page would
+         * otherwise silently load the SPA.
+         */
+        private static boolean isExcluded(String resourcePath) {
+            return isWithin(resourcePath, "api") || isWithin(resourcePath, Documentation.ROOT);
+        }
+
+        private static boolean isWithin(String resourcePath, String root) {
+            return resourcePath.equals(root) || resourcePath.startsWith(root + "/");
         }
     }
 

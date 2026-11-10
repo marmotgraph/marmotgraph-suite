@@ -1,0 +1,108 @@
+/* The look of the start page (defaultPage.html) with the colors of ColorScheme.DEFAULT */
+[data-md-color-scheme="slate"] {
+  --mg-black-10: #0f1219;
+  /* black-09 (#0f1219e6) as it appears on the white body of the start page */
+  --mg-black-09: #272a30;
+  --mg-grey-200: #e9ecef;
+  --mg-grey-300: #dee2e6;
+  --mg-grey-500: #adb5bd;
+  --mg-grey-600: #6c757d;
+  --mg-grey-700: #495057;
+  --mg-brand: #e67634;
+
+  --md-primary-fg-color: var(--mg-black-10);
+  --md-primary-fg-color--light: var(--mg-black-10);
+  --md-primary-fg-color--dark: var(--mg-black-10);
+  --md-primary-bg-color: var(--mg-grey-200);
+  --md-primary-bg-color--light: var(--mg-grey-500);
+  --md-accent-fg-color: var(--mg-brand);
+  --md-default-bg-color: var(--mg-black-09);
+  --md-default-bg-color--light: #272a308a;
+  --md-default-bg-color--lighter: #272a3042;
+  --md-default-bg-color--lightest: #272a3012;
+  --md-default-bg-color--transparent: #272a3000;
+  --md-default-fg-color: var(--mg-grey-200);
+  --md-default-fg-color--light: var(--mg-grey-300);
+  --md-default-fg-color--lighter: var(--mg-grey-600);
+  --md-default-fg-color--lightest: var(--mg-grey-700);
+  --md-typeset-color: var(--mg-grey-200);
+  --md-typeset-a-color: var(--mg-brand);
+  --md-code-bg-color: var(--mg-black-10);
+  --md-code-fg-color: var(--mg-grey-300);
+  --md-footer-bg-color: var(--mg-black-10);
+  --md-footer-bg-color--dark: var(--mg-black-10);
+}
+
+/* The logo contains the name, as in the header of the start page */
+.md-header__button.md-logo img {
+  height: 2rem;
+  width: auto;
+}
+
+.md-header__topic:first-child .md-ellipsis {
+  visibility: hidden;
+}
+
+/* The halo of the sticky sidebar titles shows up as a band on this background */
+.md-sidebar .md-nav__title,
+.md-sidebar label.md-nav__link {
+  box-shadow: none;
+}
+
+.md-typeset h1,
+.md-typeset h2,
+.md-typeset h3 {
+  color: var(--mg-grey-200);
+  font-weight: 500;
+}
+
+.md-typeset a:hover {
+  color: #fff;
+}
+
+/* Cards are outlined like the buttons of the start page */
+.md-typeset .grid.cards > ul > li {
+  border: 1px solid var(--mg-grey-600);
+  border-radius: 0.3rem;
+}
+
+.md-typeset .grid.cards > ul > li:hover {
+  border-color: var(--mg-grey-200);
+  box-shadow: none;
+}
+
+.mg-footer {
+  align-items: center;
+  display: grid;
+  gap: 0.5rem 1rem;
+  grid-template-columns: 1fr auto 1fr;
+  margin: 0;
+  width: 100%;
+}
+
+.mg-footer__logos {
+  align-items: center;
+  display: flex;
+  gap: 1.5rem;
+}
+
+.mg-footer__logos img {
+  display: block;
+  height: 1.75rem;
+}
+
+.mg-footer__generator {
+  text-align: right;
+}
+
+@media screen and (max-width: 44.984375em) {
+  .mg-footer {
+    grid-template-columns: 1fr;
+    justify-items: center;
+  }
+
+  .mg-footer__logos {
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+}

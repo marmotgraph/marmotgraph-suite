@@ -21,7 +21,7 @@ import {
 import LinkedInstancesCreatePanel from "./LinkedInstancesCreatePanel";
 import { MultiSelectFilterDropdown } from "./MultiSelectFilterDropdown";
 import InstanceSingleSelectList from "./InstanceSingleSelectList";
-import InstanceTransferList from "./InstanceTransferList";
+import InstanceTransferList, { matchesSearch } from "./InstanceTransferList";
 import "./LinkedInstancesEditModal.css";
 
 type LinkedInstancesEditModalProps = {
@@ -37,6 +37,9 @@ type LinkedInstancesEditModalProps = {
   parentSpace?: string;
   onApply: (linkedInstances: LinkedInstance[]) => void;
 };
+
+/** How long the search waits for further typing before it asks the server */
+const SEARCH_DELAY_MS = 300;
 
 function toLinkedInstance(instance: InstanceSummary): LinkedInstance {
   return {
@@ -96,12 +99,20 @@ export default function LinkedInstancesEditModal({
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [selectedTypes, setSelectedTypes] = useState<string[]>([]);
   const [selectedSpaces, setSelectedSpaces] = useState<string[]>([]);
+  // The search term as typed - and as sent to the server once the typing pauses
+  const [search, setSearch] = useState("");
+  const [appliedSearch, setAppliedSearch] = useState("");
   const [loadedInstances, setLoadedInstances] = useState<LinkedInstance[]>([]);
   const [loading, setLoading] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
 
-  // The available instances are loaded from the backend - restricted to the selected types or (if none is selected) to
-  // those which can be linked by the field
+  useEffect(() => {
+    const timeout = setTimeout(() => setAppliedSearch(search), SEARCH_DELAY_MS);
+    return () => clearTimeout(timeout);
+  }, [search]);
+
+  // The available instances are loaded from the backend - matching the search, restricted to the selected types or (if
+  // none is selected) to those which can be linked by the field
   useEffect(() => {
     if (!show) {
       return;
@@ -115,7 +126,7 @@ export default function LinkedInstancesEditModal({
     setLoadError(null);
     getAccessToken()
       .then((token) =>
-        fetchInstances(token, { types: queriedTypes, spaces: selectedSpaces }),
+        fetchInstances(token, { search: appliedSearch, types: queriedTypes, spaces: selectedSpaces }),
       )
       .then(
         (loaded) =>
@@ -143,6 +154,7 @@ export default function LinkedInstancesEditModal({
     typeIdentifiersByLabel,
     selectedTypes,
     selectedSpaces,
+    appliedSearch,
     currentInstanceId,
   ]);
 
@@ -168,14 +180,17 @@ export default function LinkedInstancesEditModal({
 
     return [...merged.values()];
   }, [createdInstances, enrichedLinkedInstances, selectableCatalog]);
-  // The instances created in the dialog are not part of the catalog but can still be chosen
+  // The instances created in the dialog are not part of the catalog but can still be chosen - the server doesn't know
+  // them, so they are matched with the search here
   const singleSelectInstances = useMemo(() => {
     const catalogIds = new Set(selectableCatalog.map((instance) => instance.instanceId));
     return [
-      ...createdInstances.filter((instance) => !catalogIds.has(instance.instanceId)),
+      ...createdInstances.filter(
+        (instance) => !catalogIds.has(instance.instanceId) && matchesSearch(instance, search),
+      ),
       ...selectableCatalog,
     ];
-  }, [createdInstances, selectableCatalog]);
+  }, [createdInstances, search, selectableCatalog]);
   const wasOpenRef = useRef(false);
 
   useEffect(() => {
@@ -186,6 +201,8 @@ export default function LinkedInstancesEditModal({
       setSelectedIds(single ? initialIds.slice(-1) : initialIds);
       setSelectedTypes([]);
       setSelectedSpaces([]);
+      setSearch("");
+      setAppliedSearch("");
     }
 
     wasOpenRef.current = show;
@@ -422,6 +439,8 @@ export default function LinkedInstancesEditModal({
                   : "No instances found"
             }
             filters={filters}
+            search={search}
+            onSearchChange={setSearch}
           />
         ) : (
           <InstanceTransferList
@@ -430,6 +449,8 @@ export default function LinkedInstancesEditModal({
             selectedIds={selectedIds}
             onSelectedIdsChange={setSelectedIds}
             availableFilters={filters}
+            availableSearch={search}
+            onAvailableSearchChange={setSearch}
           />
         )}
       </Modal.Body>

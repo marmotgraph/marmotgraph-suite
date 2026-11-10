@@ -15,6 +15,12 @@ type InstanceSingleSelectListProps = {
   onSelect: (instanceId: string | null) => void;
   emptyMessage: string;
   filters?: React.ReactNode;
+  /**
+   * The search term if it is applied by the owner (e.g. by the server) - the instances are then shown as they are.
+   * Without it, the list filters the instances itself.
+   */
+  search?: string;
+  onSearchChange?: (search: string) => void;
 };
 
 export default function InstanceSingleSelectList({
@@ -23,16 +29,21 @@ export default function InstanceSingleSelectList({
   onSelect,
   emptyMessage,
   filters,
+  search: controlledSearch,
+  onSearchChange,
 }: InstanceSingleSelectListProps) {
-  const [search, setSearch] = useState("");
+  const [localSearch, setLocalSearch] = useState("");
+  const searchedByOwner = controlledSearch !== undefined;
+  const search = searchedByOwner ? controlledSearch : localSearch;
+  const setSearch = searchedByOwner ? (onSearchChange ?? (() => {})) : setLocalSearch;
   const groupName = useId();
   const filteredInstances = useMemo(() => {
     const listed =
       selected && !instances.some((instance) => instance.instanceId === selected.instanceId)
         ? [selected, ...instances]
         : instances;
-    return listed.filter((instance) => matchesSearch(instance, search));
-  }, [instances, search, selected]);
+    return searchedByOwner ? listed : listed.filter((instance) => matchesSearch(instance, search));
+  }, [instances, search, searchedByOwner, selected]);
 
   return (
     <div className="instance-single-select-list">

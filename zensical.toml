@@ -1,0 +1,79 @@
+[project]
+site_name = "MarmotGraph Suite"
+site_description = "Curate, model and query your knowledge graph with the MarmotGraph Suite"
+repo_url = "https://github.com/marmotgraph/marmotgraph-suite"
+repo_name = "marmotgraph/marmotgraph-suite"
+edit_uri = "edit/dev/docs/"
+docs_dir = "docs"
+strict = true
+# Spring only resolves index.html at the root, so the pages served at /docs need explicit file names
+use_directory_urls = false
+exclude_docs = "requirements.txt"
+copyright = "Copyright © ETH Zurich"
+extra_css = ["stylesheets/marmotgraph.css", "stylesheets/deployment.css"]
+extra_javascript = ["javascripts/deployment.js"]
+nav = [
+  { "Home" = "index.md" },
+  { "Modules" = [
+    { "Editor" = "modules/editor.md" },
+    { "Modeler" = "modules/modeler.md" },
+    { "Query Builder" = "modules/query-builder.md" },
+    { "Statistics" = "modules/statistics.md" },
+    { "API" = "modules/api.md" },
+    { "Admin" = "modules/admin.md" },
+  ] },
+  { "Operations" = [
+    { "Deployment documentation" = "operations/deployment-documentation.md" },
+  ] },
+  # The documentation of the core, served by the suite below /docs/core (see CoreDocumentation)
+  { "Core" = "core/index.html" },
+  # The documentation of the deployment, served below /docs/custom - hidden unless there is one (deployment.js)
+  { "Deployment" = "custom/index.html" },
+]
+
+[project.validation]
+not_found = "warn"
+anchors = "warn"
+
+# Same look as the documentation of the core - docs-theme, stylesheets and images are copies of it
+[project.theme]
+variant = "classic"
+custom_dir = "docs-theme"
+logo = "assets/images/marmotgraph.svg"
+favicon = "assets/images/favicon.png"
+language = "en"
+features = [
+  "content.code.copy",
+  "content.tabs.link",
+  "navigation.footer",
+  "navigation.indexes",
+  "navigation.sections",
+  "navigation.tabs",
+  "navigation.top",
+  "search.highlight",
+  "toc.follow",
+]
+
+[[project.theme.palette]]
+scheme = "slate"
+primary = "custom"
+accent = "custom"
+
+[project.markdown_extensions]
+abbr = {}
+admonition = {}
+attr_list = {}
+def_list = {}
+footnotes = {}
+md_in_html = {}
+tables = {}
+toc.permalink = true
+pymdownx.details = {}
+pymdownx.emoji.emoji_generator = "zensical.extensions.emoji.to_svg"
+pymdownx.emoji.emoji_index = "zensical.extensions.emoji.twemoji"
+pymdownx.highlight.anchor_linenums = true
+pymdownx.inlinehilite = {}
+pymdownx.superfences.custom_fences = [
+  { name = "mermaid", class = "mermaid", format = "pymdownx.superfences.fence_code_format" },
+]
+pymdownx.tabbed.alternate_style = true

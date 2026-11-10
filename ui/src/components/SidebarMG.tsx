@@ -143,9 +143,9 @@ function SidebarMG({ isCollapsed, onToggle }: SidebarMGProps) {
 
       {/* Bottom Section */}
       <div className="mt-auto pt-3 sidebar-bottom">
-        {/* Documentation Link */}
+        {/* Documentation Link - served by the service (suite, core and deployment), opened next to the app */}
         <Nav.Link
-          href="https://docs.marmotgraph.com"
+          href="/docs/"
           target="_blank"
           className="d-flex align-items-center py-2 px-3 mb-2 text-dark rounded mx-2 sidebar-nav-link"
         >

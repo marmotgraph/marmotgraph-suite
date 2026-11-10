@@ -1,0 +1,5 @@
+/* The links to the documentation of the deployment - only shown if it provides one (see deployment.js) */
+html:not(.mg-deployment-docs) li:has(> a[href$="custom/index.html"]),
+html:not(.mg-deployment-docs) a.md-footer__link[href$="custom/index.html"] {
+  display: none;
+}

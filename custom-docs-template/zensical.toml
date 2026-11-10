@@ -1,0 +1,46 @@
+# The documentation of a deployment of the MarmotGraph Suite - served by the Suite below /docs/custom (DOCS_CUSTOM_DIR),
+# next to the documentation of the Suite (/docs) and of the core (/docs/core).
+[project]
+site_name = "My deployment"
+site_description = "The documentation of my deployment of MarmotGraph"
+docs_dir = "docs"
+strict = true
+# The Suite serves the pages as static files - they need explicit file names
+use_directory_urls = false
+copyright = "Copyright © My organization"
+# The look of the documentation of the Suite - the stylesheet is served by the Suite next to this site
+extra_css = ["../stylesheets/marmotgraph.css"]
+nav = [
+  { "Home" = "index.md" },
+  # The other parts of the documentation - they only resolve once the site is served by the Suite
+  { "Suite" = "../index.html" },
+  { "Core" = "../core/index.html" },
+]
+
+[project.theme]
+variant = "classic"
+language = "en"
+features = [
+  "content.code.copy",
+  "navigation.footer",
+  "navigation.indexes",
+  "navigation.sections",
+  "navigation.tabs",
+  "navigation.top",
+  "search.highlight",
+  "toc.follow",
+]
+
+[[project.theme.palette]]
+scheme = "slate"
+primary = "custom"
+accent = "custom"
+
+[project.markdown_extensions]
+admonition = {}
+attr_list = {}
+md_in_html = {}
+tables = {}
+toc.permalink = true
+pymdownx.details = {}
+pymdownx.superfences = {}

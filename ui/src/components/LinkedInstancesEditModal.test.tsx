@@ -140,4 +140,71 @@ describe("LinkedInstancesEditModal", () => {
       expect(onApply.mock.calls[0][0]).toEqual([expect.objectContaining({ instanceName: "Second" })]);
     });
   });
+  describe("search", () => {
+    const LINKED = { instanceId: "linked", instanceName: "Linked", type: "Device", space: "shared" };
+    // The core matches the term against the labels on its own terms - e.g. with another spelling
+    const MATCH = { instanceId: "match", instanceName: "Rack A1", type: "Device", space: "shared" };
+
+    function renderModal(single: boolean) {
+      vi.mocked(useTypes).mockReturnValue([{ identifier: DEVICE, name: "Device" }]);
+      vi.mocked(fetchInstances).mockReset();
+      vi.mocked(fetchInstances).mockImplementation((_, query) =>
+        Promise.resolve({ instances: query?.search ? [MATCH] : [LINKED, MATCH] } as never),
+      );
+      render(
+        <UnsavedInstancesProvider>
+          <LinkedInstancesEditModal
+            show
+            single={single}
+            onHide={vi.fn()}
+            fieldLabel="Devices"
+            allowedTypes={[DEVICE]}
+            linkedInstances={single ? [] : [LINKED]}
+            onApply={vi.fn()}
+          />
+        </UnsavedInstancesProvider>,
+      );
+    }
+
+    const searches = () => vi.mocked(fetchInstances).mock.calls.map(([, query]) => query?.search);
+
+    it("asks the server for the instances matching the search and shows them as they are", async () => {
+      renderModal(true);
+      await screen.findByRole("radio", { name: /Linked/, hidden: true });
+
+      fireEvent.change(screen.getByRole("searchbox", { name: "Search instances", hidden: true }), {
+        target: { value: "rack-a" },
+      });
+
+      await waitFor(() => expect(searches()).toContain("rack-a"));
+      expect(fetchInstances).toHaveBeenLastCalledWith("token", expect.objectContaining({ search: "rack-a", types: [DEVICE] }));
+      await waitFor(() => expect(screen.queryByRole("radio", { name: /Linked/, hidden: true })).toBeNull());
+      expect(screen.getByRole("radio", { name: /Rack A1/, hidden: true })).toBeInTheDocument();
+    });
+
+    it("waits for the typing to pause before asking the server", async () => {
+      renderModal(true);
+      await screen.findByRole("radio", { name: /Linked/, hidden: true });
+      const searchbox = screen.getByRole("searchbox", { name: "Search instances", hidden: true });
+
+      for (const value of ["r", "ra", "rac", "rack"]) {
+        fireEvent.change(searchbox, { target: { value } });
+      }
+
+      await waitFor(() => expect(searches()).toContain("rack"));
+      expect(searches().filter(Boolean)).toEqual(["rack"]);
+    });
+
+    it("searches the available instances of a multiple link on the server", async () => {
+      renderModal(false);
+      await screen.findByRole("checkbox", { name: /Rack A1/, hidden: true });
+
+      fireEvent.change(screen.getByRole("searchbox", { name: "Search available instances", hidden: true }), {
+        target: { value: "rack-a" },
+      });
+
+      await waitFor(() => expect(searches()).toContain("rack-a"));
+      expect(screen.getByRole("checkbox", { name: /Rack A1/, hidden: true })).toBeInTheDocument();
+    });
+  });
 });
