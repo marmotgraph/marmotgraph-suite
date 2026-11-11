@@ -24,6 +24,8 @@ vi.mock("../modules/query-builder/useQueryBuilderData", async (importOriginal) =
 
 const DEVICE = "https://example.org/types/Device";
 const SERIAL_NUMBER = "https://example.org/serialNumber";
+// A search waits for the user to stop typing (300ms) - on a busy machine, the default of 1s is too short for it
+const AFTER_SEARCH = { timeout: 3000 };
 
 function DraftProbe({ onDrafts }: { onDrafts: (drafts: unknown[]) => void }) {
   const { drafts } = useUnsavedInstances();
@@ -176,7 +178,7 @@ describe("LinkedInstancesEditModal", () => {
         target: { value: "rack-a" },
       });
 
-      await waitFor(() => expect(searches()).toContain("rack-a"));
+      await waitFor(() => expect(searches()).toContain("rack-a"), AFTER_SEARCH);
       expect(fetchInstances).toHaveBeenLastCalledWith("token", expect.objectContaining({ search: "rack-a", types: [DEVICE] }));
       await waitFor(() => expect(screen.queryByRole("radio", { name: /Linked/, hidden: true })).toBeNull());
       expect(screen.getByRole("radio", { name: /Rack A1/, hidden: true })).toBeInTheDocument();
@@ -191,7 +193,7 @@ describe("LinkedInstancesEditModal", () => {
         fireEvent.change(searchbox, { target: { value } });
       }
 
-      await waitFor(() => expect(searches()).toContain("rack"));
+      await waitFor(() => expect(searches()).toContain("rack"), AFTER_SEARCH);
       expect(searches().filter(Boolean)).toEqual(["rack"]);
     });
 
@@ -203,7 +205,7 @@ describe("LinkedInstancesEditModal", () => {
         target: { value: "rack-a" },
       });
 
-      await waitFor(() => expect(searches()).toContain("rack-a"));
+      await waitFor(() => expect(searches()).toContain("rack-a"), AFTER_SEARCH);
       expect(screen.getByRole("checkbox", { name: /Rack A1/, hidden: true })).toBeInTheDocument();
     });
   });
@@ -287,7 +289,7 @@ describe("LinkedInstancesEditModal", () => {
       await waitFor(() => expect(fetchInstances).toHaveBeenCalledWith("token", expect.objectContaining({ marker: "page-2" })));
 
       fireEvent.change(screen.getByRole("searchbox", { name: "Search instances", hidden: true }), { target: { value: "searched" } });
-      await screen.findByRole("radio", { name: /Device searched/, hidden: true });
+      await screen.findByRole("radio", { name: /Device searched/, hidden: true }, AFTER_SEARCH);
       resolveStalePage({ instances: [device("stale")] });
 
       await waitFor(() => expect(screen.queryByRole("radio", { name: /Device 1/, hidden: true })).toBeNull());

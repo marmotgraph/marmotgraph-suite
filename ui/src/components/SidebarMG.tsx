@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Button, Dropdown, Nav } from "react-bootstrap";
+import { Button, Dropdown } from "react-bootstrap";
 import { NavLink, useNavigate } from "react-router-dom";
 // @ts-ignore
 import marmotGraphLogo from "../assets/marmotgraph_dark.svg";
@@ -143,15 +143,16 @@ function SidebarMG({ isCollapsed, onToggle }: SidebarMGProps) {
 
       {/* Bottom Section */}
       <div className="mt-auto pt-3 sidebar-bottom">
-        {/* Documentation Link - served by the service (suite, core and deployment), opened next to the app */}
-        <Nav.Link
-          href="/docs/"
-          target="_blank"
-          className="d-flex align-items-center py-2 px-3 mb-2 text-dark rounded mx-2 sidebar-nav-link"
+        {/* Documentation Link - served by the service (suite, core and deployment), shown within the suite */}
+        <NavLink
+          to="/documentation/"
+          className={({ isActive }) =>
+            `d-flex align-items-center py-2 px-3 mb-2 text-dark rounded mx-2 sidebar-nav-link ${isActive ? "active" : ""}`
+          }
         >
           <BookmarkCheck size={18} />
           {!isCollapsed && <span className="ms-2">Documentation</span>}
-        </Nav.Link>
+        </NavLink>
 
         {/* User Switcher and Collapse Button */}
         <div

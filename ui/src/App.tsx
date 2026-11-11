@@ -4,6 +4,7 @@ import "bootstrap/dist/css/bootstrap.min.css";
 import "./App.css";
 import Layout from "./views/Layout";
 import NotFound from "./views/NotFound";
+import Documentation from "./views/Documentation";
 import { InstancesProvider } from "./contexts/InstancesContext";
 import { UnsavedInstancesProvider } from "./contexts/UnsavedInstancesContext";
 
@@ -37,6 +38,7 @@ function App() {
           <Route path="statistics" element={<StatisticsHome />} />
           <Route path="core-api" element={<ApiHome />} />
           <Route path="admin/*" element={<AdminHome />} />
+          <Route path="documentation/*" element={<Documentation />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </Layout>

@@ -21,4 +21,23 @@ class FrameAncestorsFilterTest {
         assertNotNull(chain.getRequest());
     }
 
+    @Test
+    void letsTheSuiteEmbedItsDocumentation() throws Exception {
+        assertEquals("frame-ancestors 'self' https://app.example.org", policyOf("https://app.example.org", "/docs/core/index.html"));
+        assertEquals("frame-ancestors 'self'", policyOf("'none'", "/docs"));
+        assertEquals("frame-ancestors 'self' https://app.example.org", policyOf("'self' https://app.example.org", "/docs/"));
+    }
+
+    @Test
+    void keepsTheRestrictionOutsideOfTheDocumentation() throws Exception {
+        assertEquals("frame-ancestors https://app.example.org", policyOf("https://app.example.org", "/docsearch"));
+        assertEquals("frame-ancestors 'none'", policyOf("'none'", "/editor"));
+    }
+
+    private static String policyOf(String frameAncestors, String path) throws Exception {
+        MockHttpServletResponse response = new MockHttpServletResponse();
+        new FrameAncestorsFilter(frameAncestors).doFilter(new MockHttpServletRequest("GET", path), response, new MockFilterChain());
+        return response.getHeader("Content-Security-Policy");
+    }
+
 }
