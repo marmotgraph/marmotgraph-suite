@@ -1,0 +1,141 @@
+/* The content is centered in the space: horizontally by its max width and vertically within the page */
+.suite-home {
+    box-sizing: border-box;
+    width: 100%;
+    max-width: 1000px;
+    min-height: 100%;
+    margin: 0 auto;
+    padding: 32px 0;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+}
+
+.suite-home-header {
+    margin-bottom: 32px;
+    text-align: center;
+}
+
+.suite-home-title {
+    margin: 0 0 4px;
+    font-size: 1.85rem;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+    color: #212529;
+}
+
+.suite-home-subtitle {
+    margin: 0;
+    color: #6c757d;
+}
+
+.suite-home-grid {
+    display: grid;
+    /* Three boxes per row on a large screen so the two rows are even - fewer when the space gets narrow */
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 1fr));
+    gap: 20px;
+}
+
+@media (min-width: 992px) {
+    .suite-home-grid {
+        grid-template-columns: repeat(3, 1fr);
+    }
+}
+
+.suite-home-card {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 4px;
+    padding: 20px;
+    background-color: #fff;
+    border: 1px solid #dee2e6;
+    border-radius: 10px;
+    color: #212529;
+    text-decoration: none;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.suite-home-card:hover {
+    color: #212529;
+    border-color: #adb5bd;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04), 0 8px 24px rgba(0, 0, 0, 0.06);
+}
+
+.suite-home-card:focus-visible {
+    outline: 2px solid #2563EB;
+    outline-offset: 2px;
+}
+
+.suite-home-card-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 40px;
+    height: 40px;
+    margin-bottom: 12px;
+    border-radius: 8px;
+    background-color: #f1f3f5;
+    color: #495057;
+}
+
+.suite-home-card-title {
+    font-size: 1.05rem;
+    font-weight: 600;
+}
+
+.suite-home-card-description {
+    font-size: 0.875rem;
+    color: #6c757d;
+    overflow-wrap: anywhere;
+}
+
+/* Documentation: a quiet strip below the modules - the boxes stay the main choice */
+.suite-home-docs {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 16px;
+    margin-top: 24px;
+    padding: 16px 20px;
+    background-color: #f8f9fa;
+    border: 1px solid #dee2e6;
+    border-radius: 10px;
+}
+
+.suite-home-docs-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    border-radius: 8px;
+    background-color: #fff;
+    border: 1px solid #dee2e6;
+    color: #495057;
+    flex-shrink: 0;
+}
+
+.suite-home-docs-text {
+    flex: 1 1 280px;
+    min-width: 0;
+}
+
+.suite-home-docs-title {
+    margin: 0;
+    font-size: 1rem;
+    font-weight: 600;
+    color: #212529;
+}
+
+.suite-home-docs-description {
+    margin: 0;
+    font-size: 0.875rem;
+    color: #6c757d;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .suite-home-card {
+        transition: none;
+    }
+}
