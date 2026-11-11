@@ -1,0 +1,5 @@
+/* The icons of the tool categories are SVG images provided by the administrators */
+.tool-category-icon {
+    display: block;
+    object-fit: contain;
+}

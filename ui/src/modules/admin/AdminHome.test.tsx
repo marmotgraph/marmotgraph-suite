@@ -6,9 +6,10 @@ import { useGlobalFunctionalities } from "../../hooks/useGlobalFunctionalities";
 
 vi.mock("./PermissionsAdmin", () => ({ default: () => <div>permissions view</div> }));
 vi.mock("./TenantsAdmin", () => ({ default: () => <div>tenants view</div> }));
+vi.mock("./ToolsAdmin", () => ({ default: () => <div>tools view</div> }));
 vi.mock("../../hooks/useGlobalFunctionalities", () => ({ useGlobalFunctionalities: vi.fn() }));
 
-const ALL = ["CREATE_PERMISSION", "TENANT_MANAGEMENT"];
+const ALL = ["CREATE_PERMISSION", "TENANT_MANAGEMENT", "DEFINE_TOOLS"];
 
 function Location() {
   return <div data-testid="location">{useLocation().pathname}</div>;

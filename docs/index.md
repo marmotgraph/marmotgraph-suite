@@ -45,7 +45,7 @@ allowed to read, and only the actions you are allowed to perform.
 
 -   :material-shield-check-outline: **Admin**
 
-    Manage spaces, permissions and tenants.
+    Manage spaces, permissions, tenants and the tools built on top of the graph.
 
     [:octicons-arrow-right-24: Admin](modules/admin.md)
 
