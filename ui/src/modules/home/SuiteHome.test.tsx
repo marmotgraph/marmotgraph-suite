@@ -42,13 +42,12 @@ describe("SuiteHome", () => {
     expect(screen.getByRole("heading", { name: "Knowledge Graph Suite" })).toBeInTheDocument();
   });
 
-  it("points to the documentation in a new tab", () => {
+  it("points to the overview of the documentation", () => {
     renderHome();
 
-    const link = screen.getByRole("link", { name: /Open documentation/ });
-    expect(link).toHaveAttribute("href", "https://docs.marmotgraph.com");
-    expect(link).toHaveAttribute("target", "_blank");
-    expect(link).toHaveAttribute("rel", expect.stringContaining("noopener"));
+    const link = screen.getByRole("link", { name: "Browse documentation" });
+    expect(link).toHaveAttribute("href", "/documentation");
+    expect(link).not.toHaveAttribute("target");
   });
 
   it("only offers the modeler to users who may modify the model", () => {

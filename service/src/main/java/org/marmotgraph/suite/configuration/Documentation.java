@@ -36,11 +36,10 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 
 /**
- * The documentation below /docs, made of three sites:
+ * The documentation below /docs, made of two sites:
  * <ul>
  *     <li>/docs - the documentation of the suite, which the Maven profile "docs" bundles into public/docs. It is served
  *     as static files by {@link SinglePageApplication}.</li>
- *     <li>/docs/core - the documentation of the core, see {@link org.marmotgraph.suite.docs.CoreDocumentation}.</li>
  *     <li>/docs/custom - the documentation of the deployment, built by its operators and provided in a directory
  *     (DOCS_CUSTOM_DIR). Without it, /docs/custom is not found - and the suite's documentation hides its tab.</li>
  * </ul>

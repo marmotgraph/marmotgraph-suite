@@ -1,5 +1,5 @@
 # The documentation of a deployment of the MarmotGraph Suite - served by the Suite below /docs/custom (DOCS_CUSTOM_DIR),
-# next to the documentation of the Suite (/docs) and of the core (/docs/core).
+# next to the documentation of the Suite (/docs).
 [project]
 site_name = "My deployment"
 site_description = "The documentation of my deployment of MarmotGraph"
@@ -12,9 +12,8 @@ copyright = "Copyright © My organization"
 extra_css = ["../stylesheets/marmotgraph.css"]
 nav = [
   { "Home" = "index.md" },
-  # The other parts of the documentation - they only resolve once the site is served by the Suite
+  # The documentation of the Suite - it only resolves once the site is served by the Suite
   { "Suite" = "../index.html" },
-  { "Core" = "../core/index.html" },
 ]
 
 [project.theme]

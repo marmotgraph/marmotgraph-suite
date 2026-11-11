@@ -16,7 +16,7 @@ export default function NotFound() {
         <Link className="btn btn-dark btn-sm" to="/">
           Go to the suite
         </Link>
-        <Link className="layout-not-found-link" to="/documentation/">
+        <Link className="layout-not-found-link" to="/documentation">
           Open the documentation
         </Link>
       </div>

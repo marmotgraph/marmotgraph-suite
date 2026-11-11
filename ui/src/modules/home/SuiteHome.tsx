@@ -1,9 +1,9 @@
 import React from "react";
 import { Link } from "react-router-dom";
-import { BookOpen, ExternalLink } from "lucide-react";
+import { BookOpen } from "lucide-react";
 import { useConfig } from "../../contexts/ConfigContext";
 import { useGlobalFunctionalities } from "../../hooks/useGlobalFunctionalities";
-import { DOCUMENTATION_URL, SUITE_MODULES } from "./modules";
+import { SUITE_MODULES } from "./modules";
 import "./SuiteHome.css";
 
 /** The home screen of the suite - a box for each of its modules. */
@@ -41,16 +41,9 @@ export default function SuiteHome() {
             New to MarmotGraph? Learn how the modules work and how to get the most out of your data.
           </p>
         </div>
-        <a
-          className="btn btn-outline-secondary btn-sm"
-          href={DOCUMENTATION_URL}
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          Open documentation
-          <ExternalLink size={14} className="ms-2" aria-hidden="true" />
-          <span className="visually-hidden"> (opens in a new tab)</span>
-        </a>
+        <Link className="btn btn-outline-secondary btn-sm" to="/documentation">
+          Browse documentation
+        </Link>
       </aside>
     </div>
   );

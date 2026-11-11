@@ -19,8 +19,8 @@ zensical serve   # preview while writing
 zensical build   # writes the site to site/
 ```
 
-The pages can link to the other parts of the documentation relatively - the Suite at `../index.html`, the core at
-`../core/index.html`. Since the site is served below the Suite, these links only resolve there, not in the preview.
+The pages can link to the documentation of the Suite relatively, at `../index.html`. Since the site is served below the
+Suite, this link only resolves there, not in the preview.
 
 ## Publishing it
 

@@ -33,46 +33,23 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
-import java.util.Arrays;
-import java.util.List;
 
 /**
  * Restricts who may embed the suite in an iframe. An embedded suite reuses the session of the user - without this
  * restriction, any website could show it to a signed in user and trick them into clicking on its actions.
- * <p>
- * The suite itself always may embed its documentation (/docs, see {@link Documentation}) - it shows it in a frame.
  */
 @Component
 public class FrameAncestorsFilter extends OncePerRequestFilter {
 
-    private static final String SELF = "'self'";
-    private static final String NONE = "'none'";
-
     private final String policy;
-    private final String documentationPolicy;
 
     public FrameAncestorsFilter(@Value("${org.marmotgraph.embedding.frameAncestors}") String frameAncestors) {
         this.policy = "frame-ancestors " + frameAncestors;
-        List<String> sources = Arrays.asList(frameAncestors.trim().split("\\s+"));
-        if (sources.contains(SELF)) {
-            this.documentationPolicy = policy;
-        } else if (sources.contains(NONE)) {
-            // 'none' doesn't combine with other sources
-            this.documentationPolicy = "frame-ancestors " + SELF;
-        } else {
-            this.documentationPolicy = "frame-ancestors " + SELF + " " + frameAncestors.trim();
-        }
-    }
-
-    private static boolean isDocumentation(HttpServletRequest request) {
-        String path = request.getRequestURI().substring(request.getContextPath().length());
-        String root = "/" + Documentation.ROOT;
-        return path.equals(root) || path.startsWith(root + "/");
     }
 
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain chain) throws ServletException, IOException {
-        response.setHeader("Content-Security-Policy", isDocumentation(request) ? documentationPolicy : policy);
+        response.setHeader("Content-Security-Policy", policy);
         chain.doFilter(request, response);
     }
 

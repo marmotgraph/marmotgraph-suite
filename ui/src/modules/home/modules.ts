@@ -12,9 +12,6 @@ export interface SuiteModule {
   available?: (functionalities: string[] | undefined) => boolean;
 }
 
-/** The documentation of the suite - the same the sidebar links to. */
-export const DOCUMENTATION_URL = "https://docs.marmotgraph.com";
-
 const ICON_SIZE = 22;
 
 /** The modules of the suite - in the order they are shown on the home screen. */

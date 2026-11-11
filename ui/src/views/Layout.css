@@ -169,12 +169,3 @@
     outline: 2px solid #2563EB;
     outline-offset: 2px;
 }
-
-/* The documentation fills the canvas up to its edges - it brings its own margins */
-.layout-documentation-frame {
-    display: block;
-    width: calc(100% + 3rem);
-    height: 100%;
-    margin: 0 -1.5rem;
-    border: none;
-}

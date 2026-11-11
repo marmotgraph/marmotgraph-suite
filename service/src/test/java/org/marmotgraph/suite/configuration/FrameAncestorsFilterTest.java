@@ -22,15 +22,8 @@ class FrameAncestorsFilterTest {
     }
 
     @Test
-    void letsTheSuiteEmbedItsDocumentation() throws Exception {
-        assertEquals("frame-ancestors 'self' https://app.example.org", policyOf("https://app.example.org", "/docs/core/index.html"));
-        assertEquals("frame-ancestors 'self'", policyOf("'none'", "/docs"));
-        assertEquals("frame-ancestors 'self' https://app.example.org", policyOf("'self' https://app.example.org", "/docs/"));
-    }
-
-    @Test
-    void keepsTheRestrictionOutsideOfTheDocumentation() throws Exception {
-        assertEquals("frame-ancestors https://app.example.org", policyOf("https://app.example.org", "/docsearch"));
+    void appliesToTheDocumentationAsWell() throws Exception {
+        assertEquals("frame-ancestors 'none'", policyOf("'none'", "/docs/"));
         assertEquals("frame-ancestors 'none'", policyOf("'none'", "/editor"));
     }
 

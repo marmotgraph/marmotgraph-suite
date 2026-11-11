@@ -3,8 +3,8 @@
 The **Suite** is the web application of MarmotGraph. It gives curators, modelers and administrators a single place to
 work with the knowledge graph stored in MarmotGraph Core - without having to talk to the API directly.
 
-The concepts behind it - spaces, instances, releases, queries and permissions - are explained in the
-[documentation of the core](core/index.html).
+The concepts behind it - spaces, instances, releases, queries and permissions - are explained in the documentation of
+the core, which is listed next to this one on the "Documentation" page of the Suite.
 
 Everything you see in the Suite depends on your permissions: you only see the spaces, instances and queries you are
 allowed to read, and only the actions you are allowed to perform.

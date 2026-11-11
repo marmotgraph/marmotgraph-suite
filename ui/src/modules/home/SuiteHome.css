@@ -80,14 +80,55 @@
 }
 
 .suite-home-card-title {
+    margin: 0;
     font-size: 1.05rem;
     font-weight: 600;
 }
 
 .suite-home-card-description {
+    margin: 0;
     font-size: 0.875rem;
     color: #6c757d;
     overflow-wrap: anywhere;
+}
+
+/* A grid of cards which aren't links themselves - they carry an action (e.g. on the documentation page) */
+.suite-home-list {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.suite-home-card-static:hover {
+    border-color: #dee2e6;
+    box-shadow: none;
+}
+
+/* The actions line up at the bottom of the cards of a row */
+.suite-home-card-action {
+    margin-top: auto;
+    padding-top: 16px;
+}
+
+.suite-home-card-unavailable {
+    background-color: #f8f9fa;
+}
+
+.suite-home-card-unavailable .suite-home-card-icon {
+    background-color: #e9ecef;
+    color: #868e96;
+}
+
+.suite-home-card-unavailable .suite-home-card-title {
+    color: #6c757d;
+}
+
+.suite-home-card-note {
+    font-size: 0.75rem;
+    font-weight: 600;
+    letter-spacing: 0.4px;
+    text-transform: uppercase;
+    color: #868e96;
 }
 
 /* Documentation: a quiet strip below the modules - the boxes stay the main choice */

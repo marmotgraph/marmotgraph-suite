@@ -143,9 +143,9 @@ function SidebarMG({ isCollapsed, onToggle }: SidebarMGProps) {
 
       {/* Bottom Section */}
       <div className="mt-auto pt-3 sidebar-bottom">
-        {/* Documentation Link - served by the service (suite, core and deployment), shown within the suite */}
+        {/* Documentation Link - the overview of the documentations, which open in a new tab */}
         <NavLink
-          to="/documentation/"
+          to="/documentation"
           className={({ isActive }) =>
             `d-flex align-items-center py-2 px-3 mb-2 text-dark rounded mx-2 sidebar-nav-link ${isActive ? "active" : ""}`
           }

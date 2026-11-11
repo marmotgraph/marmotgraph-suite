@@ -4,13 +4,13 @@ import "bootstrap/dist/css/bootstrap.min.css";
 import "./App.css";
 import Layout from "./views/Layout";
 import NotFound from "./views/NotFound";
-import Documentation from "./views/Documentation";
 import { InstancesProvider } from "./contexts/InstancesContext";
 import { UnsavedInstancesProvider } from "./contexts/UnsavedInstancesContext";
 
 import { QueryHome } from "./modules/query-builder/QueryHome";
 import { QueryDetail } from "./modules/query-builder/QueryDetail";
 import SuiteHome from "./modules/home/SuiteHome";
+import DocumentationHome from "./modules/documentation/DocumentationHome";
 import EditorHome from "./modules/editor/EditorHome";
 import InstanceDetail from "./modules/editor/InstanceDetail";
 import InvitationRedemption from "./modules/editor/InvitationRedemption";
@@ -38,7 +38,7 @@ function App() {
           <Route path="statistics" element={<StatisticsHome />} />
           <Route path="core-api" element={<ApiHome />} />
           <Route path="admin/*" element={<AdminHome />} />
-          <Route path="documentation/*" element={<Documentation />} />
+          <Route path="documentation" element={<DocumentationHome />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </Layout>
