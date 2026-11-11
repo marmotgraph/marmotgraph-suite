@@ -68,6 +68,12 @@ html[data-tenant="cscs"] .sidebar-mg {
     border-right: 1px solid var(--cscs-border);
 }
 
+/* The logo is smaller than the full width of the sidebar (280px minus padding) */
+html[data-tenant="cscs"] .sidebar-logo-full {
+    width: 70%;
+    max-width: 170px;
+}
+
 html[data-tenant="cscs"] .sidebar-nav-link {
     color: var(--cscs-text-body) !important;
     border-radius: var(--cscs-radius-sm);
@@ -297,6 +303,42 @@ html[data-tenant="cscs"] .dropdown-menu {
 html[data-tenant="cscs"] .dropdown-item:active {
     background-color: var(--cscs-brand-tint);
     color: var(--cscs-brand-tint-text);
+}
+
+/* Home screen: the module boxes follow the cards of the console, the icon takes the brand tint */
+html[data-tenant="cscs"] .suite-home-title {
+    color: var(--cscs-text);
+}
+
+html[data-tenant="cscs"] .suite-home-card {
+    border-color: var(--cscs-border);
+    border-radius: 12px;
+    box-shadow: 0 1px 2px rgba(16, 24, 40, 0.04);
+}
+
+html[data-tenant="cscs"] .suite-home-card:hover {
+    border-color: var(--cscs-brand);
+}
+
+html[data-tenant="cscs"] .suite-home-card:focus-visible {
+    outline-color: var(--cscs-brand);
+}
+
+html[data-tenant="cscs"] .suite-home-card-icon {
+    background-color: var(--cscs-brand-tint);
+    color: var(--cscs-brand);
+}
+
+html[data-tenant="cscs"] .suite-home-docs {
+    background-color: var(--cscs-surface);
+    border-color: var(--cscs-border);
+    border-radius: 12px;
+}
+
+html[data-tenant="cscs"] .suite-home-docs-icon {
+    background-color: var(--cscs-brand-tint);
+    border-color: transparent;
+    color: var(--cscs-brand);
 }
 
 /* ------------------------------------------------------------------ 11. Footer */

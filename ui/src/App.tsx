@@ -10,6 +10,7 @@ import { UnsavedInstancesProvider } from "./contexts/UnsavedInstancesContext";
 
 import { QueryHome } from "./modules/query-builder/QueryHome";
 import { QueryDetail } from "./modules/query-builder/QueryDetail";
+import SuiteHome from "./modules/home/SuiteHome";
 import EditorHome from "./modules/editor/EditorHome";
 import InstanceDetail from "./modules/editor/InstanceDetail";
 import InvitationRedemption from "./modules/editor/InvitationRedemption";
@@ -25,8 +26,7 @@ function App() {
       <UnsavedInstancesProvider>
         <Layout>
         <Routes>
-          {/* TODO: replace with a proper welcome page; until then open the first module */}
-          <Route index element={<Navigate to="/editor" replace />} />
+          <Route index element={<SuiteHome />} />
           <Route path="queries" element={<QueryHome />} />
           <Route path="queries/shared" element={<Navigate to="/queries" replace />} />
           <Route path="queries/:queryId" element={<QueryDetail />} />
