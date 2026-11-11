@@ -1,0 +1,295 @@
+/*
+ * CSCS look and feel - the apps of the suite (Editor, Query Builder, Visualizer, Modeler, Statistics, Admin).
+ *
+ * Imported by cscs.css, so the same rule applies: everything is scoped to html[data-tenant="cscs"] and only takes
+ * effect for the tenant CSCS. The stylesheets of the apps hard-code their colors and radii (purple hover and
+ * selection, blue links and focus rings, 10px cards) - this file maps them onto the CSCS tokens defined in cscs.css.
+ *
+ * When an app gets a new interactive color or card, add it here. The list of what is covered is in
+ * .cursor/skills/marmotgraph-ui/cscs.md.
+ *
+ * Structure: 1. focus  2. links  3. hover and selection  4. cards and panels  5. editor  6. query builder
+ *            7. visualizer  8. modeler  9. statistics  10. admin
+ */
+
+/* ------------------------------------------------------------------ 1. Focus */
+/* Every focus ring in the suite (2px outlines in purple, blue or steel blue) takes the brand color */
+html[data-tenant="cscs"] :focus-visible {
+    outline-color: var(--cscs-brand);
+}
+
+/* Focused fields: the apps set the steel blue border and ring on their own forms */
+html[data-tenant="cscs"] :is(.form-control, .form-select, .form-check-input):focus,
+html[data-tenant="cscs"] .json-field.form-control:focus-within,
+html[data-tenant="cscs"] .tag-container.multiple-text-field:has(.multiple-text-input:focus),
+html[data-tenant="cscs"] .modeler-type-details .form-control.modeler-inline-input:focus {
+    border-color: var(--cscs-brand);
+    box-shadow: 0 0 0 3px var(--cscs-brand-ring);
+}
+
+html[data-tenant="cscs"] .instance-transfer-list-action-btn:focus-visible,
+html[data-tenant="cscs"] .instance-single-select-list-clear:focus-visible {
+    box-shadow: 0 0 0 3px var(--cscs-brand-ring);
+}
+
+html[data-tenant="cscs"] .instance-transfer-list-item:focus-within {
+    box-shadow: inset 0 0 0 2px var(--cscs-brand-ring);
+}
+
+html[data-tenant="cscs"] .viz-surface:focus-visible {
+    box-shadow: inset 0 0 0 2px var(--cscs-brand);
+}
+
+html[data-tenant="cscs"] .modeler-color-swatch:focus-within {
+    outline-color: var(--cscs-brand);
+}
+
+/* ------------------------------------------------------------------ 2. Links */
+html[data-tenant="cscs"] :is(
+    .breadcrumb-menu-item,
+    .comment-add.btn,
+    .modeler-type-link,
+    .statistics-show-all,
+    .viz-more,
+    .layout-not-found-link,
+    .query-tree-alias.is-custom
+) {
+    color: var(--cscs-brand) !important;
+}
+
+html[data-tenant="cscs"] :is(
+    .breadcrumb-menu-item,
+    .comment-add.btn,
+    .modeler-type-link,
+    .statistics-show-all,
+    .viz-more,
+    .layout-not-found-link
+):is(:hover, :focus) {
+    color: var(--cscs-brand-hover) !important;
+}
+
+html[data-tenant="cscs"] .breadcrumb-ellipsis:is(:hover, :focus) {
+    border-color: var(--cscs-brand);
+    color: var(--cscs-brand);
+}
+
+/* ------------------------------------------------------------------ 3. Hover and selection */
+/* The purple hover / selection of the lists and the blue highlight of a linked instance: neutral hover, green tint */
+html[data-tenant="cscs"] :is(
+    .query-tree-row,
+    .admin-tenant-item,
+    .modeler-type-item,
+    .viz-result,
+    .viz-neighbour
+):hover {
+    background-color: var(--cscs-page);
+    border-left-color: var(--cscs-brand);
+}
+
+html[data-tenant="cscs"] :is(
+    .query-tree-row.is-selected,
+    .admin-tenant-item--selected,
+    .admin-tenant-item--selected:hover,
+    .modeler-type-item--selected,
+    .modeler-type-item--selected:hover,
+    .instance-card-selected
+) {
+    background-color: var(--cscs-brand-tint);
+    border-left-color: var(--cscs-brand);
+}
+
+html[data-tenant="cscs"] .viz-chip:hover:not(:disabled) {
+    background-color: var(--cscs-page);
+}
+
+html[data-tenant="cscs"] .viz-layout-option.active {
+    background-color: var(--cscs-brand-tint);
+    border-color: var(--cscs-brand);
+}
+
+html[data-tenant="cscs"] .viz-layout-option.active svg {
+    color: var(--cscs-brand);
+}
+
+html[data-tenant="cscs"] .link-item--highlighted,
+html[data-tenant="cscs"] .link-item--highlighted:hover {
+    background-color: var(--cscs-brand-tint);
+    border-color: var(--cscs-brand);
+    box-shadow: 0 0 0 2px var(--cscs-brand-ring);
+}
+
+html[data-tenant="cscs"] :is(.view-badge, .tag-badge).linked-instance-badge--highlighted {
+    background-color: var(--cscs-brand-tint) !important;
+    border-color: var(--cscs-brand) !important;
+    box-shadow: 0 0 0 2px var(--cscs-brand-ring);
+}
+
+/* The active mode of the instance (view, edit, raw, release) and tool buttons: the tint of the active tab */
+html[data-tenant="cscs"] .edit-icon-btn--active,
+html[data-tenant="cscs"] .edit-icon-btn--active:hover {
+    background-color: var(--cscs-brand-tint) !important;
+    color: var(--cscs-brand-tint-text) !important;
+}
+
+html[data-tenant="cscs"] .edit-icon-btn:hover {
+    background-color: var(--cscs-hover) !important;
+}
+
+html[data-tenant="cscs"] .edit-icon-btn {
+    border-radius: var(--cscs-radius);
+}
+
+/* ------------------------------------------------------------------ 4. Cards and panels */
+/* Top-level cards and panels: 8px, a hairline in the border color of the console */
+html[data-tenant="cscs"] :is(
+    .instance-card,
+    .modeler-type-list,
+    .modeler-graph,
+    .admin-space-card,
+    .admin-tenant-list,
+    .statistics-card,
+    .viz-main,
+    .viz-side,
+    .query-panel,
+    .modeler-side-panel,
+    .unsaved-action-dialog .modal-content
+) {
+    border-color: var(--cscs-border);
+    border-radius: var(--cscs-radius-card);
+}
+
+/* Cards inside a card: one step smaller */
+html[data-tenant="cscs"] :is(
+    .instance-header-sections,
+    .instance-links-panel,
+    .link-item,
+    .instance-field-panel,
+    .instance-alternative,
+    .instance-validation-schema,
+    .instance-identifier,
+    .comment-item,
+    .nested-instance,
+    .unsaved-action-card,
+    .unsaved-instances-panel-item-main,
+    .modeler-schema,
+    .modeler-preview-box,
+    .viz-node-panel,
+    .viz-neighbour-group,
+    .viz-layouts,
+    .graph-links-panel,
+    .query-type-filter-list,
+    .query-add-list,
+    .query-run-spaces,
+    .instance-review-list,
+    .instance-review-tree,
+    .instance-review-created
+) {
+    border-color: var(--cscs-border);
+    border-radius: var(--cscs-radius);
+}
+
+html[data-tenant="cscs"] .instance-card {
+    border-left-width: 4px;
+}
+
+/* Fields in forms and dialogs follow the 6px of the other controls */
+html[data-tenant="cscs"] :is(
+    .instance-form .form-control,
+    .tag-container,
+    .json-field,
+    .query-json .json-field,
+    .modeler-preview .form-control,
+    .modeler-checklist,
+    .linked-instances-modal-list,
+    .linked-instances-type-filter,
+    .instance-transfer-list-panel
+) {
+    border-radius: var(--cscs-radius);
+}
+
+html[data-tenant="cscs"] .modal-content {
+    border-radius: var(--cscs-radius-card);
+}
+
+html[data-tenant="cscs"] .modal-header,
+html[data-tenant="cscs"] .modal-footer {
+    border-color: var(--cscs-border);
+}
+
+html[data-tenant="cscs"] .modal-title {
+    font-size: 1.0625rem;
+    font-weight: 600;
+    color: var(--cscs-text);
+}
+
+html[data-tenant="cscs"] .tooltip-inner {
+    border-radius: 4px;
+}
+
+/* ------------------------------------------------------------------ 5. Editor */
+/* The open instance: the white header card of the console (identity on the left, status on the right) */
+html[data-tenant="cscs"] .instance-focus-panel {
+    border-color: var(--cscs-border);
+}
+
+html[data-tenant="cscs"] .instance-name {
+    font-size: 1.5rem;
+    letter-spacing: -0.005em;
+    color: var(--cscs-text);
+}
+
+html[data-tenant="cscs"] .view-label {
+    color: var(--cscs-text-muted);
+}
+
+html[data-tenant="cscs"] .view-value {
+    border-bottom-color: var(--cscs-table-line);
+}
+
+html[data-tenant="cscs"] .instance-card-status--contribution {
+    /* a status color, not a link: it keeps its blue so it stays distinct from the green of "released" */
+    background-color: #e7f3ff;
+    color: #1d4ed8;
+}
+
+/* ------------------------------------------------------------------ 6. Query builder */
+html[data-tenant="cscs"] .shared-queries-table tbody tr:focus-visible,
+html[data-tenant="cscs"] .query-tree-row:focus-visible {
+    outline-color: var(--cscs-brand);
+}
+
+html[data-tenant="cscs"] .query-tree-row {
+    border-radius: var(--cscs-radius-sm);
+}
+
+/* ------------------------------------------------------------------ 7. Visualizer */
+html[data-tenant="cscs"] .viz-empty-mark {
+    background-color: var(--cscs-brand-tint);
+    color: var(--cscs-brand);
+    box-shadow: 0 0 0 8px rgba(58, 107, 32, 0.07);
+}
+
+/* ------------------------------------------------------------------ 8. Modeler */
+html[data-tenant="cscs"] .modeler-field--drop-before::before,
+html[data-tenant="cscs"] .modeler-field--drop-after::after {
+    background-color: var(--cscs-brand);
+}
+
+html[data-tenant="cscs"] .modeler-node.selected circle {
+    stroke: var(--cscs-brand);
+}
+
+html[data-tenant="cscs"] .modeler-field-handle:focus-visible,
+html[data-tenant="cscs"] .modeler-field-flags .form-check-input:focus-visible {
+    outline-color: var(--cscs-brand);
+}
+
+/* ------------------------------------------------------------------ 9. Statistics */
+html[data-tenant="cscs"] .statistics-card {
+    box-shadow: 0 1px 2px rgba(16, 24, 40, 0.04);
+}
+
+/* ------------------------------------------------------------------ 10. Admin */
+html[data-tenant="cscs"] .admin-tenant-item:focus-visible {
+    outline-color: var(--cscs-brand);
+}
