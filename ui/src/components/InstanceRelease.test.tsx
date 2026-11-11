@@ -1,5 +1,5 @@
 import React from "react";
-import { fireEvent, render, screen, within } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import InstanceRelease from "./InstanceRelease";
 import {
   fetchReleaseTree,
@@ -100,7 +100,8 @@ describe("InstanceRelease", () => {
     ).toBeInTheDocument();
     expect(releaseInstance).toHaveBeenCalledWith("token", "room");
     expect(unreleaseInstance).toHaveBeenCalledWith("token", "top");
-    expect(fetchReleaseTree).toHaveBeenCalledTimes(2);
+    // The tree is reloaded once all changes have been carried out
+    await waitFor(() => expect(fetchReleaseTree).toHaveBeenCalledTimes(2));
   });
 
   it("marks all releasable instances and reports failed releases", async () => {
