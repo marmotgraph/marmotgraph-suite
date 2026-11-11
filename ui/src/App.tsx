@@ -6,6 +6,7 @@ import Layout from "./views/Layout";
 import NotFound from "./views/NotFound";
 import { InstancesProvider } from "./contexts/InstancesContext";
 import { UnsavedInstancesProvider } from "./contexts/UnsavedInstancesContext";
+import { ToolsProvider } from "./contexts/ToolsContext";
 
 import { QueryHome } from "./modules/query-builder/QueryHome";
 import { QueryDetail } from "./modules/query-builder/QueryDetail";
@@ -19,11 +20,13 @@ import ModelerHome from "./modules/modeler/ModelerHome";
 import StatisticsHome from "./modules/statistics/StatisticsHome";
 import ApiHome from "./modules/api/ApiHome";
 import AdminHome from "./modules/admin/AdminHome";
+import ToolsHome from "./modules/tools/ToolsHome";
 
 function App() {
   return (
     <InstancesProvider>
       <UnsavedInstancesProvider>
+        <ToolsProvider>
         <Layout>
         <Routes>
           <Route index element={<SuiteHome />} />
@@ -39,9 +42,11 @@ function App() {
           <Route path="core-api" element={<ApiHome />} />
           <Route path="admin/*" element={<AdminHome />} />
           <Route path="documentation" element={<DocumentationHome />} />
+          <Route path="tools/:categoryId" element={<ToolsHome />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </Layout>
+        </ToolsProvider>
       </UnsavedInstancesProvider>
     </InstancesProvider>
   );

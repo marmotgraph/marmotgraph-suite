@@ -15,6 +15,8 @@ import { userLabel } from "../services/users";
 import { useGlobalFunctionalities } from "../hooks/useGlobalFunctionalities";
 import { adminSections } from "../modules/admin/adminSections";
 import { modelerAvailable } from "../services/modeler";
+import { useTools } from "../contexts/ToolsContext";
+import ToolCategoryIcon from "./ToolCategoryIcon";
 import {
   Blocks,
   BookmarkCheck,
@@ -42,6 +44,8 @@ function SidebarMG({ isCollapsed, onToggle }: SidebarMGProps) {
   const functionalities = useGlobalFunctionalities();
   const showAdmin = adminSections(functionalities).length > 0;
   const showModeler = modelerAvailable(functionalities);
+  // The tools built on top of the graph - one entry per category with tools available to the user
+  const toolCategories = useTools().categories ?? [];
   const { coreUrl, tenant } = useConfig();
   // The logo of the tenant (light mode) - the MarmotGraph logo is shown if the core can't provide it
   const [tenantLogoFailed, setTenantLogoFailed] = useState(false);
@@ -71,7 +75,7 @@ function SidebarMG({ isCollapsed, onToggle }: SidebarMGProps) {
       </div>
 
       {/* Navigation Links */}
-      <div className="flex-column flex-grow-1 px-2 d-flex">
+      <div className="flex-column flex-grow-1 px-2 d-flex sidebar-nav">
         <NavLink
           to="/editor"
           className={({ isActive }) =>
@@ -138,6 +142,32 @@ function SidebarMG({ isCollapsed, onToggle }: SidebarMGProps) {
             <ShieldCheck size={18} />
             {!isCollapsed && <span className="ms-2">Admin</span>}
           </NavLink>
+        )}
+
+        {toolCategories.length > 0 && (
+          <nav aria-label="Tools built on KG" className="sidebar-section">
+            {isCollapsed ? (
+              <hr className="sidebar-section-divider" aria-hidden="true" />
+            ) : (
+              <div className="sidebar-section-title px-3">Tools built on KG</div>
+            )}
+            {toolCategories.map((category) => (
+              <NavLink
+                key={category.id}
+                to={`/tools/${category.id}`}
+                title={isCollapsed ? category.name : undefined}
+                aria-label={isCollapsed ? category.name : undefined}
+                className={({ isActive }) =>
+                  `d-flex align-items-center py-2 px-3 mb-1 text-dark rounded sidebar-nav-link ${isActive ? "active" : ""}`
+                }
+              >
+                <span className="sidebar-tool-icon" aria-hidden="true">
+                  <ToolCategoryIcon icon={category.icon} size={18} />
+                </span>
+                {!isCollapsed && <span className="ms-2 sidebar-nav-label">{category.name}</span>}
+              </NavLink>
+            ))}
+          </nav>
         )}
       </div>
 

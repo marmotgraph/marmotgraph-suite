@@ -238,6 +238,79 @@
     white-space: pre-wrap;
 }
 
+/* Tools - one card per category */
+.admin-tool-category-icon {
+    display: inline-flex;
+    color: #495057;
+}
+
+.admin-tool-text {
+    min-width: 0;
+}
+
+.admin-tool-name {
+    font-weight: 600;
+    color: #212529;
+    overflow-wrap: anywhere;
+}
+
+.admin-tool-description {
+    font-size: 0.875rem;
+    color: #6c757d;
+    overflow-wrap: anywhere;
+}
+
+.admin-tool-endpoint {
+    display: inline-flex;
+    align-items: center;
+    max-width: 100%;
+    font-size: 0.8rem;
+    color: #2563EB;
+    text-decoration: none;
+    overflow-wrap: anywhere;
+}
+
+.admin-tool-endpoint:hover {
+    color: #1D4ED8;
+    text-decoration: underline;
+}
+
+.admin-tool-endpoint:focus-visible {
+    outline: 2px solid #2563EB;
+    outline-offset: 2px;
+}
+
+.admin-tool-claims {
+    margin-top: 2px;
+    font-size: 0.8rem;
+    color: #495057;
+}
+
+.admin-tool-claims code {
+    word-break: break-all;
+    color: #495057;
+}
+
+.admin-tool-icon-preview {
+    width: 64px;
+    height: 64px;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid #dee2e6;
+    border-radius: 8px;
+    background: #f8f9fa;
+    font-size: 0.75rem;
+    color: #868e96;
+}
+
+.admin-tool-icon-preview img {
+    width: 32px;
+    height: 32px;
+    object-fit: contain;
+}
+
 @media (prefers-reduced-motion: reduce) {
     .admin-tenant-item {
         transition: none;

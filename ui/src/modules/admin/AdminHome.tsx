@@ -1,9 +1,10 @@
 import React from "react";
 import { Nav, Spinner } from "react-bootstrap";
 import { Navigate, NavLink, Route, Routes } from "react-router-dom";
-import { Building2, KeyRound } from "lucide-react";
+import { Building2, KeyRound, Wrench } from "lucide-react";
 import PermissionsAdmin from "./PermissionsAdmin";
 import TenantsAdmin from "./TenantsAdmin";
+import ToolsAdmin from "./ToolsAdmin";
 import { AdminSection, adminSections } from "./adminSections";
 import { useGlobalFunctionalities } from "../../hooks/useGlobalFunctionalities";
 import "./Admin.css";
@@ -11,6 +12,7 @@ import "./Admin.css";
 const TABS: Record<AdminSection, { label: string; icon: React.ReactNode; element: React.ReactNode }> = {
   permissions: { label: "Permissions", icon: <KeyRound size={16} className="me-2" />, element: <PermissionsAdmin /> },
   tenants: { label: "Tenants", icon: <Building2 size={16} className="me-2" />, element: <TenantsAdmin /> },
+  tools: { label: "Tools", icon: <Wrench size={16} className="me-2" />, element: <ToolsAdmin /> },
 };
 
 /**

@@ -151,3 +151,49 @@
 .sidebar-user-avatar ion-icon {
     font-size: 1rem;
 }
+
+/* The navigation scrolls on its own if it doesn't fit (e.g. with many tool categories) */
+.sidebar-nav {
+    min-height: 0;
+    overflow-y: auto;
+}
+
+/* Tools built on KG - one entry per category */
+.sidebar-section {
+    margin-top: 0.75rem;
+}
+
+.sidebar-section-title {
+    margin-bottom: 0.25rem;
+    font-size: 0.7rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: #868e96;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.sidebar-section-divider {
+    margin: 0 0.75rem 0.5rem;
+    border-color: #e5e7eb;
+    opacity: 1;
+}
+
+.sidebar-tool-icon {
+    display: inline-flex;
+    flex-shrink: 0;
+    width: 18px;
+    height: 18px;
+}
+
+.sidebar-nav-label {
+    min-width: 0;
+    overflow-wrap: anywhere;
+}
+
+.sidebar-nav-link:focus-visible {
+    outline: 2px solid #5b5fc7;
+    outline-offset: -2px;
+}
