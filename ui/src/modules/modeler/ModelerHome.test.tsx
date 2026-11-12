@@ -325,6 +325,8 @@ describe("ModelerHome", () => {
     localStorage.clear();
     renderAt("/modeler/graph");
     const device = (await screen.findAllByTestId("modeler-node")).find((node) => node.textContent?.includes("Device"))!;
+    // The nodes can be found before the effect binding the drag to them has run
+    await act(async () => {});
     const before = device.getAttribute("transform");
     // d3 listens to the moves on the window the drag started in (jsdom doesn't accept its window as view of an event)
     const mouse = (target: EventTarget, type: string, clientX: number, clientY: number) =>

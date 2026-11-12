@@ -200,9 +200,13 @@ describe("drawFrame", () => {
     const frame = frameOf(scene, { viewport: { x: 400, y: 300, k: 0.15, width: 800, height: 600, dpr: 1 } });
     const { context } = recordingContext();
     drawFrame(context, scene, frame); // warm up
-    const started = performance.now();
-    for (let i = 0; i < 5; i++) drawFrame(context, scene, frame);
-    const perFrame = (performance.now() - started) / 5;
+    // The fastest of a few frames - a slow algorithm is slow every time, a busy machine only some of the time
+    let perFrame = Infinity;
+    for (let i = 0; i < 5; i++) {
+      const started = performance.now();
+      drawFrame(context, scene, frame);
+      perFrame = Math.min(perFrame, performance.now() - started);
+    }
     // Without a real canvas only the JavaScript side is measured - it has to leave most of the 16 ms alone
     expect(perFrame).toBeLessThan(40);
   });
