@@ -262,7 +262,7 @@ describe("LinkedInstancesEditModal", () => {
       );
       renderModal(single);
       await screen.findByRole(role, { name: /Device 1/, hidden: true });
-      expect(screen.getByText("Loading more instances...")).toBeInTheDocument();
+      expect(await screen.findByText("Loading more instances...")).toBeInTheDocument();
 
       intersect();
 
@@ -285,6 +285,8 @@ describe("LinkedInstancesEditModal", () => {
       });
       renderModal();
       await screen.findByRole("radio", { name: /Device 1/, hidden: true });
+      // The sentinel (and its observer) only appears once the first page has finished loading
+      await screen.findByText("Loading more instances...");
       intersect();
       await waitFor(() => expect(fetchInstances).toHaveBeenCalledWith("token", expect.objectContaining({ marker: "page-2" })));
 
@@ -306,6 +308,7 @@ describe("LinkedInstancesEditModal", () => {
       });
       renderModal();
       await screen.findByRole("radio", { name: /Device 1/, hidden: true });
+      await screen.findByText("Loading more instances...");
 
       intersect();
       await screen.findByText(/Could not load more instances/);
