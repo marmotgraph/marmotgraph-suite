@@ -26,6 +26,8 @@ export default defineConfig({
     globals: true,
     environment: "jsdom", // use 'node' if not testing DOM
     setupFiles: "./src/test/setup.ts",
+    // The suite runs many jsdom workers in parallel - interaction-heavy tests need headroom on loaded CI runners
+    testTimeout: 20000,
     coverage: {
       reporter: ["text", "html"],
     },

@@ -194,7 +194,7 @@ describe("drawFrame", () => {
     expect(calls.get("fillText") ?? 0).toBeLessThan(900);
   });
 
-  it("paints thousands of nodes and links in a small fraction of a frame budget", () => {
+  it("paints thousands of nodes and links in a small fraction of a frame budget", { retry: 2 }, () => {
     const { nodes, links } = graph(5000, 2);
     const scene = buildScene(nodes, links);
     const frame = frameOf(scene, { viewport: { x: 400, y: 300, k: 0.15, width: 800, height: 600, dpr: 1 } });

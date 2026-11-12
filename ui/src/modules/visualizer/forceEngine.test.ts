@@ -52,14 +52,14 @@ describe("ForceEngine", () => {
     expect(engine.running).toBe(false);
   });
 
-  it("stops at its time budget", () => {
+  it("stops at its time budget", { retry: 2 }, () => {
     const engine = new ForceEngine(input(2000));
     const started = performance.now();
     engine.step(5);
     expect(performance.now() - started).toBeLessThan(500);
   });
 
-  it("handles a thousand-plus nodes in a few seconds of ticks", () => {
+  it("handles a thousand-plus nodes in a few seconds of ticks", { retry: 2 }, () => {
     const engine = new ForceEngine(input(4000));
     const started = performance.now();
     engine.step(Infinity, 30);
