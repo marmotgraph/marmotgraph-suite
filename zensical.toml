@@ -20,6 +20,7 @@ nav = [
     { "Query Builder" = "modules/query-builder.md" },
     { "Statistics" = "modules/statistics.md" },
     { "API" = "modules/api.md" },
+    { "Spaces" = "modules/spaces.md" },
     { "Admin" = "modules/admin.md" },
   ] },
   { "Operations" = [

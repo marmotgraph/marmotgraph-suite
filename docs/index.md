@@ -43,9 +43,15 @@ allowed to read, and only the actions you are allowed to perform.
 
     [:octicons-arrow-right-24: API](modules/api.md)
 
+-   :material-folder-cog-outline: **Spaces**
+
+    Manage the settings, types and permissions of the spaces you are responsible for.
+
+    [:octicons-arrow-right-24: Spaces](modules/spaces.md)
+
 -   :material-shield-check-outline: **Admin**
 
-    Manage spaces, permissions, tenants and the tools built on top of the graph.
+    Manage the global permissions, tenants and the tools built on top of the graph.
 
     [:octicons-arrow-right-24: Admin](modules/admin.md)
 

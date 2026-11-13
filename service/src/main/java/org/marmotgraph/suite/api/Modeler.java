@@ -13,9 +13,6 @@ import org.marmotgraph.sdk.model.TypeSpecification;
 import org.marmotgraph.sdk.model.ValidationSchema;
 import org.marmotgraph.sdk.resources.TypeListOptions;
 import org.marmotgraph.suite.auth.AuthenticatedClient;
-import org.marmotgraph.suite.auth.UserKey;
-import org.marmotgraph.suite.spaces.SpaceCache;
-import org.marmotgraph.suite.spaces.SpaceCache.SpaceDefinition;
 import org.marmotgraph.suite.types.FieldCache;
 import org.marmotgraph.suite.types.TypeCache;
 import org.springframework.http.HttpStatus;
@@ -37,12 +34,11 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.function.Function;
 import java.util.function.Supplier;
-import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 /**
  * Manages the model of the graph - the specifications of the types, their properties (including the relations to other
- * types), their validation schemas and the spaces they are assigned to - on behalf of the user who issued the request
+ * types) and their validation schemas - on behalf of the user who issued the request
  * (who needs the rights to define types and properties / validation schemas in the core for the modifications).
  * <p>
  * Types and properties are identified by their full name (an IRI) - they are therefore passed as query parameters.
@@ -56,12 +52,6 @@ import java.util.stream.Collectors;
 @RestController
 @RequestMapping("/modeler")
 public class Modeler {
-
-    /**
-     * Space names are used as path segment in the requests to the core - they are therefore restricted to a safe set
-     * of characters.
-     */
-    private static final Pattern SPACE_NAME = Pattern.compile("[\\w.-]+");
 
     /**
      * A property of a type - as observed in the data, extended by its specification.
@@ -98,7 +88,6 @@ public class Modeler {
 
     private final TypeCache typeCache;
     private final FieldCache fieldCache;
-    private final SpaceCache spaceCache;
 
     /**
      * All types the user has access to including their properties (and therefore their relations) - always fetched
@@ -314,38 +303,6 @@ public class Modeler {
         client.types().deleteValidationSchema(requireType(type), requireName(name));
     }
 
-    /**
-     * The spaces (of those the user has access to) the type is explicitly assigned to.
-     */
-    @GetMapping("/types/spaces")
-    public List<String> assignedSpaces(@AuthenticatedClient MarmotGraphClient client, @UserKey String userKey, @RequestParam String type) {
-        requireType(type);
-        // The core only allows to check the assignment for one space at a time - they are checked concurrently
-        return spaceCache.list(client, userKey).parallelStream().map(SpaceDefinition::identifier)
-                .filter(space -> isAssigned(client, space, type)).toList();
-    }
-
-    @PutMapping("/types/spaces/{space}")
-    public void assignSpace(@AuthenticatedClient MarmotGraphClient client, @RequestParam String type, @PathVariable String space) {
-        client.spaces().assignType(requireSpace(space), requireType(type));
-    }
-
-    @DeleteMapping("/types/spaces/{space}")
-    public void unassignSpace(@AuthenticatedClient MarmotGraphClient client, @RequestParam String type, @PathVariable String space) {
-        // A type which is not found in the space isn't part of it anyway
-        nullIfNotFound(() -> {
-            client.spaces().removeType(requireSpace(space), requireType(type));
-            return null;
-        });
-    }
-
-    /**
-     * If the type is assigned to the space - the core reports a type which is not part of the space as not found.
-     */
-    private static boolean isAssigned(MarmotGraphClient client, String space, String type) {
-        return nullIfNotFound(() -> client.spaces().getType(space, type).orElse(null)) != null;
-    }
-
     private void invalidate(String type) {
         typeCache.invalidate(type);
         fieldCache.invalidate(type);
@@ -382,13 +339,6 @@ public class Modeler {
 
     private static String requireName(String name) {
         return requireNotBlank(name, "The name of the validation schema is missing");
-    }
-
-    static String requireSpace(String space) {
-        if (space == null || !SPACE_NAME.matcher(space).matches()) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Space names may only contain letters, digits, \".\", \"-\" and \"_\"");
-        }
-        return space;
     }
 
     private static String requireNotBlank(String value, String message) {

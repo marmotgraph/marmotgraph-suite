@@ -9,19 +9,15 @@ import org.marmotgraph.sdk.model.PropertySpecification;
 import org.marmotgraph.sdk.model.SpaceTypeInformation;
 import org.marmotgraph.sdk.model.Stage;
 import org.marmotgraph.sdk.model.TargetType;
-import org.marmotgraph.sdk.model.TypeInSpace;
 import org.marmotgraph.sdk.model.TypeInformation;
 import org.marmotgraph.sdk.model.TypeSpecification;
 import org.marmotgraph.sdk.model.ValidationSchema;
 import org.marmotgraph.sdk.pagination.Page;
 import org.marmotgraph.sdk.resources.PropertiesResource;
-import org.marmotgraph.sdk.resources.SpacesResource;
 import org.marmotgraph.sdk.resources.TypeListOptions;
 import org.marmotgraph.sdk.resources.TypesResource;
 import org.marmotgraph.suite.auth.AuthenticatedClientResolver;
 import org.marmotgraph.suite.configuration.ArgumentResolvers;
-import org.marmotgraph.suite.spaces.SpaceCache;
-import org.marmotgraph.suite.spaces.SpaceCache.SpaceDefinition;
 import org.marmotgraph.suite.types.FieldCache;
 import org.marmotgraph.suite.types.TypeCache;
 import org.mockito.ArgumentCaptor;
@@ -80,11 +76,6 @@ class ModelerTest {
         FieldCache fieldCache() {
             return Mockito.mock(FieldCache.class);
         }
-
-        @Bean
-        SpaceCache spaceCache() {
-            return Mockito.mock(SpaceCache.class);
-        }
     }
 
     @Autowired
@@ -96,26 +87,20 @@ class ModelerTest {
     @Autowired
     private FieldCache fieldCache;
 
-    @Autowired
-    private SpaceCache spaceCache;
-
     private MarmotGraphClient userClient;
     private TypesResource types;
     private PropertiesResource properties;
-    private SpacesResource spaces;
     private MockMvc mockMvc;
 
     @BeforeEach
     void setUp(@Autowired WebApplicationContext context) {
-        Mockito.reset(client, typeCache, fieldCache, spaceCache);
+        Mockito.reset(client, typeCache, fieldCache);
         userClient = Mockito.mock(MarmotGraphClient.class);
         types = Mockito.mock(TypesResource.class);
         properties = Mockito.mock(PropertiesResource.class);
-        spaces = Mockito.mock(SpacesResource.class);
         when(client.withToken("theToken")).thenReturn(userClient);
         when(userClient.types()).thenReturn(types);
         when(userClient.properties()).thenReturn(properties);
-        when(userClient.spaces()).thenReturn(spaces);
         mockMvc = MockMvcBuilders.webAppContextSetup(context).build();
     }
 
@@ -400,49 +385,6 @@ class ModelerTest {
                         .header(HttpHeaders.AUTHORIZATION, "Bearer theToken"))
                 .andExpect(status().isOk());
         verify(types).deleteValidationSchema(DEVICE, "my schema");
-    }
-
-    @Test
-    void assignedSpacesAreCheckedForEachSpaceOfTheUser() throws Exception {
-        when(spaceCache.list(userClient, AuthenticatedClientResolver.userKey("theToken")))
-                .thenReturn(List.of(new SpaceDefinition("a", "a"), new SpaceDefinition("b", "b"), new SpaceDefinition("c", "c")));
-        when(spaces.getType(any(), any())).thenReturn(Optional.empty());
-        // The core reports a type which is not part of the space as not found
-        when(spaces.getType("b", DEVICE)).thenThrow(new MarmotGraphApiException(404, "Not found", null, null));
-        when(spaces.getType("a", DEVICE)).thenReturn(Optional.of(new TypeInSpace("a", DEVICE)));
-        when(spaces.getType("c", DEVICE)).thenReturn(Optional.of(new TypeInSpace("c", DEVICE)));
-
-        mockMvc.perform(get("/modeler/types/spaces").param("type", DEVICE).header(HttpHeaders.AUTHORIZATION, "Bearer theToken"))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.length()").value(2))
-                .andExpect(jsonPath("$[0]").value("a"))
-                .andExpect(jsonPath("$[1]").value("c"));
-    }
-
-    @Test
-    void typeIsAssignedToAndRemovedFromSpaces() throws Exception {
-        mockMvc.perform(put("/modeler/types/spaces/myspace").param("type", DEVICE).header(HttpHeaders.AUTHORIZATION, "Bearer theToken"))
-                .andExpect(status().isOk());
-        verify(spaces).assignType("myspace", DEVICE);
-
-        mockMvc.perform(delete("/modeler/types/spaces/myspace").param("type", DEVICE).header(HttpHeaders.AUTHORIZATION, "Bearer theToken"))
-                .andExpect(status().isOk());
-        verify(spaces).removeType("myspace", DEVICE);
-    }
-
-    @Test
-    void removingATypeWhichIsNotPartOfTheSpaceSucceeds() throws Exception {
-        Mockito.doThrow(new MarmotGraphApiException(404, "Not found", null, null)).when(spaces).removeType("myspace", DEVICE);
-
-        mockMvc.perform(delete("/modeler/types/spaces/myspace").param("type", DEVICE).header(HttpHeaders.AUTHORIZATION, "Bearer theToken"))
-                .andExpect(status().isOk());
-    }
-
-    @Test
-    void unsafeSpaceNameIsRejected() throws Exception {
-        mockMvc.perform(put("/modeler/types/spaces/my space").param("type", DEVICE).header(HttpHeaders.AUTHORIZATION, "Bearer theToken"))
-                .andExpect(status().isBadRequest());
-        verify(spaces, never()).assignType(anyString(), anyString());
     }
 
     @Test

@@ -23,13 +23,11 @@ vi.mock("../../contexts/AuthContext", () => {
   return { useAuth: () => ({ getAccessToken }) };
 });
 vi.mock("../../hooks/useGlobalFunctionalities", () => ({ useGlobalFunctionalities: vi.fn() }));
-vi.mock("../../hooks/useSpaces", () => ({ useSpaces: () => [] }));
 vi.mock("../../services/modeler", async (importOriginal) => ({
   ...(await importOriginal<typeof import("../../services/modeler")>()),
   fetchModel: vi.fn(),
   fetchTypeSpecification: vi.fn(),
   fetchValidationSchemas: vi.fn().mockResolvedValue([]),
-  fetchAssignedSpaces: vi.fn().mockResolvedValue([]),
   fetchSpecificationStatus: vi.fn().mockResolvedValue({}),
   fetchPropertySources: vi.fn().mockResolvedValue({}),
   fetchPropertyDefinitions: vi.fn().mockResolvedValue({ type: null, global: null }),

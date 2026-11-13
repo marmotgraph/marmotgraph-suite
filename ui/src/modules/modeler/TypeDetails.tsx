@@ -24,7 +24,6 @@ import type { ModelerContext } from "./ModelerHome";
 import PropertyModal from "./PropertyModal";
 import PropertyFields from "./PropertyFields";
 import ValidationSchemas from "./ValidationSchemas";
-import TypeSpaces from "./TypeSpaces";
 import TypeIdentifier from "./TypeIdentifier";
 import InlineEdit from "./InlineEdit";
 
@@ -40,7 +39,7 @@ interface SpecificationProps {
 
 type TabProps = Props & SpecificationProps;
 
-/** The definition of a type - its specification, properties (incl. relations), validation schemas and spaces. */
+/** The definition of a type - its specification, properties (incl. relations) and validation schemas. */
 export default function TypeDetails(props: Props) {
   const { type, reload, canDefineTypes } = props;
   const { getAccessToken } = useAuth();
@@ -209,9 +208,6 @@ export default function TypeDetails(props: Props) {
         </Tab>
         <Tab eventKey="validation" title="Validation">
           <ValidationSchemas type={type.identifier} canDefine={props.canDefineSchemas} />
-        </Tab>
-        <Tab eventKey="spaces" title="Spaces">
-          <TypeSpaces type={type} canDefine={props.canDefineTypes} />
         </Tab>
       </Tabs>
     </div>

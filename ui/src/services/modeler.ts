@@ -340,20 +340,6 @@ export function deleteValidationSchema(accessToken: string, type: string, name: 
   return send("DELETE", schemaUrl(type, name), "delete the validation schema", accessToken);
 }
 
-/** The spaces the type is explicitly assigned to. */
-export function fetchAssignedSpaces(accessToken: string, type: string): Promise<string[]> {
-  return send("GET", `/api/modeler/types/spaces?${typeParam(type)}`, "load the spaces of the type", accessToken);
-}
-
-export function assignSpace(accessToken: string, type: string, space: string, assigned: boolean): Promise<void> {
-  return send(
-    assigned ? "PUT" : "DELETE",
-    `/api/modeler/types/spaces/${encodeURIComponent(space)}?${typeParam(type)}`,
-    assigned ? "assign the space" : "remove the space",
-    accessToken,
-  );
-}
-
 /** The last segment of an IRI (e.g. "Device" for "https://example.org/types/Device"). */
 export function shortName(identifier: string): string {
   const segment = identifier.substring(Math.max(identifier.lastIndexOf("/"), identifier.lastIndexOf("#")) + 1);

@@ -5,8 +5,8 @@ only available to administrators.
 
 ## Types
 
-For each type you can define its identifier, the spaces it is used in and its properties. The type graph shows how the
-types are linked.
+For each type you can define its identifier and its properties. The type graph shows how the types are linked. Which
+spaces a type is assigned to is managed with the [spaces](spaces.md).
 
 ## Properties
 
