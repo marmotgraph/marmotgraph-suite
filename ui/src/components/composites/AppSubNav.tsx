@@ -70,7 +70,7 @@ export default function AppSubNav({ title, ctas }: AppSubNavProps) {
   };
 
   return (
-    <Container fluid className="py-4">
+    <Container fluid className="pt-4 pb-2">
       <Row className="align-items-center">
         <Col xs={12} md={6}>
           {title && <h5 className="mb-0">{title}</h5>}

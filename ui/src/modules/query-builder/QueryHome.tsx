@@ -74,9 +74,6 @@ export function QueryHome() {
 
   return (
     <div className="editor-home query-home">
-      <div className="mb-3">
-        <h2>Queries</h2>
-      </div>
       <div className="query-home-search mb-3">
         <SearchBar
           value={searchInput}

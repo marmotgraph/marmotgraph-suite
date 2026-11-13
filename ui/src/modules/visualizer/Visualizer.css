@@ -5,7 +5,7 @@
     flex-direction: column;
     gap: 12px;
     /* Fills the main area of the page (as the editor does) - there is no room left over at the bottom */
-    height: 100%;
+    flex: 1;
     min-height: 480px;
 }
 

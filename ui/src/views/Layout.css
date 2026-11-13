@@ -40,8 +40,13 @@
     height: 98vh;
 }
 
+/* The module header (sub navigation) and the content of the page are kept apart by the top padding.
+   A page filling the main area (e.g. the editor or the visualizer) grows into the rest of it with flex: 1. */
 .layout-main {
     flex: 1;
+    display: flex;
+    flex-direction: column;
+    padding-top: 1rem;
     overflow-y: auto;
     overflow-x: hidden;
     min-height: 0;
@@ -113,7 +118,7 @@
 
 /* Page for unknown routes - same content as the 404 page of the service (static/error/404.html) */
 .layout-not-found {
-    min-height: 100%;
+    flex: 1;
     padding: 32px 16px;
     display: flex;
     flex-direction: column;
