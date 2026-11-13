@@ -18,7 +18,7 @@ import {
 import type { InstanceSummary } from "../editor/editorMockData";
 import GraphCanvas, { CanvasLink, CanvasNode, GraphCanvasHandle } from "./GraphCanvas";
 import NodePanel from "./NodePanel";
-import TypeFilter from "./TypeFilter";
+import TypeFilter, { SEARCH_FROM } from "./TypeFilter";
 import {
   addDetail,
   addIncoming,
@@ -438,6 +438,11 @@ export default function VisualizerHome() {
     () => [...knownTypes].map((t) => ({ identifier: t.identifier, name: typeLabel(t), color: typeColorOf(typeLabel(t), t.color) })).sort((a, b) => a.name.localeCompare(b.name)),
     [knownTypes],
   );
+  const [sampleTerm, setSampleTerm] = useState("");
+  const shownSampleTypes = useMemo(() => {
+    const query = sampleTerm.trim().toLowerCase();
+    return query ? sampleTypes.filter((t) => t.name.toLowerCase().includes(query)) : sampleTypes;
+  }, [sampleTypes, sampleTerm]);
 
   return (
     <div className="viz-home">
@@ -663,8 +668,20 @@ export default function VisualizerHome() {
                 {sampleTypes.length > 0 && (
                   <>
                     <div className="viz-kicker">Or start with a type</div>
+                    {sampleTypes.length >= SEARCH_FROM && (
+                      <Form.Control
+                        type="search"
+                        size="sm"
+                        className="viz-chips-filter"
+                        value={sampleTerm}
+                        placeholder="Filter types"
+                        aria-label={`Filter the ${sampleTypes.length} types`}
+                        onChange={(e) => setSampleTerm(e.target.value)}
+                      />
+                    )}
                     <div className="viz-chips">
-                      {sampleTypes.slice(0, 10).map((type) => (
+                      {shownSampleTypes.length === 0 && <p className="viz-muted">No type matches.</p>}
+                      {shownSampleTypes.map((type) => (
                         <button key={type.identifier} type="button" className="viz-chip" onClick={() => addSample(type.identifier)} disabled={loadingBulk}>
                           <span className="viz-dot" style={{ background: type.color }} aria-hidden="true" />
                           {type.name}
