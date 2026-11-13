@@ -208,7 +208,6 @@ export default function StatisticsHome() {
   const loading = !statistics && !error;
   return (
     <div className="statistics-home" aria-busy={loading}>
-      <h2>Statistics</h2>
       <p className="statistics-meta">These figures only cover the spaces you can read.</p>
       {error && <Alert variant="danger">{error}</Alert>}
 

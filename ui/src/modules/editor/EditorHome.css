@@ -59,7 +59,8 @@
 
 /* Fills the height of the main area so only the table scrolls (and not the page around it) */
 .editor-home {
-    height: 100%;
+    flex: 1;
+    min-height: 0;
     display: flex;
     flex-direction: column;
     padding-bottom: 10px;

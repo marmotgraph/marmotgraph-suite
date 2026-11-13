@@ -382,10 +382,6 @@ export default function EditorHome() {
 
   return (
     <div className="editor-home">
-      <div className="mb-4">
-        <h2>Instances</h2>
-      </div>
-
       {/* Search Bar */}
       <Row className="mb-3">
         <Col md={6}>
