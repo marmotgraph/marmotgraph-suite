@@ -41,9 +41,9 @@ public class Tenants {
     static final String DEFAULT_TENANT = "default";
 
     private static final Pattern TENANT_NAME = Pattern.compile("[A-Za-z0-9_-]+");
-    private static final Pattern FONT_URL = Pattern.compile("@import\\s+url\\((.*?)\\)\\s*;");
-    private static final Pattern FONT_FAMILY = Pattern.compile("font-family\\s*:\\s*(.*?)\\s*;");
-    private static final Pattern CSS_VARIABLE = Pattern.compile("(--[\\w-]+)\\s*:\\s*(.*?)\\s*;");
+    private static final Pattern FONT_URL = Pattern.compile("@import\\s+url\\(([^)]*)\\)\\s*;");
+    private static final Pattern FONT_FAMILY = Pattern.compile("font-family\\s*:([^;]*);");
+    private static final Pattern CSS_VARIABLE = Pattern.compile("(--[\\w-]+)\\s*:([^;]*);");
     private static final String COLORS_BLOCK = ":root {";
 
     /**
@@ -195,12 +195,12 @@ public class Tenants {
 
         Matcher url = FONT_URL.matcher(fontPart);
         Matcher family = FONT_FAMILY.matcher(fontPart);
-        Font font = new Font(url.find() ? url.group(1).trim() : null, family.find() ? family.group(1) : null);
+        Font font = new Font(url.find() ? url.group(1).trim() : null, family.find() ? family.group(1).strip() : null);
 
         Map<String, String> variables = new LinkedHashMap<>();
         Matcher variable = CSS_VARIABLE.matcher(colorsPart);
         while (variable.find()) {
-            variables.put(VARIABLE_ALIASES.getOrDefault(variable.group(1), variable.group(1)), variable.group(2));
+            variables.put(VARIABLE_ALIASES.getOrDefault(variable.group(1), variable.group(1)), variable.group(2).strip());
         }
         Map<String, Map<String, String>> colors = new LinkedHashMap<>();
         COLOR_VARIABLES.forEach((group, groupVariables) -> {
