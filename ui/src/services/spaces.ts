@@ -19,17 +19,27 @@ export interface SpaceSettings {
   deferCache: boolean;
 }
 
-/** A space and its settings - which are not available if the user is not allowed to manage the space. */
+/** A space the user is allowed to manage. */
 export interface ManagedSpace {
   identifier: string;
-  settings?: SpaceSettings | null;
+  name?: string;
+}
+
+/** Fetches the spaces the user is allowed to manage (sorted by their identifier). */
+export function fetchManagedSpaces(accessToken: string): Promise<ManagedSpace[]> {
+  return getJson("/api/admin/spaces", "the spaces you manage", accessToken);
+}
+
+/** The specification of a space. */
+export interface SpaceDetails {
+  identifier: string;
+  settings: SpaceSettings;
   /** Whether the space has a specification - otherwise, it has the default settings. */
   specified: boolean;
 }
 
-/** Fetches the spaces which can be specified, along with the settings of those the user is allowed to manage. */
-export function fetchManagedSpaces(accessToken: string): Promise<ManagedSpace[]> {
-  return getJson("/api/admin/spaces", "the specifications of the spaces", accessToken);
+export function fetchSpaceDetails(accessToken: string, space: string): Promise<SpaceDetails> {
+  return getJson(`/api/admin/spaces/${encodeURIComponent(space)}`, "the specification of the space", accessToken);
 }
 
 /** Creates or replaces the specification of the space (creating the space if it doesn't exist yet). */
@@ -40,4 +50,30 @@ export function saveSpaceSpecification(accessToken: string, space: string, setti
 /** Removes the specification of the space - the core removes the space too if there are no types in it. */
 export function deleteSpaceSpecification(accessToken: string, space: string): Promise<void> {
   return send("DELETE", `/api/admin/spaces/${encodeURIComponent(space)}`, "delete the specification of the space", accessToken);
+}
+
+/** A type with its relation to a space. */
+export interface SpaceType {
+  identifier: string;
+  name?: string;
+  color?: string;
+  /** Whether the type is explicitly assigned to the space (e.g. to be offered when creating instances there). */
+  assigned: boolean;
+  /** The number of instances of the type in the space. */
+  occurrences: number;
+}
+
+/** Fetches the types (sorted by name) along with their assignment to the space. */
+export function fetchSpaceTypes(accessToken: string, space: string): Promise<SpaceType[]> {
+  return getJson(`/api/admin/spaces/${encodeURIComponent(space)}/types`, "the types of the space", accessToken);
+}
+
+/** Assigns the type to the space - or removes it from the space if assigned is not set. */
+export function assignType(accessToken: string, space: string, type: string, assigned: boolean): Promise<void> {
+  return send(
+    assigned ? "PUT" : "DELETE",
+    `/api/admin/spaces/${encodeURIComponent(space)}/types?${new URLSearchParams({ type })}`,
+    assigned ? "assign the type" : "remove the type",
+    accessToken,
+  );
 }

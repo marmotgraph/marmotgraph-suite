@@ -6,6 +6,7 @@ import { visualizerSubNav } from "../modules/visualizer/visualizerSubNav";
 import { modelerSubNav } from "../modules/modeler/modelerSubNav";
 import { apiSubNav } from "../modules/api/apiSubNav";
 import { adminSubNav } from "../modules/admin/adminSubNav";
+import { spacesSubNav } from "../modules/spaces/spacesSubNav";
 
 export function useAppSubNav() {
   const { pathname } = useLocation();
@@ -21,7 +22,8 @@ export function useAppSubNav() {
   if (/^\/visualizer/.test(pathname)) return visualizerSubNav;
   if (/^\/modeler/.test(pathname)) return modelerSubNav;
   if (/^\/core-api/.test(pathname)) return apiSubNav;
-  if (/^\/admin/.test(pathname)) return adminSubNav;
+  if (/^\/spaces/.test(pathname)) return spacesSubNav;
+  if (/^\/admin/.test(pathname)) return adminSubNav(pathname);
 
   // Fallback – no sub‑nav
   return undefined;

@@ -595,10 +595,6 @@
     display: none;
 }
 
-.modeler-checklist-tall {
-    max-height: 320px;
-}
-
 /* Side panel of the graph */
 .modeler-side-panel {
     background-color: #fff;

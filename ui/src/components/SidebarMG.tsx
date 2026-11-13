@@ -13,22 +13,32 @@ import { useConfig } from "../contexts/ConfigContext";
 import { imageUrl } from "../services/tenants";
 import { userLabel } from "../services/users";
 import { useGlobalFunctionalities } from "../hooks/useGlobalFunctionalities";
-import { adminSections } from "../modules/admin/adminSections";
+import { ADMIN_SECTION_LABELS, AdminSection, adminSections } from "../modules/admin/adminSections";
+import { spaceManagementAvailable, useManagedSpaces } from "../hooks/useManagedSpaces";
 import { modelerAvailable } from "../services/modeler";
 import { useTools } from "../contexts/ToolsContext";
 import ToolCategoryIcon from "./ToolCategoryIcon";
 import {
   Blocks,
   BookmarkCheck,
+  Building2,
   ChartColumn,
   ChartScatter,
   CodeXml,
   Edit3Icon,
+  FolderCog,
+  KeyRound,
   Network,
   PanelLeftClose,
   PanelRightOpenIcon,
-  ShieldCheck,
+  Wrench,
 } from "lucide-react";
+
+const ADMIN_SECTION_ICONS: Record<AdminSection, React.ReactNode> = {
+  permissions: <KeyRound size={18} />,
+  tenants: <Building2 size={18} />,
+  tools: <Wrench size={18} />,
+};
 
 interface SidebarMGProps {
   isCollapsed: boolean;
@@ -40,9 +50,12 @@ function SidebarMG({ isCollapsed, onToggle }: SidebarMGProps) {
   const user = useCurrentUser();
   const { logout } = useAuth();
   const userName = (user && userLabel(user)) || "User";
-  // The admin module is only shown if at least one of its sections is available to the user
+  // The admin section of the navigation holds the space management and each section of the admin module the user has
+  // the permissions for
   const functionalities = useGlobalFunctionalities();
-  const showAdmin = adminSections(functionalities).length > 0;
+  const sections = adminSections(functionalities);
+  // The space management is shown to the users managing at least one space (or who may create spaces)
+  const showSpaces = spaceManagementAvailable(useManagedSpaces().spaces, functionalities);
   const showModeler = modelerAvailable(functionalities);
   // The tools built on top of the graph - one entry per category with tools available to the user
   const toolCategories = useTools().categories ?? [];
@@ -132,18 +145,6 @@ function SidebarMG({ isCollapsed, onToggle }: SidebarMGProps) {
           <CodeXml size={18} />
           {!isCollapsed && <span className="ms-2">API</span>}
         </NavLink>
-        {showAdmin && (
-          <NavLink
-            to="/admin"
-            className={({ isActive }) =>
-              `d-flex align-items-center py-2 px-3 mb-1 text-dark rounded sidebar-nav-link ${isActive ? "active" : ""}`
-            }
-          >
-            <ShieldCheck size={18} />
-            {!isCollapsed && <span className="ms-2">Admin</span>}
-          </NavLink>
-        )}
-
         {toolCategories.length > 0 && (
           <nav aria-label="Tools built on KG" className="sidebar-section">
             {isCollapsed ? (
@@ -165,6 +166,43 @@ function SidebarMG({ isCollapsed, onToggle }: SidebarMGProps) {
                   <ToolCategoryIcon icon={category.icon} size={18} />
                 </span>
                 {!isCollapsed && <span className="ms-2 sidebar-nav-label">{category.name}</span>}
+              </NavLink>
+            ))}
+          </nav>
+        )}
+
+        {(showSpaces || sections.length > 0) && (
+          <nav aria-label="Admin" className="sidebar-section">
+            {isCollapsed ? (
+              <hr className="sidebar-section-divider" aria-hidden="true" />
+            ) : (
+              <div className="sidebar-section-title px-3">Admin</div>
+            )}
+            {showSpaces && (
+              <NavLink
+                to="/spaces"
+                title={isCollapsed ? "Spaces" : undefined}
+                aria-label={isCollapsed ? "Spaces" : undefined}
+                className={({ isActive }) =>
+                  `d-flex align-items-center py-2 px-3 mb-1 text-dark rounded sidebar-nav-link ${isActive ? "active" : ""}`
+                }
+              >
+                <FolderCog size={18} />
+                {!isCollapsed && <span className="ms-2">Spaces</span>}
+              </NavLink>
+            )}
+            {sections.map((section) => (
+              <NavLink
+                key={section}
+                to={`/admin/${section}`}
+                title={isCollapsed ? ADMIN_SECTION_LABELS[section] : undefined}
+                aria-label={isCollapsed ? ADMIN_SECTION_LABELS[section] : undefined}
+                className={({ isActive }) =>
+                  `d-flex align-items-center py-2 px-3 mb-1 text-dark rounded sidebar-nav-link ${isActive ? "active" : ""}`
+                }
+              >
+                {ADMIN_SECTION_ICONS[section]}
+                {!isCollapsed && <span className="ms-2">{ADMIN_SECTION_LABELS[section]}</span>}
               </NavLink>
             ))}
           </nav>

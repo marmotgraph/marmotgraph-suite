@@ -122,13 +122,13 @@ export default function TenantsAdmin() {
           )}
           {names && names.length === 0 && <p className="admin-empty">No tenants are defined yet.</p>}
           {!!names?.length && (
-            <div className="admin-tenant-list">
+            <div className="admin-list">
               {names.map((name) => (
                 <button
                   type="button"
                   key={name}
                   aria-current={name === selected ? "true" : undefined}
-                  className={`admin-tenant-item${name === selected ? " admin-tenant-item--selected" : ""}`}
+                  className={`admin-list-item${name === selected ? " admin-list-item--selected" : ""}`}
                   onClick={() => setSelected(name)}
                 >
                   {name}
@@ -156,11 +156,11 @@ type Modify = (action: (token: string, name: string) => Promise<void>) => Promis
 function TenantDetails({ tenant, modify }: { tenant: Tenant; modify: Modify }) {
   const disabled = !tenant.editable;
   return (
-    <div className="instance-focus-panel admin-tenant-details">
+    <div className="instance-focus-panel admin-details">
       <div className="instance-header">
         <div className="instance-type-label">Tenant</div>
         <h2 className="instance-name">{tenant.title || tenant.name}</h2>
-        <div className="admin-tenant-name">{tenant.name}</div>
+        <div className="admin-identifier">{tenant.name}</div>
       </div>
       {disabled && (
         <Alert variant="info" className="py-2">

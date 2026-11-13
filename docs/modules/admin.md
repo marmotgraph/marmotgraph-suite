@@ -1,10 +1,13 @@
 # Admin
 
-The admin module shows the sections you have the global permissions for - it is hidden if there are none.
+Each section of the admin module is an entry of the "Admin" section of the navigation - you only see the sections you
+have the global permissions for. The [spaces](spaces.md) are part of the section too.
 
 ## Permissions
 
-Manage who has access to which spaces and functionality. Requires the permission to create permissions.
+The overview of all claims mapped to the roles of the core - the global ones and those of every space. Claims can be
+added to any space (also to one which doesn't exist yet) and removed one by one. Requires the permission to create or
+to delete permissions.
 
 ## Tenants
 

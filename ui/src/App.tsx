@@ -20,6 +20,7 @@ import ModelerHome from "./modules/modeler/ModelerHome";
 import StatisticsHome from "./modules/statistics/StatisticsHome";
 import ApiHome from "./modules/api/ApiHome";
 import AdminHome from "./modules/admin/AdminHome";
+import SpacesHome from "./modules/spaces/SpacesHome";
 import ToolsHome from "./modules/tools/ToolsHome";
 
 function App() {
@@ -40,6 +41,7 @@ function App() {
           <Route path="modeler/*" element={<ModelerHome />} />
           <Route path="statistics" element={<StatisticsHome />} />
           <Route path="core-api" element={<ApiHome />} />
+          <Route path="spaces/*" element={<SpacesHome />} />
           <Route path="admin/*" element={<AdminHome />} />
           <Route path="documentation" element={<DocumentationHome />} />
           <Route path="tools/:categoryId" element={<ToolsHome />} />

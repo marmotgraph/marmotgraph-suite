@@ -133,15 +133,15 @@
     font-size: 0.85rem;
 }
 
-/* Tenants */
-.admin-tenant-list {
+/* Master-detail lists (tenants, spaces) */
+.admin-list {
     border: 1px solid #dee2e6;
     border-radius: 10px;
     background-color: #fff;
     overflow: hidden;
 }
 
-.admin-tenant-item {
+.admin-list-item {
     display: block;
     width: 100%;
     padding: 10px 12px;
@@ -157,37 +157,111 @@
     transition: background-color 0.15s ease;
 }
 
-.admin-tenant-item:last-child {
+.admin-list-item:last-child {
     border-bottom: none;
 }
 
-.admin-tenant-item:hover {
+.admin-list-item:hover {
     background-color: #e8e9f3;
     border-left-color: #5b5fc7;
 }
 
-.admin-tenant-item--selected,
-.admin-tenant-item--selected:hover {
+.admin-list-item--selected,
+.admin-list-item--selected:hover {
     background-color: #eef0fb;
     border-left-color: #5b5fc7;
     color: #212529;
     font-weight: 600;
 }
 
-.admin-tenant-item:focus-visible {
+.admin-list-item:focus-visible {
     outline: 2px solid #5b5fc7;
     outline-offset: -2px;
 }
 
-.admin-tenant-details .instance-header {
+.admin-details .instance-header {
     padding-top: 0;
     margin-bottom: 16px;
 }
 
-.admin-tenant-name {
+.admin-identifier {
     font-family: monospace;
     font-size: 0.75rem;
     color: #6c757d;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* Spaces - the types assigned to a space */
+.admin-scope {
+    width: auto;
+}
+
+.admin-type-list {
+    border: 1px solid #dee2e6;
+    border-radius: 8px;
+    background-color: #fff;
+    max-height: 60vh;
+    overflow-y: auto;
+}
+
+.admin-type-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 8px 12px;
+    border-bottom: 1px solid #f1f3f5;
+}
+
+.admin-type-row:last-child {
+    border-bottom: none;
+}
+
+.admin-type-row:hover {
+    background-color: #f8f9fb;
+}
+
+.admin-type-text {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    min-width: 0;
+    margin: 0;
+    cursor: pointer;
+}
+
+.admin-type-name {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-weight: 600;
+    color: #212529;
+    overflow-wrap: anywhere;
+}
+
+.admin-type-dot {
+    width: 10px;
+    height: 10px;
+    flex-shrink: 0;
+    border-radius: 50%;
+}
+
+.admin-type-occurrences {
+    flex-shrink: 0;
+    font-size: 0.8rem;
+    color: #868e96;
+    font-variant-numeric: tabular-nums;
+}
+
+.admin-delete-btn {
+    color: #6c757d !important;
+    text-decoration: none;
+    font-size: 0.875rem;
+}
+
+.admin-delete-btn:hover:not(:disabled) {
+    color: #dc3545 !important;
 }
 
 .admin-color-picker {
@@ -311,8 +385,27 @@
     object-fit: contain;
 }
 
+@media (max-width: 767.98px) {
+    .admin-type-occurrences {
+        display: none;
+    }
+}
+
 @media (prefers-reduced-motion: reduce) {
-    .admin-tenant-item {
+    .admin-list-item {
         transition: none;
     }
+}
+
+.admin-link {
+    color: #2563EB;
+}
+
+.admin-link:hover {
+    color: #1D4ED8;
+}
+
+.admin-link:focus-visible {
+    outline: 2px solid #2563EB;
+    outline-offset: 2px;
 }

@@ -1,5 +1,5 @@
 import React from "react";
-import { fireEvent, render, screen } from "@testing-library/react";
+import { render, screen } from "@testing-library/react";
 import { MemoryRouter, Route, Routes, useLocation } from "react-router-dom";
 import AdminHome from "./AdminHome";
 import { useGlobalFunctionalities } from "../../hooks/useGlobalFunctionalities";
@@ -39,27 +39,23 @@ describe("AdminHome", () => {
     expect(await screen.findByText("tenants view")).toBeInTheDocument();
   });
 
-  it("switches between the tabs", async () => {
+  it("shows no tabs - each section is an entry of the navigation", async () => {
     renderAt("/admin/permissions", ALL);
-    fireEvent.click(screen.getByText("Tenants"));
-    expect(await screen.findByText("tenants view")).toBeInTheDocument();
-    expect(screen.getByTestId("location").textContent).toBe("/admin/tenants");
-    fireEvent.click(screen.getByText("Permissions"));
     expect(await screen.findByText("permissions view")).toBeInTheDocument();
-    expect(screen.getByTestId("location").textContent).toBe("/admin/permissions");
+    expect(screen.queryByRole("tablist")).not.toBeInTheDocument();
+    expect(screen.queryByText("Tenants")).not.toBeInTheDocument();
   });
 
   it("only provides the tenants with tenant management", async () => {
     renderAt("/admin/permissions", ["TENANT_MANAGEMENT"]);
     expect(await screen.findByText("tenants view")).toBeInTheDocument();
     expect(screen.getByTestId("location").textContent).toBe("/admin/tenants");
-    expect(screen.queryByText("Permissions")).not.toBeInTheDocument();
   });
 
   it("only provides the permissions with the right to create permissions", async () => {
     renderAt("/admin/tenants", ["CREATE_PERMISSION"]);
     expect(await screen.findByText("permissions view")).toBeInTheDocument();
-    expect(screen.queryByText("Tenants")).not.toBeInTheDocument();
+    expect(screen.getByTestId("location").textContent).toBe("/admin/permissions");
   });
 
   it("provides nothing without any of the permissions", () => {
