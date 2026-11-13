@@ -31,6 +31,11 @@
         <java.version>25</java.version>
         <lombok.version>1.18.48</lombok.version>
         <marmotgraph.sdk.version>0.1.0-SNAPSHOT</marmotgraph.sdk.version>
+        <jacoco.version>0.8.16</jacoco.version>
+        <sonar-maven-plugin.version>5.8.0.7211</sonar-maven-plugin.version>
+        <!-- Code analysis with "mvn verify sonar:sonar" - the coverage report is created by JaCoCo in the verify phase -->
+        <sonar.projectKey>marmotgraph-suite</sonar.projectKey>
+        <sonar.coverage.jacoco.xmlReportPaths>${project.build.directory}/site/jacoco/jacoco.xml</sonar.coverage.jacoco.xmlReportPaths>
     </properties>
 
     <parent>
@@ -140,6 +145,30 @@
                         </configuration>
                     </execution>
                 </executions>
+            </plugin>
+            <plugin>
+                <groupId>org.jacoco</groupId>
+                <artifactId>jacoco-maven-plugin</artifactId>
+                <version>${jacoco.version}</version>
+                <executions>
+                    <execution>
+                        <id>prepare-agent</id>
+                        <goals>
+                            <goal>prepare-agent</goal>
+                        </goals>
+                    </execution>
+                    <execution>
+                        <id>report</id>
+                        <goals>
+                            <goal>report</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+            <plugin>
+                <groupId>org.sonarsource.scanner.maven</groupId>
+                <artifactId>sonar-maven-plugin</artifactId>
+                <version>${sonar-maven-plugin.version}</version>
             </plugin>
         </plugins>
     </build>
