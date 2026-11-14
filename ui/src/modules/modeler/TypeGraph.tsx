@@ -118,7 +118,7 @@ function labelPosition(source: Point, target: Point, radius: number, curved: boo
 }
 
 /** Shows the types as nodes and their relations as edges - the selected type is highlighted with its neighbours. */
-export default function TypeGraph({ types }: ModelerContext) {
+export default function TypeGraph({ types }: Readonly<ModelerContext>) {
   const [searchParams, setSearchParams] = useSearchParams();
   const selected = searchParams.get("type") ?? undefined;
   const [filter, setFilter] = useState("");
@@ -421,12 +421,12 @@ function SelectionPanel({
   type,
   relations: rels,
   nodes,
-}: {
+}: Readonly<{
   node: GraphNode;
   type?: ModelType;
   relations: Relation[];
   nodes: Map<string, GraphNode>;
-}) {
+}>) {
   const outgoing = rels.filter((relation) => relation.source === node.identifier);
   const incoming = rels.filter((relation) => relation.target === node.identifier);
   const link = (identifier: string) => (

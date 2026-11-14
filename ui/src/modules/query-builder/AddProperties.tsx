@@ -13,14 +13,14 @@ function PropertyList({
   properties,
   types,
   onAdd,
-}: {
+}: Readonly<{
   title: string;
   /** The type the properties are specific to */
   type?: string;
   properties: QueryProperty[];
   types: TypesById;
   onAdd: (property: QueryProperty, keepSelection: boolean) => void;
-}) {
+}>) {
   if (!properties.length) {
     return null;
   }
@@ -79,11 +79,11 @@ export default function AddProperties({
   field,
   types,
   onAdd,
-}: {
+}: Readonly<{
   field: QueryField;
   types: TypesById;
   onAdd: (property: QueryProperty, keepSelection: boolean) => void;
-}) {
+}>) {
   const [filter, setFilter] = useState("");
   const [includeAdvanced, setIncludeAdvanced] = useState(false);
   const lookups = lookupTypes(field);

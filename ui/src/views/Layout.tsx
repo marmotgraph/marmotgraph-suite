@@ -44,7 +44,7 @@ function sidebarStartsCollapsed() {
   );
 }
 
-export default function Layout({ subNav, children }: LayoutProps) {
+export default function Layout({ subNav, children }: Readonly<LayoutProps>) {
   const isMobile = useMediaQuery(MOBILE_VIEWPORT_QUERY);
   // A phone starts with the icon rail. Opening the full sidebar is still one tap away.
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(sidebarStartsCollapsed);

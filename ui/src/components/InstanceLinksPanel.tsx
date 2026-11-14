@@ -59,7 +59,7 @@ export default function InstanceLinksPanel({
   title,
   collapsed,
   onToggleCollapsed,
-}: InstanceLinksPanelProps) {
+}: Readonly<InstanceLinksPanelProps>) {
   // Group links by field label - and within a field by the type of the linked instance
   const groupedLinks = links.reduce(
     (acc, link) => {
@@ -115,11 +115,11 @@ function OutgoingTypeLinks({
   fieldLabel,
   typeLinks,
   onLinkClick,
-}: {
+}: Readonly<{
   fieldLabel: string;
   typeLinks: LinkedInstance[];
-  onLinkClick: (instanceId: string) => void;
-}) {
+    onLinkHover?: (link: HoveredLink | undefined) => void;
+}>) {
   const [expanded, setExpanded] = useState(false);
   const [showAll, setShowAll] = useState(false);
   const first = typeLinks[0];
@@ -193,7 +193,7 @@ export function LinksPageActions({
   loading = false,
   onMore,
   onLess,
-}: {
+}: Readonly<{
   hasMore: boolean;
   /** How many the next step reveals, when that number is known */
   moreCount?: number;
@@ -210,7 +210,7 @@ export function LinksPageActions({
   loading?: boolean;
   onMore: () => void;
   onLess: () => void;
-}) {
+}>) {
   if (!hasMore && !expanded && !onShowAll) {
     return null;
   }
@@ -286,7 +286,7 @@ export function TypeGroup({
   edge,
   fieldLabel,
   children,
-}: {
+}: Readonly<{
   type: string;
   typeColor?: string;
   /** Whether the type is not known since the links could not be resolved */
@@ -296,7 +296,7 @@ export function TypeGroup({
   edge?: "outgoing";
   fieldLabel?: string;
   children: React.ReactNode;
-}) {
+}>) {
   const connector = edge === "outgoing";
   return (
     <div
@@ -356,7 +356,7 @@ export function LinksPanelFrame({
   collapsed = false,
   onToggleCollapsed,
   children,
-}: {
+}: Readonly<{
   title: string;
   /** The number of links - shown next to the title if given */
   count?: number;
@@ -370,7 +370,7 @@ export function LinksPanelFrame({
   /** Collapses or expands the panel on the side-by-side layout - without it (and the side), the panel can't be collapsed there */
   onToggleCollapsed?: () => void;
   children: React.ReactNode;
-}) {
+}>) {
   const narrow = useNarrowLayout();
   const [open, setOpen] = useState(false);
   const collapsible = !narrow && onToggleCollapsed !== undefined && side !== undefined;
@@ -472,13 +472,13 @@ export function FieldGroup({
   section,
   count,
   children,
-}: {
+}: Readonly<{
   label: React.ReactNode;
   /** Field label this group should line up with in the open instance. */
   section?: string;
   count: React.ReactNode;
   children: React.ReactNode;
-}) {
+}>) {
   const [isCollapsed, setIsCollapsed] = useState(false);
   return (
     <div className="field-group" data-link-field-group={section}>
@@ -525,7 +525,7 @@ export function LinkItem({
   edge,
   fieldLabel,
   typeColor,
-}: {
+}: Readonly<{
   link: Pick<
     LinkedInstance,
     | "instanceId"
@@ -540,7 +540,7 @@ export function LinkItem({
   edge?: "incoming" | "outgoing";
   fieldLabel?: string;
   typeColor?: string;
-}) {
+}>) {
   const resolved = isResolvedLink(link);
   const unresolved = link.linkStatus === "unresolved";
   const [hot, setHot] = useState(false);

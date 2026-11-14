@@ -15,7 +15,7 @@ interface SubNavActionsState {
 const SubNavActionsContext = createContext<SubNavActionsState>({ actions: [], setActions: () => undefined });
 
 /** Holds the page actions the current view contributes to the subnav. */
-export function SubNavActionsProvider({ children }: { children: ReactNode }) {
+export function SubNavActionsProvider({ children }: Readonly<{ children: ReactNode }>) {
   const [actions, setActions] = useState<SubNavAction[]>([]);
   return <SubNavActionsContext.Provider value={{ actions, setActions }}>{children}</SubNavActionsContext.Provider>;
 }

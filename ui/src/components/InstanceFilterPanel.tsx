@@ -38,7 +38,7 @@ function ItemListFilter({
   renderLabel,
   idPrefix = "item",
   listMaxHeight = 300,
-}: {
+}: Readonly<{
   items: string[];
   selectedItems: string[];
   onItemToggle: (itemName: string) => void;
@@ -52,7 +52,7 @@ function ItemListFilter({
   renderLabel?: (item: string) => React.ReactNode;
   idPrefix?: string;
   listMaxHeight?: number;
-}) {
+}>) {
   const [filter, setFilter] = useState("");
 
   const labelOf = (item: string) => labels?.[item] ?? item;
@@ -185,7 +185,11 @@ export function InstanceFilterPanel({
   onFiltersChange,
   availableTypes,
   availableSpaces,
-}: InstanceFilterPanelProps) {
+  variant = "toolbar",
+}: Readonly<InstanceFilterPanelProps>) {
+  const [showTypeModal, setShowTypeModal] = useState(false);
+  const [showSpaceModal, setShowSpaceModal] = useState(false);
+
   const handleTypeToggle = (typeUrl: string) => {
     const newTypes = filters.types.includes(typeUrl)
       ? filters.types.filter((t) => t !== typeUrl)
@@ -207,25 +211,10 @@ export function InstanceFilterPanel({
     onFiltersChange({ ...filters, releaseStatuses: newStatuses });
   };
 
-  const typesByUrl = new Map(availableTypes.map((t) => [t.url, t]));
-  // A type is shown by its color, its name and its semantic name (the identifier)
-  const renderType = (url: string) => {
-    const type = typesByUrl.get(url);
-    return (
-      <span className="instance-filter-type">
-        <FontAwesomeIcon
-          icon={faCircle}
-          className="type-color-icon instance-filter-type-dot"
-          style={{ color: type?.color || "#999" }}
-          aria-hidden="true"
-        />
-        <span className="instance-filter-type-text">
-          <span className="instance-filter-type-name">{type?.name ?? url}</span>
-          <span className="instance-filter-type-id">{url}</span>
-        </span>
-      </span>
-    );
-  };
+  const activeFilterCount =
+    filters.types.length +
+    filters.spaces.length +
+    filters.releaseStatuses.length;
 
   const typeList = (
     <ItemListFilter

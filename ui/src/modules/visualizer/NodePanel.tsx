@@ -25,7 +25,7 @@ interface NodePanelProps {
   onClose: () => void;
 }
 
-function CopyId({ id }: { id: string }) {
+function CopyId({ id }: Readonly<{ id: string }>) {
   const [copied, setCopied] = useState(false);
   return (
     <Button
@@ -46,7 +46,7 @@ function CopyId({ id }: { id: string }) {
 }
 
 /** One kind of neighbours (e.g. the datasets this instance links to) - the first few, the rest on demand. */
-function NeighbourGroup({ type, color, items, onSelect }: { type: string; color: string; items: Neighbour[]; onSelect: (id: string) => void }) {
+function NeighbourGroup({ type, color, items, onSelect }: Readonly<{ type: string; color: string; items: Neighbour[]; onSelect: (id: string) => void }>) {
   const [all, setAll] = useState(false);
   const shown = all ? items : items.slice(0, PREVIEW);
   return (
@@ -75,7 +75,7 @@ function NeighbourGroup({ type, color, items, onSelect }: { type: string; color:
   );
 }
 
-function Neighbours({ title, icon, items, onSelect }: { title: string; icon: React.ReactNode; items: Neighbour[]; onSelect: (id: string) => void }) {
+function Neighbours({ title, icon, items, onSelect }: Readonly<{ title: string; icon: React.ReactNode; items: Neighbour[]; onSelect: (id: string) => void }>) {
   const groups = useMemo(() => {
     const byType = new Map<string, { color: string; items: Neighbour[] }>();
     items.forEach((item) => {
@@ -103,7 +103,7 @@ function Neighbours({ title, icon, items, onSelect }: { title: string; icon: Rea
 }
 
 /** What is known about the selected instance, and what can be done with it in the graph. */
-export default function NodePanel({ graph, node, degree, loading, expanding, pendingIncoming, onSelect, onExpand, onLoadMoreIncoming, onRemove, onClose }: NodePanelProps) {
+export default function NodePanel({ graph, node, degree, loading, expanding, pendingIncoming, onSelect, onExpand, onLoadMoreIncoming, onRemove, onClose }: Readonly<NodePanelProps>) {
   const neighbours = useMemo(() => neighboursOf(graph, node.id), [graph, node.id]);
   const outgoing = neighbours.filter((n) => n.outgoing);
   const incoming = neighbours.filter((n) => !n.outgoing);

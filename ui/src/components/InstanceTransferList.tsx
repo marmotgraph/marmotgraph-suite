@@ -63,10 +63,10 @@ export function useInstanceListPaging(paging?: InstanceListPaging) {
 export function LoadMoreItem({
   paging,
   sentinelRef,
-}: {
+}: Readonly<{
   paging?: InstanceListPaging;
   sentinelRef: React.Ref<HTMLDivElement>;
-}) {
+}>) {
   if (!paging?.hasMore) {
     return null;
   }
@@ -164,12 +164,12 @@ export function TransferListItemLabel({
   checkboxId,
   orderIndex,
   showOrderIndex,
-}: {
+}: Readonly<{
   instance: LinkedInstance;
   checkboxId: string;
   orderIndex?: number;
   showOrderIndex?: boolean;
-}) {
+}>) {
   const typeColor = instance.typeColor || typeColors[instance.type] || "#6c757d";
 
   return (
@@ -218,7 +218,7 @@ function TransferListColumn({
   belowSearchContent,
   searchedByOwner = false,
   paging,
-}: {
+}: Readonly<{
   columnId: string;
   title: string;
   instances: LinkedInstance[];
@@ -234,7 +234,7 @@ function TransferListColumn({
   /** If the instances are already filtered by the search term */
   searchedByOwner?: boolean;
   paging?: InstanceListPaging;
-}) {
+}>) {
   const { rootRef, sentinelRef } = useInstanceListPaging(paging);
   const filteredInstances = useMemo(
     () => (searchedByOwner ? instances : instances.filter((instance) => matchesSearch(instance, search))),
@@ -485,7 +485,7 @@ export default function InstanceTransferList({
   availableSearch: controlledAvailableSearch,
   onAvailableSearchChange,
   availablePaging,
-}: InstanceTransferListProps) {
+}: Readonly<InstanceTransferListProps>) {
   const [localAvailableSearch, setLocalAvailableSearch] = useState("");
   const availableSearchedByOwner = controlledAvailableSearch !== undefined;
   const availableSearch = availableSearchedByOwner ? controlledAvailableSearch : localAvailableSearch;

@@ -37,14 +37,14 @@ function Check({
   checked,
   disabled,
   onChange,
-}: {
+}: Readonly<{
   id: string;
   label: string;
   hint?: string;
   checked: boolean;
   disabled?: boolean;
   onChange: (checked: boolean) => void;
-}) {
+}>) {
   return (
     <div className="query-option">
       <Form.Check
@@ -61,7 +61,7 @@ function Check({
 }
 
 /** The settings of the query (shown while the root is selected) */
-function QueryOptions({ model, readOnly, onChangeModel }: Pick<FieldOptionsProps, "model" | "readOnly" | "onChangeModel">) {
+function QueryOptions({ model, readOnly, onChangeModel }: Readonly<Pick<FieldOptionsProps, "model" | "readOnly" | "onChangeModel">>) {
   return (
     <>
       <Form.Group className="query-option" controlId="query-title">
@@ -89,7 +89,7 @@ function QueryOptions({ model, readOnly, onChangeModel }: Pick<FieldOptionsProps
   );
 }
 
-function FilterOptions({ filter, onChange }: { filter?: FilterOption; onChange: (filter?: FilterOption) => void }) {
+function FilterOptions({ filter, onChange }: Readonly<{ filter?: FilterOption; onChange: (filter?: FilterOption) => void }>) {
   const op = filter?.op ?? "";
   const parameter = filter?.parameter?.trim();
   return (
@@ -148,11 +148,11 @@ function TypeFilterOptions({
   field,
   types,
   onChange,
-}: {
+}: Readonly<{
   field: QueryField;
   types: TypesById;
   onChange: (typeFilter?: string[]) => void;
-}) {
+}>) {
   const options = typeFilterOptions(field);
   if (!options.length) {
     return null;
@@ -200,7 +200,7 @@ function TypeFilterOptions({
 }
 
 /** The options of the selected field - only the ones which apply to it in its position are offered. */
-export default function FieldOptions(props: FieldOptionsProps) {
+export default function FieldOptions(props: Readonly<FieldOptionsProps>) {
   const { model, path, types, readOnly, onChangeModel, onChangeField, onSetOption } = props;
   const field = path.at(-1);
   if (!field) {

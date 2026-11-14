@@ -14,7 +14,7 @@
     padding: 16px;
     position: sticky;
     top: calc(100vh + 60%);
-    transition: all 0.3s ease;
+    transition: width 0.3s ease, padding 0.3s ease;
 }
 
 .graph-links-panel.collapsed {

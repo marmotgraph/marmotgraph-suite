@@ -7,7 +7,7 @@ import StartupStatus from "../components/StartupStatus";
 const ConfigContext = createContext<AppConfig | undefined>(undefined);
 
 /** Loads the configuration from the server and only renders its children once it is available. */
-export function ConfigProvider({ children }: { children: ReactNode }) {
+export function ConfigProvider({ children }: Readonly<{ children: ReactNode }>) {
   const [config, setConfig] = useState<AppConfig>();
   const [error, setError] = useState<string>();
 

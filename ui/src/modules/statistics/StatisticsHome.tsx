@@ -65,12 +65,12 @@ function TotalsCard({
   metric,
   live,
   released,
-}: {
+}: Readonly<{
   title: string;
   metric: keyof StatisticsTotals;
   live?: StatisticsTotals;
   released?: StatisticsTotals;
-}) {
+}>) {
   return (
     <section className="statistics-card" aria-labelledby={`statistics-${metric}`}>
       <h3 className="statistics-kicker" id={`statistics-${metric}`}>
@@ -90,7 +90,7 @@ function TotalsCard({
   );
 }
 
-function MostOccurringTypes({ types }: { types: GraphStatistics["types"] }) {
+function MostOccurringTypes({ types }: Readonly<{ types: GraphStatistics["types"] }>) {
   const [showAll, setShowAll] = useState(false);
   if (types.length === 0) {
     return <p className="statistics-empty text-muted">There are no instances yet.</p>;
@@ -142,7 +142,7 @@ function MostOccurringTypes({ types }: { types: GraphStatistics["types"] }) {
   );
 }
 
-function SchemaCompliance({ schema }: { schema: ValidationStatistics }) {
+function SchemaCompliance({ schema }: Readonly<{ schema: ValidationStatistics }>) {
   const groups = COMPLIANCE_GROUPS.filter((g) => !g.optional || schema[g.key] > 0);
   const describe = (g: ComplianceGroup) =>
     `${g.label}: ${plural(schema[g.key], "instance")} (${formatShare(schema[g.key], schema.instances)})`;

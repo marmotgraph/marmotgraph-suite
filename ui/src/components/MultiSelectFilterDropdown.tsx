@@ -20,7 +20,7 @@ export function MultiSelectFilterDropdown({
   searchPlaceholder = "Search...",
   emptyMessage = "No options found",
   menuClassName,
-}: MultiSelectFilterDropdownProps) {
+}: Readonly<MultiSelectFilterDropdownProps>) {
   const [show, setShow] = useState(false);
   const [search, setSearch] = useState("");
 

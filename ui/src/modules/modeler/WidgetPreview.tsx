@@ -20,7 +20,7 @@ function exampleType(identifier: string | undefined, types: ModelType[]) {
 }
 
 /** Example values of a list - shown as tags, as the editor does for linked instances. */
-function Tags({ values, more }: { values: { label: string; color?: string }[]; more?: string }) {
+function Tags({ values, more }: Readonly<{ values: { label: string; color?: string }[]; more?: string }>) {
   return (
     <div className="tag-container linked-instances-field">
       {values.map(({ label, color }) => (
@@ -39,7 +39,7 @@ function Tags({ values, more }: { values: { label: string; color?: string }[]; m
 }
 
 /** An embedded instance with two example fields - as the editor shows the instances of nested fields. */
-function NestedExample({ type, index }: { type: { label: string; color: string }; index?: number }) {
+function NestedExample({ type, index }: Readonly<{ type: { label: string; color: string }; index?: number }>) {
   return (
     <section className="nested-instance" style={{ borderLeftColor: type.color }}>
       <div className="nested-instance-header">
@@ -65,12 +65,12 @@ export default function WidgetPreview({
   widget,
   targetTypes = [],
   types,
-}: {
+}: Readonly<{
   widget: string | undefined;
   /** The types the property links to or embeds */
   targetTypes?: string[];
   types: ModelType[];
-}) {
+}>) {
   const first = exampleType(targetTypes[0], types);
   const second = exampleType(targetTypes[1] ?? targetTypes[0], types);
   const links = [

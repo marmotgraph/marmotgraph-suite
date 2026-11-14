@@ -40,7 +40,7 @@ interface SpecificationProps {
 type TabProps = Props & SpecificationProps;
 
 /** The definition of a type - its specification, properties (incl. relations) and validation schemas. */
-export default function TypeDetails(props: Props) {
+export default function TypeDetails(props: Readonly<Props>) {
   const { type, reload, canDefineTypes } = props;
   const { getAccessToken } = useAuth();
   const [tab, setTab] = useState("properties");
@@ -215,7 +215,7 @@ export default function TypeDetails(props: Props) {
 }
 
 /** The color of the type - a swatch which opens a color picker if it can be changed. */
-function TypeColor({ color, editable, onSave }: { color?: string; editable: boolean; onSave: (color: string) => void }) {
+function TypeColor({ color, editable, onSave }: Readonly<{ color?: string; editable: boolean; onSave: (color: string) => void }>) {
   const input = useRef<HTMLInputElement>(null);
   // The color while it is picked - it's only saved when the picker is closed
   const [picking, setPicking] = useState<string>();
@@ -255,7 +255,7 @@ function TypeColor({ color, editable, onSave }: { color?: string; editable: bool
 }
 
 /** Marks a type or property without a specification - it is only known from the data. */
-function UnspecifiedBadge({ what }: { what: "type" | "property" }) {
+function UnspecifiedBadge({ what }: Readonly<{ what: "type" | "property" }>) {
   return (
     <span
       className="modeler-status modeler-status--unspecified"
@@ -281,7 +281,7 @@ function GlobalBadge() {
 }
 
 /** The link to a type of the model (keeping the current view). */
-function TypeLink({ identifier, types }: { identifier: string; types: ModelType[] }) {
+function TypeLink({ identifier, types }: Readonly<{ identifier: string; types: ModelType[] }>) {
   const type = types.find((t) => t.identifier === identifier);
   return (
     <Link to={`?type=${encodeURIComponent(identifier)}`} className="modeler-type-link" title={identifier}>
@@ -309,7 +309,7 @@ function observedSpecification(type: ModelType): TypeSpecification {
   };
 }
 
-function PropertiesTab({ type, types, reload, canDefineTypes, specification, define }: TabProps) {
+function PropertiesTab({ type, types, reload, canDefineTypes, specification, define }: Readonly<TabProps>) {
   const { getAccessToken } = useAuth();
   const [editing, setEditing] = useState<{ property?: ModelProperty }>();
   const [error, setError] = useState<string>();

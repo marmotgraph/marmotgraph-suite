@@ -40,7 +40,7 @@ export default function InstanceSingleSelectList({
   search: controlledSearch,
   onSearchChange,
   paging,
-}: InstanceSingleSelectListProps) {
+}: Readonly<InstanceSingleSelectListProps>) {
   const { rootRef, sentinelRef } = useInstanceListPaging(paging);
   const [localSearch, setLocalSearch] = useState("");
   const searchedByOwner = controlledSearch !== undefined;

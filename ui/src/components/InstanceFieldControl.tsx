@@ -5,23 +5,24 @@ import LinkedInstancesField from "./LinkedInstancesField";
 import MultipleTextField from "./MultipleTextField";
 import NestedInstancesField from "./NestedInstancesField";
 import { jsonEditorSetup, jsonExtensions } from "./jsonEditor";
+import { fieldValueText } from "./fieldValueText";
 import "./InstanceFieldControl.css";
 import { LinkedInstance } from "../modules/editor/editorMockData";
 import { FieldKind, InstanceField } from "../services/instances";
 
-export type InstanceFieldControlProps = {
-  field: InstanceField;
+/** The props needed by the controls which only show / edit the plain value */
+type ValueControlProps = {
   value: unknown;
   onChange: (value: unknown) => void;
   isEditMode: boolean;
+};
+
+export type InstanceFieldControlProps = ValueControlProps & {
+  field: InstanceField;
   onInstanceClick: (instanceId: string) => void;
   currentInstanceId?: string;
   parentSpace?: string;
 };
-
-function asText(value: unknown): string {
-  return value === null || value === undefined ? "" : String(value);
-}
 
 function asLinkedInstances(value: unknown): LinkedInstance[] {
   if (Array.isArray(value)) {
@@ -32,53 +33,53 @@ function asLinkedInstances(value: unknown): LinkedInstance[] {
 
 /** A text based input - shows the plain value when not editing. */
 function textInput(type: string, toInputValue: (text: string) => string = (text) => text) {
-  return function TextInput({ value, onChange, isEditMode }: InstanceFieldControlProps) {
+  return function TextInput({ value, onChange, isEditMode }: Readonly<ValueControlProps>) {
     if (!isEditMode) {
-      return <div className="view-value">{asText(value)}</div>;
+      return <div className="view-value">{fieldValueText(value)}</div>;
     }
     return (
       <Form.Control
         type={type}
         className={type === "color" ? "form-control-color" : undefined}
-        value={toInputValue(asText(value))}
+        value={toInputValue(fieldValueText(value))}
         onChange={(e) => onChange(e.target.value)}
       />
     );
   };
 }
 
-function TextArea({ value, onChange, isEditMode }: InstanceFieldControlProps) {
+function TextArea({ value, onChange, isEditMode }: Readonly<ValueControlProps>) {
   if (!isEditMode) {
-    return <div className="view-value" style={{ whiteSpace: "pre-wrap" }}>{asText(value)}</div>;
+    return <div className="view-value" style={{ whiteSpace: "pre-wrap" }}>{fieldValueText(value)}</div>;
   }
   return (
     <Form.Control
       as="textarea"
       rows={3}
-      value={asText(value)}
+      value={fieldValueText(value)}
       onChange={(e) => onChange(e.target.value)}
     />
   );
 }
 
-function MultipleTexts({ field, value, onChange, isEditMode }: InstanceFieldControlProps) {
+function MultipleTexts({ field, value, onChange, isEditMode }: Readonly<ValueControlProps & Pick<InstanceFieldControlProps, "field">>) {
   return <MultipleTextField label={field.label} value={value} onChange={onChange} isEditMode={isEditMode} />;
 }
 
-function NumberInput({ value, onChange, isEditMode }: InstanceFieldControlProps) {
+function NumberInput({ value, onChange, isEditMode }: Readonly<ValueControlProps>) {
   if (!isEditMode) {
-    return <div className="view-value">{asText(value)}</div>;
+    return <div className="view-value">{fieldValueText(value)}</div>;
   }
   return (
     <Form.Control
       type="number"
-      value={asText(value)}
+      value={fieldValueText(value)}
       onChange={(e) => onChange(e.target.value === "" ? null : Number(e.target.value))}
     />
   );
 }
 
-function CheckBox({ value, onChange, isEditMode }: InstanceFieldControlProps) {
+function CheckBox({ value, onChange, isEditMode }: Readonly<ValueControlProps>) {
   return (
     <Form.Check
       type="checkbox"
@@ -99,7 +100,7 @@ function linkedInstances(single: boolean) {
     onInstanceClick,
     currentInstanceId,
     parentSpace,
-  }: InstanceFieldControlProps) {
+  }: Readonly<InstanceFieldControlProps>) {
     return (
       <LinkedInstancesField
         fieldLabel={field.label}
@@ -123,7 +124,7 @@ function linkedInstances(single: boolean) {
 
 /** Embedded instances - a single one (SINGLE_NESTED) is handled as a list of at most one. */
 function nestedInstances(single: boolean) {
-  return function NestedInstances(props: InstanceFieldControlProps) {
+  return function NestedInstances(props: Readonly<InstanceFieldControlProps>) {
     return (
       <NestedInstancesField
         {...props}
@@ -139,7 +140,7 @@ function toJsonText(value: unknown): string {
 }
 
 /** Fields of unknown shape - edited as raw JSON (an empty text clears the value). */
-function UnsupportedField({ value, onChange, isEditMode }: InstanceFieldControlProps) {
+function UnsupportedField({ value, onChange, isEditMode }: Readonly<ValueControlProps>) {
   const [text, setText] = useState(() => toJsonText(value));
   const [emittedValue, setEmittedValue] = useState(value);
   const [isValid, setIsValid] = useState(true);
@@ -219,7 +220,7 @@ const fieldControls: Record<FieldKind, React.ComponentType<InstanceFieldControlP
   UNSUPPORTED: UnsupportedField,
 };
 
-export default function InstanceFieldControl(props: InstanceFieldControlProps) {
+export default function InstanceFieldControl(props: Readonly<InstanceFieldControlProps>) {
   const Control = fieldControls[props.field.kind] ?? UnsupportedField;
   // Read only fields are never edited
   const isEditMode = props.isEditMode && !props.field.readOnly;
