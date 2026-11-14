@@ -76,6 +76,16 @@ export default function LinkedInstancesCreatePanel({
     quantity >= 1 &&
     quantity <= MAX_BULK_CREATE &&
     space.length > 0;
+  let noSpaceMessage = "Loading spaces...";
+  if (spacesError) {
+    noSpaceMessage = "Could not load the spaces";
+  } else if (spaces) {
+    noSpaceMessage = "No spaces you can create in";
+  }
+  let createLabel = "Create & select";
+  if (!single) {
+    createLabel = quantity > 1 ? `Create & add (${quantity})` : "Create & add";
+  }
 
   const handleCreate = (event: React.MouseEvent<HTMLButtonElement>) => {
     event.preventDefault();
@@ -188,11 +198,7 @@ export default function LinkedInstancesCreatePanel({
               >
                 {creatableSpaces.length === 0 && (
                   <option value="">
-                    {spacesError
-                      ? "Could not load the spaces"
-                      : spaces
-                        ? "No spaces you can create in"
-                        : "Loading spaces..."}
+                    {noSpaceMessage}
                   </option>
                 )}
                 {creatableSpaces.map((creatableSpace) => (
@@ -222,9 +228,7 @@ export default function LinkedInstancesCreatePanel({
               onClick={handleCreate}
               disabled={!canCreate}
             >
-              {single
-                ? "Create & select"
-                : `Create & add${quantity > 1 ? ` (${quantity})` : ""}`}
+              {createLabel}
             </Button>
           </div>
         </div>

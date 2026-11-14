@@ -551,6 +551,7 @@
 }
 
 .unsaved-instances-panel-empty {
+  display: block;
   padding: 20px 12px;
   font-size: 0.85rem;
   color: #868e96;

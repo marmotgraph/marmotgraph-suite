@@ -85,7 +85,7 @@ export default function AppSubNav({ title, ctas }: AppSubNavProps) {
             const hasModal = !!cta.modal;
             return (
               <Button
-                key={i}
+                key={cta.label}
                 href={hasModal ? undefined : cta.href}
                 variant={cta.variant ?? "outline-secondary"}
                 size={cta.size ?? "sm"}
@@ -129,7 +129,7 @@ export default function AppSubNav({ title, ctas }: AppSubNavProps) {
 
         return (
           <Modal
-            key={`modal-${i}`}
+            key={`modal-${cta.label}`}
             show={openModalIndex === i}
             onHide={handleCloseModal}
             centered

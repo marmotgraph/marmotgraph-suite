@@ -44,42 +44,34 @@ export default function TypeListFilter({
         onChange={(e) => setFilter(e.target.value)}
       />
       {/* Scrolls on its own so a long list of types doesn't push the dialog beyond the screen */}
-      <ul
+      <div
         className="list-group list-group-flush border rounded"
         style={{ maxHeight: "40vh", overflowY: "auto" }}
       >
         {filteredTypes.length > 0 ? (
           filteredTypes.map((type) => (
-            <li
+            <button
+              type="button"
               key={type.identifier}
-              className="list-group-item"
+              className="list-group-item list-group-item-action"
               style={{
-                cursor: "pointer",
                 backgroundColor: selectedType?.identifier === type.identifier ? "#e9ecef" : "transparent",
                 color: selectedType?.identifier === type.identifier ? "#212529" : "inherit",
               }}
-              role="button"
-              tabIndex={0}
               aria-pressed={selectedType?.identifier === type.identifier}
               onClick={() => handleSelectType(type)}
-              onKeyDown={(event) => {
-                if (event.key === "Enter" || event.key === " ") {
-                  event.preventDefault();
-                  handleSelectType(type);
-                }
-              }}
             >
               <span className="fw-semibold">{type.name}</span>
-            </li>
+            </button>
           ))
         ) : (
-          <li className="list-group-item text-muted">
+          <div className="list-group-item text-muted">
             {types.length === 0
               ? "No types available"
               : `No types found matching "${filter}"`}
-          </li>
+          </div>
         )}
-      </ul>
+      </div>
       {selectedType && (
         <div className="mt-3 p-2 bg-light border rounded">
           <small className="text-muted">Selected: </small>

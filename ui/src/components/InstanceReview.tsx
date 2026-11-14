@@ -471,9 +471,9 @@ function ScopeSelection({
         />
       ))}
       {selected.length === 0 && (
-        <div className="instance-review-scope-note" role="status">
+        <output className="instance-review-scope-note">
           No scope selected - the invitation covers this instance only.
-        </div>
+        </output>
       )}
     </fieldset>
   );

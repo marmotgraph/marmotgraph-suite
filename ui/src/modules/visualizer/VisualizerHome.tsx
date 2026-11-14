@@ -44,6 +44,15 @@ import "./Visualizer.css";
 const MAX_OUTGOING = 60;
 /** The most instances expanded by "Expand all" at once. */
 const MAX_EXPAND_ALL = 24;
+
+/** The label of "expand all" - how many of the instances not expanded yet are expanded by a click */
+function expandAllLabel(count: number): string {
+  if (count === 0) {
+    return "Nothing left to expand";
+  }
+  const total = count > MAX_EXPAND_ALL ? ` of ${count}` : "";
+  return `Expand ${Math.min(count, MAX_EXPAND_ALL)}${total} ${count === 1 ? "instance" : "instances"}`;
+}
 const PARALLEL_REQUESTS = 4;
 const STORAGE_KEY = "marmotgraph.visualizer";
 
@@ -589,9 +598,7 @@ export default function VisualizerHome() {
                 {loadingBulk ? <Spinner animation="border" size="sm" className="me-2" /> : <Sparkles size={14} className="me-2" />}
                 {loadingBulk && bulkProgress
                   ? `Expanding ${bulkProgress.done} of ${bulkProgress.total}...`
-                  : expandableCount === 0
-                    ? "Nothing left to expand"
-                    : `Expand ${Math.min(expandableCount, MAX_EXPAND_ALL)}${expandableCount > MAX_EXPAND_ALL ? ` of ${expandableCount}` : ""} instance${expandableCount === 1 ? "" : "s"}`}
+                  : expandAllLabel(expandableCount)}
               </Button>
               <p id="viz-expand-hint" className="viz-hint">
                 Loads the links of the instances not expanded yet (they carry a small badge). Each click goes one step further out.
@@ -709,18 +716,18 @@ export default function VisualizerHome() {
           )}
 
           {(expanding.size > 0 || loadingBulk) && (
-            <div className="viz-busy" role="status">
-              <Spinner animation="border" size="sm" className="me-2" />
+            <output className="viz-busy">
+              <Spinner as="span" animation="border" size="sm" className="me-2" />
               Loading links...
-            </div>
+            </output>
           )}
           {notice && (
-            <div className="viz-notice" role="status">
+            <output className="viz-notice">
               {notice}
               <Button variant="link" size="sm" className="viz-notice-close" onClick={() => setNotice(undefined)} aria-label="Dismiss">
                 ×
               </Button>
-            </div>
+            </output>
           )}
         </div>
 

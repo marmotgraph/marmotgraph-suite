@@ -108,13 +108,20 @@ export default function NodePanel({ graph, node, degree, loading, expanding, pen
   const outgoing = neighbours.filter((n) => n.outgoing);
   const incoming = neighbours.filter((n) => !n.outgoing);
   const ghost = node.status !== "resolved";
-  const kicker = node.status === "restricted" ? "No access" : node.status === "unresolved" ? "Not found" : node.type;
+  const restricted = node.status === "restricted";
+  const ghostIcon = restricted ? <Lock size={12} /> : <CircleHelp size={12} />;
+  let kicker = node.type;
+  if (restricted) {
+    kicker = "No access";
+  } else if (node.status === "unresolved") {
+    kicker = "Not found";
+  }
 
   return (
     <aside className="viz-node-panel" style={{ "--viz-type-color": node.color } as React.CSSProperties} aria-label="Selected instance">
       <header className="viz-node-panel-header">
         <div className="viz-kicker viz-node-kicker">
-          {ghost ? node.status === "restricted" ? <Lock size={12} /> : <CircleHelp size={12} /> : <span className="viz-dot" style={{ background: node.color }} aria-hidden="true" />}
+          {ghost ? ghostIcon : <span className="viz-dot" style={{ background: node.color }} aria-hidden="true" />}
           {kicker}
         </div>
         <Button variant="link" size="sm" className="edit-icon-btn" onClick={onClose} aria-label="Close panel" title="Close">

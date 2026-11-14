@@ -117,7 +117,8 @@ export default function InstanceLinkConnectors({
           d={edge.d}
           className={[
             "instance-link-edge",
-            edge.active ? "is-active" : hasActive ? "is-dimmed" : "",
+            edge.active && "is-active",
+            !edge.active && hasActive && "is-dimmed",
             edge.dashed ? "is-dashed" : "",
           ]
             .filter(Boolean)

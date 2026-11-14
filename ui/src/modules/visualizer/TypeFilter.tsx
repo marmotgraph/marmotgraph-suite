@@ -77,9 +77,9 @@ export default function TypeFilter({ types, hidden, onToggle, onSetVisible }: Ty
       </div>
 
       {matching.length === 0 ? (
-        <p className="viz-muted" role="status">
+        <output className="viz-muted">
           No type matches “{term.trim()}”.
-        </p>
+        </output>
       ) : (
         <ul className="viz-types">
           {matching.map((type) => (

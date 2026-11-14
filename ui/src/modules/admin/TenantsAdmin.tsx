@@ -418,6 +418,17 @@ function CustomCssForm({ css: initial, disabled, modify }: { css: string; disabl
   );
 }
 
+/** Why the name can not be given to a new tenant - undefined if it can (or if there is no name yet) */
+function tenantNameError(name: string, existing: string[]): string | undefined {
+  if (name && !TENANT_NAME_PATTERN.test(name)) {
+    return 'Only letters, digits, "-" and "_" are allowed';
+  }
+  if (name && existing.includes(name)) {
+    return "A tenant with this name already exists";
+  }
+  return undefined;
+}
+
 function CreateTenantModal({
   show,
   existing,
@@ -444,13 +455,7 @@ function CreateTenantModal({
   }, [show]);
 
   const trimmed = name.trim();
-  const nameError = !trimmed
-    ? undefined
-    : !TENANT_NAME_PATTERN.test(trimmed)
-      ? 'Only letters, digits, "-" and "_" are allowed'
-      : existing.includes(trimmed)
-        ? "A tenant with this name already exists"
-        : undefined;
+  const nameError = tenantNameError(trimmed, existing);
 
   const create = async () => {
     setSaving(true);

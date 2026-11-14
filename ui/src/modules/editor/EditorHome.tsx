@@ -1352,9 +1352,8 @@ function InstancePreview({
           <span className="instance-preview-meta-label">Space</span>
           {instance.space}
         </div>
-        <div
+        <fieldset
           className="instance-preview-actions"
-          role="group"
           aria-label="Open instance"
         >
           <Button
@@ -1387,7 +1386,7 @@ function InstancePreview({
             <FontAwesomeIcon icon={faCode} aria-hidden="true" />
             Raw
           </Button>
-        </div>
+        </fieldset>
       </div>
       <div className="instance-preview-fields">
         {fieldsLoading && (

@@ -18,14 +18,14 @@ export function useAppSubNav() {
   }
 
   // Other routes
-  if (/^\/queries/.test(pathname)) return queryBuilderSubNav;
-  if (/^\/editor/.test(pathname)) return editorSubNav;
-  if (/^\/visualizer/.test(pathname)) return visualizerSubNav;
-  if (/^\/modeler/.test(pathname)) return modelerSubNav;
-  if (/^\/core-api/.test(pathname)) return apiSubNav;
-  if (/^\/spaces/.test(pathname)) return spacesSubNav;
-  if (/^\/statistics/.test(pathname)) return statisticsSubNav;
-  if (/^\/admin/.test(pathname)) return adminSubNav(pathname);
+  if (pathname.startsWith("/queries")) return queryBuilderSubNav;
+  if (pathname.startsWith("/editor")) return editorSubNav;
+  if (pathname.startsWith("/visualizer")) return visualizerSubNav;
+  if (pathname.startsWith("/modeler")) return modelerSubNav;
+  if (pathname.startsWith("/core-api")) return apiSubNav;
+  if (pathname.startsWith("/spaces")) return spacesSubNav;
+  if (pathname.startsWith("/statistics")) return statisticsSubNav;
+  if (pathname.startsWith("/admin")) return adminSubNav(pathname);
 
   // Fallback – no sub‑nav
   return undefined;

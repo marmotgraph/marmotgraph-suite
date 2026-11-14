@@ -530,7 +530,14 @@ const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(function Gra
     }
 
     const { hive: options, hops: distances, selectedId: focus } = latest.current;
-    const result = kind === "hive" ? hiveLayout(sc.nodes, options, distances) : kind === "circle" ? circleLayout(sc.nodes) : radialLayout(sc.nodes, sc.links, focus);
+    let result: StaticLayout;
+    if (kind === "hive") {
+      result = hiveLayout(sc.nodes, options, distances);
+    } else if (kind === "circle") {
+      result = circleLayout(sc.nodes);
+    } else {
+      result = radialLayout(sc.nodes, sc.links, focus);
+    }
     staticLayout.current = result;
     angles.current = result.axisAngle.size > 0 ? Float64Array.from(sc.nodes, (n) => result.axisAngle.get(n.id) ?? NaN) : undefined;
     setCaption(result.caption);

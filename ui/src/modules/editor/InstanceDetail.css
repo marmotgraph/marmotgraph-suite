@@ -233,31 +233,6 @@
     align-self: center;
 }
 
-.instance-header-title-row {
-    display: grid;
-    grid-template-columns: minmax(66%, 1fr) minmax(0, calc(34% - 16px));
-    column-gap: 16px;
-    align-items: start;
-    min-width: 0;
-}
-
-.instance-header-title-column {
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
-    min-width: 0;
-}
-
-.instance-header-title-column .instance-name {
-    margin: 0;
-    min-width: 0;
-}
-
-.instance-header-status .instance-status {
-    width: 100%;
-    justify-content: flex-end;
-}
-
 .instance-header-status {
     display: flex;
     flex-direction: column;

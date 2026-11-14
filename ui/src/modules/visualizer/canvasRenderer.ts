@@ -293,7 +293,10 @@ function drawGuideShapes(ctx: CanvasRenderingContext2D, f: Frame): void {
 const anchorOf = (x: number, y: number): CanvasTextAlign => {
   const length = Math.hypot(x, y) || 1;
   const cos = x / length;
-  return cos > 0.3 ? "left" : cos < -0.3 ? "right" : "center";
+  if (cos > 0.3) {
+    return "left";
+  }
+  return cos < -0.3 ? "right" : "center";
 };
 
 /** Text with a halo of the canvas color, so it stays readable on top of links and nodes. */

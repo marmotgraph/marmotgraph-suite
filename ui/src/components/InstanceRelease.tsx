@@ -345,6 +345,10 @@ export function StatusTag({ status }: { status: ReleaseStatus }) {
   );
 }
 
+/** The counts per release status in words, e.g. "3 released, 1 has changed, 0 in progress". */
+const describeCounts = (counts: Record<ReleaseStatus, number>) =>
+  RELEASE_STATUSES.map((status) => `${counts[status]} ${status}`).join(", ");
+
 /** The share of the instances per release status - now and after proceeding. */
 function ReleaseStatsPanel({ stats }: { stats: ReleaseStats }) {
   const rows: Array<[string, Record<ReleaseStatus, number>]> = [
@@ -359,7 +363,7 @@ function ReleaseStatsPanel({ stats }: { stats: ReleaseStats }) {
           <div
             className="release-stats-bar"
             role="img"
-            aria-label={`${label}: ${RELEASE_STATUSES.map((s) => `${counts[s]} ${s}`).join(", ")}`}
+            aria-label={`${label}: ${describeCounts(counts)}`}
           >
             {RELEASE_STATUSES.filter((s) => counts[s] > 0).map((status) => (
               <div
