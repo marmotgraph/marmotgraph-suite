@@ -91,6 +91,10 @@ const typeColors: Record<string, string> = {
 /** The ways an instance can be shown - switched by the icons in the header */
 type InstanceMode = "read" | "edit" | "raw" | "release" | "info" | "review";
 
+/** The first of the modes allowed (in the order of precedence given) - the read mode if none is */
+const firstAllowedMode = (modes: Array<[InstanceMode, boolean]>): InstanceMode =>
+  modes.find(([, allowed]) => allowed)?.[0] ?? "read";
+
 const INSTANCE_MODES: Array<{ mode: InstanceMode; icon: IconDefinition }> = [
   { mode: "read", icon: faEye },
   { mode: "edit", icon: faPencil },
@@ -286,7 +290,13 @@ function InstanceDetailView({ instanceId }: { instanceId: string }) {
   const isRawMode = requestedMode === "raw";
   const isInfoMode = requestedMode === "info";
   // Falls back to the read mode if the user lacks the permission for the mode requested
-  const mode: InstanceMode = isReviewMode ? "review" : isInfoMode ? "info" : isReleaseMode ? "release" : isRawMode ? "raw" : isEditMode  ? "edit" : "read";
+  const mode = firstAllowedMode([
+    ["review", isReviewMode],
+    ["info", isInfoMode],
+    ["release", isReleaseMode],
+    ["raw", isRawMode],
+    ["edit", isEditMode],
+  ]);
   /** The linked instance hovered - either in the form or in the outgoing links */
   const [layoutEl, setLayoutEl] = useState<HTMLDivElement | null>(null);
   // The link panels can be reduced to a slim rail to give the instance more room - kept while going through instances
@@ -965,9 +975,8 @@ function InstanceDetailView({ instanceId }: { instanceId: string }) {
                     {instance.type}
                   </div>
                   {!isNewInstance && (
-                    <div
+                    <fieldset
                       className="instance-header-modes"
-                      role="group"
                       aria-label="Mode"
                     >
                       {INSTANCE_MODES.map(({ mode: target, icon }) => {
@@ -993,7 +1002,7 @@ function InstanceDetailView({ instanceId }: { instanceId: string }) {
                           </DisabledHint>
                         );
                       })}
-                    </div>
+                    </fieldset>
                   )}
                   {!isNewInstance && instanceId && (
                     <Link
@@ -1087,16 +1096,15 @@ function InstanceDetailView({ instanceId }: { instanceId: string }) {
               </div>
             )}
 
-            {isReviewMode ? (
-              <InstanceReview instanceId={instanceId} onInstanceClick={handleLinkClick} />
-            ) : isInfoMode ? (
-              <InstanceInfo instanceId={instanceId} />
-            ) : isReleaseMode ? (
+            {mode === "review" && <InstanceReview instanceId={instanceId} onInstanceClick={handleLinkClick} />}
+            {mode === "info" && <InstanceInfo instanceId={instanceId} />}
+            {mode === "release" && (
               <InstanceRelease
                 instanceId={instanceId}
                 onInstanceClick={handleLinkClick}
               />
-            ) : isRawMode ? (
+            )}
+            {mode === "raw" && (
               <RawInstanceEditor
                 instanceId={instanceId}
                 canEdit={canEdit}
@@ -1104,7 +1112,8 @@ function InstanceDetailView({ instanceId }: { instanceId: string }) {
                 onDraftChange={handleRawDraftChange}
                 onSaved={handleRawSaved}
               />
-            ) : (
+            )}
+            {(mode === "edit" || mode === "read") && (
               <>
                 {fields.length === 0 && (
                   <p className="text-muted">

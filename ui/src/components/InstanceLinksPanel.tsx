@@ -214,6 +214,7 @@ export function LinksPageActions({
   if (!hasMore && !expanded && !onShowAll) {
     return null;
   }
+  const moreLabel = moreCount !== undefined && moreCount > 0 ? `Show ${moreCount} more` : "Show more";
   return (
     <div className="links-page-actions">
       {onShowAll && (
@@ -247,10 +248,8 @@ export function LinksPageActions({
               />
               Loading...
             </>
-          ) : moreCount !== undefined && moreCount > 0 ? (
-            `Show ${moreCount} more`
           ) : (
-            "Show more"
+            moreLabel
           )}
         </Button>
       )}

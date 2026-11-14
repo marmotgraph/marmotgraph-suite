@@ -23,6 +23,24 @@ const typeColors: Record<string, string> = {
 export type UnsavedAction = "save" | "cancel";
 export type UnsavedActionScope = "one" | "selected" | "all";
 
+const TITLES: Record<UnsavedAction, Record<UnsavedActionScope, string>> = {
+  save: { all: "Save all changes?", selected: "Save selected changes?", one: "Save these changes?" },
+  cancel: { all: "Cancel all unsaved changes?", selected: "Cancel selected changes?", one: "Cancel unsaved changes?" },
+};
+
+const CONFIRM_LABELS: Record<UnsavedAction, Record<UnsavedActionScope, string>> = {
+  save: { all: "Save all", selected: "Save selected", one: "Save" },
+  cancel: { all: "Cancel all", selected: "Cancel selected", one: "Cancel changes" },
+};
+
+/** The scope of the instances chosen - all of them, a selection of several, or a single one */
+const chosenScope = (chosen: number, total: number): UnsavedActionScope => {
+  if (chosen <= 1) {
+    return "one";
+  }
+  return chosen === total ? "all" : "selected";
+};
+
 type ChangeSummary = {
   label: string;
   detail?: string;
@@ -362,37 +380,9 @@ export default function UnsavedActionDialog({
     choosing && includedDrafts.length !== offeredDrafts.length
       ? `${includedDrafts.length} of ${offeredDrafts.length} instances`
       : countLabel(includedDrafts.length, "instance", "instances");
-  const confirmScope: UnsavedActionScope = !choosing
-    ? scope
-    : includedDrafts.length > 1 && includedDrafts.length === drafts.length
-      ? "all"
-      : includedDrafts.length > 1
-        ? "selected"
-        : "one";
-  const title =
-    action === "save"
-      ? confirmScope === "all"
-        ? "Save all changes?"
-        : confirmScope === "selected"
-          ? "Save selected changes?"
-          : "Save these changes?"
-      : confirmScope === "all"
-        ? "Cancel all unsaved changes?"
-        : confirmScope === "selected"
-          ? "Cancel selected changes?"
-          : "Cancel unsaved changes?";
-  const confirmLabel =
-    action === "save"
-      ? confirmScope === "all"
-        ? "Save all"
-        : confirmScope === "selected"
-          ? "Save selected"
-          : "Save"
-      : confirmScope === "all"
-        ? "Cancel all"
-        : confirmScope === "selected"
-        ? "Cancel selected"
-        : "Cancel changes";
+  const confirmScope = choosing ? chosenScope(includedDrafts.length, drafts.length) : scope;
+  const title = TITLES[action][confirmScope];
+  const confirmLabel = CONFIRM_LABELS[action][confirmScope];
 
   const renderDraftCard = (
     draft: UnsavedInstanceDraft,

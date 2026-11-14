@@ -313,10 +313,10 @@ export default function UnsavedInstancesPanel({
               className="unsaved-instances-panel-list"
             >
               {drafts.length === 0 ? (
-                <div className="unsaved-instances-panel-empty" role="status">
+                <output className="unsaved-instances-panel-empty">
                   No unsaved instances. Edit an instance and your draft will appear
                   here while you work across multiple instances.
-                </div>
+                </output>
               ) : (
                 <>
                   {canSelect && (

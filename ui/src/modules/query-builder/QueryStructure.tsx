@@ -48,6 +48,9 @@ export function TypeTags({ types, identifiers }: { types: TypesById; identifiers
   );
 }
 
+/** The label of a field below the root - the property it follows */
+const pathLabel = (field: QueryField) => (field.schema.identifier ? propertyLabel(field.schema) : "(no path)");
+
 interface FieldRowProps {
   field: QueryField;
   parent?: QueryField;
@@ -64,11 +67,7 @@ function FieldNode({ field, parent, index, types, selectedKey, onSelect, onMove,
   const isRoot = !parent;
   const problem = fieldProblem(field, isRoot);
   const hasChildren = field.children.length > 0;
-  const label = isRoot
-    ? typeName(types, field.schema.identifier)
-    : field.schema.identifier
-      ? propertyLabel(field.schema)
-      : "(no path)";
+  const label = isRoot ? typeName(types, field.schema.identifier) : pathLabel(field);
   const showAlias = !isRoot && !parent?.isFlattened;
   const alias = field.alias?.trim();
   const siblings = parent?.children.length ?? 0;

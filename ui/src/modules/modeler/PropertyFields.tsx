@@ -13,6 +13,9 @@ import TypeIdentifier from "./TypeIdentifier";
 import WidgetPreview from "./WidgetPreview";
 
 /** Moves the item at the index to the target index (the index it has after the move). */
+/** The keys moving a property up or down in the order */
+const KEY_STEPS: Record<string, number | undefined> = { ArrowUp: -1, ArrowDown: 1 };
+
 function moved<T>(items: T[], from: number, to: number): T[] {
   const result = [...items];
   const [item] = result.splice(from, 1);
@@ -161,11 +164,11 @@ export default function PropertyFields({
                 aria-describedby="modeler-fields-help"
                 title="Drag to change the order"
                 onKeyDown={(e) => {
-                  const to = e.key === "ArrowUp" ? index - 1 : e.key === "ArrowDown" ? index + 1 : undefined;
-                  if (to !== undefined && !saving) {
+                  const step = KEY_STEPS[e.key];
+                  if (step !== undefined && !saving) {
                     e.preventDefault();
                     setFocus(property.identifier);
-                    move(index, to);
+                    move(index, index + step);
                   }
                 }}
               >

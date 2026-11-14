@@ -55,6 +55,14 @@ function getInitialCreatedInstances(instances: LinkedInstance[]): LinkedInstance
   return instances.filter((instance) => instance.isDraft && instance.isNew);
 }
 
+/** What the list of instances shows while it has none */
+function instancesEmptyMessage(loading: boolean, loadError: string | null): string {
+  if (loading) {
+    return "Loading instances...";
+  }
+  return loadError ? "Could not load the instances" : "No instances found";
+}
+
 export default function LinkedInstancesEditModal({
   show,
   onHide,
@@ -474,13 +482,7 @@ export default function LinkedInstancesEditModal({
             instances={singleSelectInstances}
             selected={allInstances.find((instance) => instance.instanceId === selectedIds[0])}
             onSelect={(instanceId) => setSelectedIds(instanceId ? [instanceId] : [])}
-            emptyMessage={
-              loading
-                ? "Loading instances..."
-                : loadError
-                  ? "Could not load the instances"
-                  : "No instances found"
-            }
+            emptyMessage={instancesEmptyMessage(loading, loadError)}
             filters={filters}
             search={search}
             onSearchChange={setSearch}

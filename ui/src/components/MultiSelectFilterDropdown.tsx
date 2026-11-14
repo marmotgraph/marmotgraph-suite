@@ -71,7 +71,7 @@ export function MultiSelectFilterDropdown({
       </Dropdown.Toggle>
 
       <Dropdown.Menu
-        className={`multi-select-filter-dropdown-menu${menuClassName ? ` ${menuClassName}` : ""}`}
+        className={["multi-select-filter-dropdown-menu", menuClassName].filter(Boolean).join(" ")}
         aria-label={`${label} filter options`}
       >
         <div className="multi-select-filter-dropdown-search">

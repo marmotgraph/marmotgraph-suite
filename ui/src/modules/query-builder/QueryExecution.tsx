@@ -47,6 +47,17 @@ function download(result: QueryResult) {
   URL.revokeObjectURL(url);
 }
 
+/** The page shown, the total and the duration of a run - e.g. "1–20 of 135 · took 0.42 s" */
+function describeResult(result: QueryResult, from: number): string {
+  const page = result.data.length ? `${from}–${from + result.data.length - 1}` : "No results";
+  const total = result.total === undefined || result.total === null ? "" : ` of ${result.total}`;
+  const duration =
+    result.durationInMs === undefined || result.durationInMs === null
+      ? ""
+      : ` · took ${(result.durationInMs / 1000).toFixed(2)} s`;
+  return page + total + duration;
+}
+
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 /** Runs the query as currently composed (without saving it) and shows the result page by page. */
@@ -109,6 +120,14 @@ export default function QueryExecution({
 
   const result = run.result;
   const from = result ? (run.page - 1) * size + 1 : 0;
+  let summary = "";
+  if (running) {
+    summary = "Running...";
+  } else if (result) {
+    summary = describeResult(result, from);
+  } else if (isEmpty) {
+    summary = "Add at least one field to run the query.";
+  }
 
   return (
     <div className="query-run">
@@ -194,15 +213,7 @@ export default function QueryExecution({
 
         <div className="query-run-bar">
           <span className="query-run-summary" role="status">
-            {running
-              ? "Running..."
-              : result
-                ? `${result.data.length ? `${from}–${from + result.data.length - 1}` : "No results"}${
-                    result.total !== undefined && result.total !== null ? ` of ${result.total}` : ""
-                  }${result.durationInMs !== undefined && result.durationInMs !== null ? ` · took ${(result.durationInMs / 1000).toFixed(2)} s` : ""}`
-                : isEmpty
-                  ? "Add at least one field to run the query."
-                  : ""}
+            {summary}
           </span>
           {result && (
             <>

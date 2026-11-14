@@ -438,8 +438,7 @@ function SelectionPanel({
   return (
     <div className="modeler-side-panel" style={{ "--modeler-type-color": node.color } as React.CSSProperties}>
       <div className="instance-type-label">
-        <span className="modeler-color-dot me-2" style={{ backgroundColor: node.color }} />
-        Type
+        <span className="modeler-color-dot me-2" style={{ backgroundColor: node.color }} />Type
       </div>
       <div className="modeler-side-panel-name">{node.label}</div>
       <div className="mb-2">
