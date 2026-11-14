@@ -337,7 +337,7 @@ export function parameterNames(root: QueryField): string[] {
     field.children.forEach(collect);
   };
   collect(root);
-  return Array.from(names).sort();
+  return Array.from(names).sort((a, b) => a.localeCompare(b));
 }
 
 export function isQueryEmpty(model: QueryModel): boolean {

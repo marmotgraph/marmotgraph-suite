@@ -58,7 +58,16 @@ export default function TypeListFilter({
                 backgroundColor: selectedType?.identifier === type.identifier ? "#e9ecef" : "transparent",
                 color: selectedType?.identifier === type.identifier ? "#212529" : "inherit",
               }}
+              role="button"
+              tabIndex={0}
+              aria-pressed={selectedType?.identifier === type.identifier}
               onClick={() => handleSelectType(type)}
+              onKeyDown={(event) => {
+                if (event.key === "Enter" || event.key === " ") {
+                  event.preventDefault();
+                  handleSelectType(type);
+                }
+              }}
             >
               <span className="fw-semibold">{type.name}</span>
             </li>

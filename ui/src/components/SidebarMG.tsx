@@ -70,7 +70,17 @@ function SidebarMG({ isCollapsed, onToggle }: SidebarMGProps) {
       className={`sidebar-mg d-flex flex-column ${isCollapsed ? "sidebar-collapsed" : "sidebar-expanded"}`}
     >
       {/* Logo Section */}
-      <div className="p-3 sidebar-logo" onClick={() => navigate("/")}>
+      <div
+        className="p-3 sidebar-logo"
+        role="link"
+        tabIndex={0}
+        onClick={() => navigate("/")}
+        onKeyDown={(event) => {
+          if (event.key === "Enter") {
+            navigate("/");
+          }
+        }}
+      >
         {isCollapsed ? (
           <img
             src={marmotGraphIcon}

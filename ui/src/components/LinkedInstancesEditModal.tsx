@@ -89,11 +89,11 @@ export default function LinkedInstancesEditModal({
     [allowedTypes, typeIdentifiersByLabel],
   );
   const availableTypes = useMemo(
-    () => [...typeIdentifiersByLabel.keys()].sort(),
+    () => [...typeIdentifiersByLabel.keys()].sort((a, b) => a.localeCompare(b)),
     [typeIdentifiersByLabel],
   );
   const availableSpaces = useMemo(
-    () => [...new Set(spaces.map((space) => space.identifier))].sort(),
+    () => [...new Set(spaces.map((space) => space.identifier))].sort((a, b) => a.localeCompare(b)),
     [spaces],
   );
   const [selectedIds, setSelectedIds] = useState<string[]>([]);

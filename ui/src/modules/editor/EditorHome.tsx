@@ -102,6 +102,11 @@ export default function EditorHome() {
   const spaces = useSpaces();
   const [searchQuery, setSearchQuery] = useState<string>(searchTerm);
   const [copiedId, setCopiedId] = useState<string | null>(null);
+  const copyId = (instanceId: string) => {
+    navigator.clipboard.writeText(instanceId);
+    setCopiedId(instanceId);
+    setTimeout(() => setCopiedId(null), 2000);
+  };
   const [selectedInstances, setSelectedInstances] = useState<Set<string>>(
     new Set(),
   );
@@ -184,7 +189,7 @@ export default function EditorHome() {
   }, [types]);
 
   const availableSpaces = useMemo(() => {
-    return Array.from(new Set(spaces.map((space) => space.identifier))).sort();
+    return Array.from(new Set(spaces.map((space) => space.identifier))).sort((a, b) => a.localeCompare(b));
   }, [spaces]);
 
   // Infinite scrolling: load the following page once the sentinel below the table becomes visible
@@ -625,11 +630,7 @@ export default function EditorHome() {
                   return next;
                 })
               }
-              onCopyId={(instanceId) => {
-                navigator.clipboard.writeText(instanceId);
-                setCopiedId(instanceId);
-                setTimeout(() => setCopiedId(null), 2000);
-              }}
+              onCopyId={copyId}
             />
           ) : (
             <Table className="shared-queries-table instances-table" striped>
@@ -747,13 +748,19 @@ export default function EditorHome() {
                             </span>
                             <span
                               className="copy-id-wrapper"
+                              role="button"
+                              tabIndex={0}
+                              aria-label="Copy instance ID"
                               onClick={(e) => {
                                 e.stopPropagation();
-                                navigator.clipboard.writeText(
-                                  instance.instanceId,
-                                );
-                                setCopiedId(instance.instanceId);
-                                setTimeout(() => setCopiedId(null), 2000);
+                                copyId(instance.instanceId);
+                              }}
+                              onKeyDown={(e) => {
+                                if (e.key === "Enter" || e.key === " ") {
+                                  e.preventDefault();
+                                  e.stopPropagation();
+                                  copyId(instance.instanceId);
+                                }
                               }}
                             >
                               <FontAwesomeIcon
@@ -852,8 +859,17 @@ export default function EditorHome() {
                 <li
                   key={id}
                   className="delete-modal-item"
+                  role="button"
+                  tabIndex={deleting ? -1 : 0}
+                  aria-disabled={deleting}
                   onClick={() => {
                     if (!deleting) {
+                      handleSelectInstance(id);
+                    }
+                  }}
+                  onKeyDown={(e) => {
+                    if (!deleting && (e.key === "Enter" || e.key === " ")) {
+                      e.preventDefault();
                       handleSelectInstance(id);
                     }
                   }}
@@ -1100,6 +1116,7 @@ function InstanceCardList({
                 : "instance-card"
             }
             aria-label={instance.instanceName}
+            tabIndex={0}
             onClick={(event) => {
               if (
                 (event.target as HTMLElement).closest('input[type="checkbox"]')
@@ -1108,10 +1125,19 @@ function InstanceCardList({
               }
               onOpen(instance.instanceId);
             }}
+            onKeyDown={(event) => {
+              if (event.target === event.currentTarget && event.key === "Enter") {
+                event.preventDefault();
+                onOpen(instance.instanceId);
+              }
+            }}
             onDoubleClick={(event) => onOpenDetail(event, instance.instanceId)}
           >
             <div className="instance-card-main">
-              <div onClick={(event) => event.stopPropagation()}>
+              <div
+                onClick={(event) => event.stopPropagation()}
+                onKeyDown={(event) => event.stopPropagation()}
+              >
                 <Form.Check
                   type="checkbox"
                   aria-label={`Select ${instance.instanceName}`}

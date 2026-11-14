@@ -466,7 +466,18 @@ export function LinkItem({
         setHot(false);
         onHover?.(false);
       }}
+      tabIndex={resolved ? 0 : undefined}
       onClick={resolved ? () => onLinkClick(link.instanceId) : undefined}
+      onKeyDown={
+        resolved
+          ? (event) => {
+              if (event.target === event.currentTarget && event.key === "Enter") {
+                event.preventDefault();
+                onLinkClick(link.instanceId);
+              }
+            }
+          : undefined
+      }
       title={linkedInstanceStatusDescription(link)}
       style={
         {

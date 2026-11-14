@@ -68,7 +68,7 @@ export default function LinkedInstancesModal({
             .map((instance) => instance.type)
             .filter((type) => type.length > 0),
         ),
-      ].sort(),
+      ].sort((a, b) => a.localeCompare(b)),
     [displayInstances],
   );
 

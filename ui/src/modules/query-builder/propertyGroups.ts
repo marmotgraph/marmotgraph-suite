@@ -71,11 +71,11 @@ export function availableProperties(
         counter.property = {
           ...counter.property,
           label: counter.property.label ?? property.label,
-          targetTypes: Array.from(targets).sort(),
+          targetTypes: Array.from(targets).sort((a, b) => a.localeCompare(b)),
         };
         counter.count += 1;
       } else {
-        counters.set(key, { property: { ...property, targetTypes: [...property.targetTypes].sort() }, count: 1 });
+        counters.set(key, { property: { ...property, targetTypes: [...property.targetTypes].sort((a, b) => a.localeCompare(b)) }, count: 1 });
       }
     }),
   );
