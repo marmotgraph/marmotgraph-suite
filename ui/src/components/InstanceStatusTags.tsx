@@ -28,11 +28,11 @@ export function InstanceStatusTags({
   releaseStatus,
   contributed = false,
   validation,
-}: {
+}: Readonly<{
   releaseStatus: ReleaseStatus;
   contributed?: boolean;
   validation?: InstanceValidation[];
-}) {
+}>) {
   const { modifier, icon } = RELEASE_STATUS_TAGS[releaseStatus];
   return (
     <div className="instance-status">

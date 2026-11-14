@@ -16,7 +16,7 @@
 .shared-queries-table tbody tr {
   background-color: transparent !important;
   border-left: 4px solid transparent;
-  transition: all 0.2s ease;
+  transition: background-color 0.2s ease, border-left-color 0.2s ease;
   cursor: pointer;
 }
 

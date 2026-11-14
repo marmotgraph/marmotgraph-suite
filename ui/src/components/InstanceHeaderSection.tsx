@@ -31,8 +31,8 @@ export default function InstanceHeaderSection({
   mountOnExpand?: boolean;
   children?: React.ReactNode;
 }) {
-  const [isExpandedInternally, setIsExpanded] = useState(defaultExpanded);
-  const isExpanded = expanded ?? isExpandedInternally;
+  const [internallyExpanded, setInternallyExpanded] = useState(defaultExpanded);
+  const isExpanded = expanded ?? internallyExpanded;
   const contentId = useId();
   return (
     <section className="instance-header-section" aria-label={title}>
@@ -44,7 +44,7 @@ export default function InstanceHeaderSection({
               variant="link"
               size="sm"
               className="instance-header-section-toggle p-0"
-              onClick={onToggle ?? (() => setIsExpanded((previous) => !previous))}
+              onClick={onToggle ?? (() => setInternallyExpanded((previous) => !previous))}
               aria-expanded={isExpanded}
               aria-controls={contentId}
             >

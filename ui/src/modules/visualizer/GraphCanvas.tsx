@@ -103,8 +103,8 @@ function animate(duration: number, step: (progress: number) => void, done?: () =
 /** A deterministic spot near the origin (for nodes without any neighbour to start next to). */
 function scatter(id: string): Point {
   let hash = 0;
-  for (let i = 0; i < id.length; i++) {
-    hash = (hash * 31 + id.charCodeAt(i)) >>> 0;
+  for (const char of id) {
+    hash = (hash * 31 + char.codePointAt(0)!) >>> 0;
   }
   const angle = (hash % 360) * (Math.PI / 180);
   const distance = 20 + (hash % 60);
@@ -334,7 +334,7 @@ const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(function Gra
         else include(guide.labelAt.x, guide.labelAt.y, 60);
       });
     }
-    if (!isFinite(minX)) {
+    if (!Number.isFinite(minX)) {
       return zoomIdentity.translate(width / 2, height / 2);
     }
     const scale = Math.max(MIN_SCALE, Math.min(MAX_FIT_SCALE, (width - 2 * FIT_PADDING) / (maxX - minX), (height - 2 * FIT_PADDING) / (maxY - minY)));

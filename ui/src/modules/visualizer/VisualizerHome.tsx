@@ -475,7 +475,7 @@ export default function VisualizerHome() {
                     <Spinner animation="border" size="sm" role="status" className="me-2" />
                     Searching...
                   </div>
-                ) : results && results.length === 0 ? (
+                ) : results?.length === 0 ? (
                   <div className="viz-results-empty">No instances found.</div>
                 ) : (
                   results?.slice(0, 8).map((summary) => (
@@ -499,7 +499,7 @@ export default function VisualizerHome() {
                     </button>
                   ))
                 )}
-                {results && results.length > 0 && (
+                {!!results?.length && (
                   <button type="button" className="viz-results-close" onClick={() => setResults(undefined)}>
                     Close results
                   </button>

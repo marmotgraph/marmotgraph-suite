@@ -70,7 +70,7 @@ export default function QueryExecution({
   onChangeSettings,
   run,
   onChangeRun,
-}: {
+}: Readonly<{
   specification: QuerySpecification;
   parameterNames: string[];
   spaces: QuerySpace[];
@@ -79,7 +79,7 @@ export default function QueryExecution({
   onChangeSettings: (settings: RunSettings) => void;
   run: RunState;
   onChangeRun: (run: RunState) => void;
-}) {
+}>) {
   const { getAccessToken } = useAuth();
   const [running, setRunning] = useState(false);
   const size = Number.parseInt(settings.size, 10);

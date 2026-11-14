@@ -364,8 +364,8 @@ export function hopsFrom(graph: Graph, start: string | undefined): Map<string, n
   });
   hops.set(start, 0);
   const queue = [start];
-  for (let i = 0; i < queue.length; i++) {
-    const current = queue[i];
+  // The queue grows while it is iterated - for...of visits the appended entries too
+  for (const current of queue) {
     (adjacency.get(current) ?? []).forEach((next) => {
       if (!hops.has(next)) {
         hops.set(next, hops.get(current)! + 1);

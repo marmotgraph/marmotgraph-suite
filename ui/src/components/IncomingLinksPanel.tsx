@@ -58,14 +58,14 @@ function IncomingTypeLinks({
   loadingMore,
   onLinkClick,
   onLoadMore,
-}: {
+}: Readonly<{
   groupLabel: string;
   property: string;
   type: IncomingLinksOfType;
   loadingMore: boolean;
   onLinkClick: (instanceId: string) => void;
   onLoadMore: (property: string, type: IncomingLinksOfType) => void;
-}) {
+}>) {
   const [firstPage] = useState(() => type.links.length);
   const [limit, setLimit] = useState(firstPage);
   const shown = type.links.slice(0, limit);
@@ -123,7 +123,7 @@ export default function IncomingLinksPanel({
   onLinkClick,
   onLoadMore,
   isLoadingMore,
-}: IncomingLinksPanelProps) {
+}: Readonly<IncomingLinksPanelProps>) {
   const title = "Incoming Links";
   let emptyMessage: React.ReactNode = undefined;
   if (loading) {

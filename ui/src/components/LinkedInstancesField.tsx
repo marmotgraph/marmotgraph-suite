@@ -69,7 +69,7 @@ export default function LinkedInstancesField({
   variant = "view",
   highlightedInstanceId,
   onInstanceHover,
-}: LinkedInstancesFieldProps) {
+}: Readonly<LinkedInstancesFieldProps>) {
   const identifiersOnly = useContext(LinkIdentifiersOnlyContext);
   const { getDraft } = useUnsavedInstances();
   const [showViewModal, setShowViewModal] = useState(false);

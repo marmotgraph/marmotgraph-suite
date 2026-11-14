@@ -120,7 +120,7 @@ export default function TenantsAdmin() {
               <Spinner animation="border" size="sm" /> Loading tenants...
             </div>
           )}
-          {names && names.length === 0 && <p className="admin-empty">No tenants are defined yet.</p>}
+          {names?.length === 0 && <p className="admin-empty">No tenants are defined yet.</p>}
           {!!names?.length && (
             <div className="admin-list">
               {names.map((name) => (
@@ -153,7 +153,7 @@ export default function TenantsAdmin() {
 
 type Modify = (action: (token: string, name: string) => Promise<void>) => Promise<boolean>;
 
-function TenantDetails({ tenant, modify }: { tenant: Tenant; modify: Modify }) {
+function TenantDetails({ tenant, modify }: Readonly<{ tenant: Tenant; modify: Modify }>) {
   const disabled = !tenant.editable;
   return (
     <div className="instance-focus-panel admin-details">
@@ -196,11 +196,11 @@ function DefinitionFields({
   definition,
   disabled,
   onChange,
-}: {
+}: Readonly<{
   definition: TenantDefinition;
   disabled: boolean;
   onChange: (definition: TenantDefinition) => void;
-}) {
+}>) {
   return (
     <>
       <Form.Group className="mb-3">
@@ -235,7 +235,7 @@ function DefinitionFields({
   );
 }
 
-function GeneralForm({ tenant, disabled, modify }: { tenant: Tenant; disabled: boolean; modify: Modify }) {
+function GeneralForm({ tenant, disabled, modify }: Readonly<{ tenant: Tenant; disabled: boolean; modify: Modify }>) {
   const [definition, setDefinition] = useState<TenantDefinition>({
     title: tenant.title,
     contactEmail: tenant.contactEmail,
@@ -255,8 +255,8 @@ function GeneralForm({ tenant, disabled, modify }: { tenant: Tenant; disabled: b
   );
 }
 
-function FontForm({ font: initial, disabled, modify }: { font: Font; disabled: boolean; modify: Modify }) {
-  const [font, setFontState] = useState<Font>(initial ?? {});
+function FontForm({ font: initial, disabled, modify }: Readonly<{ font: Font; disabled: boolean; modify: Modify }>) {
+  const [draft, setDraft] = useState<Font>(initial ?? {});
   return (
     <Form onSubmit={(e) => e.preventDefault()}>
       <Form.Group className="mb-3">
@@ -265,8 +265,8 @@ function FontForm({ font: initial, disabled, modify }: { font: Font; disabled: b
           size="sm"
           disabled={disabled}
           placeholder="https://fonts.googleapis.com/css?family=..."
-          value={font.url ?? ""}
-          onChange={(e) => setFontState({ ...font, url: e.target.value })}
+          value={draft.url ?? ""}
+          onChange={(e) => setDraft({ ...draft, url: e.target.value })}
         />
         <Form.Text muted>The stylesheet the font is imported from (optional).</Form.Text>
       </Form.Group>
@@ -276,11 +276,11 @@ function FontForm({ font: initial, disabled, modify }: { font: Font; disabled: b
           size="sm"
           disabled={disabled}
           placeholder="'Roboto', sans-serif"
-          value={font.fontFamily ?? ""}
-          onChange={(e) => setFontState({ ...font, fontFamily: e.target.value })}
+          value={draft.fontFamily ?? ""}
+          onChange={(e) => setDraft({ ...draft, fontFamily: e.target.value })}
         />
       </Form.Group>
-      <SaveButton disabled={disabled} onSave={() => modify((token, name) => setFont(token, name, font))} />
+      <SaveButton disabled={disabled} onSave={() => modify((token, name) => setFont(token, name, draft))} />
     </Form>
   );
 }
@@ -291,15 +291,15 @@ function pickerValue(color: string | null | undefined): string | undefined {
   return match ? `#${match[1]}` : undefined;
 }
 
-function ColorsForm({ colors: initial, disabled, modify }: { colors: Colors; disabled: boolean; modify: Modify }) {
-  const [colors, setColorsState] = useState<Colors>(initial);
+function ColorsForm({ colors: initial, disabled, modify }: Readonly<{ colors: Colors; disabled: boolean; modify: Modify }>) {
+  const [draft, setDraft] = useState<Colors>(initial);
   const change = (group: string, color: string, value: string) =>
-    setColorsState({ ...colors, [group]: { ...colors[group], [color]: value } });
-  const missing = Object.values(colors).some((group) => Object.values(group).some((v) => !v?.trim()));
+    setDraft({ ...draft, [group]: { ...draft[group], [color]: value } });
+  const missing = Object.values(draft).some((group) => Object.values(group).some((v) => !v?.trim()));
 
   return (
     <Form onSubmit={(e) => e.preventDefault()}>
-      {Object.entries(colors).map(([group, values]) => (
+      {Object.entries(draft).map(([group, values]) => (
         <fieldset key={group} className="mb-3">
           <legend className="admin-kicker">{COLOR_GROUP_LABELS[group] ?? group}</legend>
           <Row>
@@ -337,12 +337,12 @@ function ColorsForm({ colors: initial, disabled, modify }: { colors: Colors; dis
         </fieldset>
       ))}
       {missing && <p className="text-danger small">All colors are required.</p>}
-      <SaveButton disabled={disabled || missing} onSave={() => modify((token, name) => setColors(token, name, colors))} />
+      <SaveButton disabled={disabled || missing} onSave={() => modify((token, name) => setColors(token, name, draft))} />
     </Form>
   );
 }
 
-function ImagesForm({ name, disabled, modify }: { name: string; disabled: boolean; modify: Modify }) {
+function ImagesForm({ name, disabled, modify }: Readonly<{ name: string; disabled: boolean; modify: Modify }>) {
   const { coreUrl } = useConfig();
   const [version, setVersion] = useState(() => Date.now());
   const variants: { image: TenantImage; darkMode: boolean; label: string }[] = (
@@ -397,7 +397,7 @@ function ImagesForm({ name, disabled, modify }: { name: string; disabled: boolea
   );
 }
 
-function CustomCssForm({ css: initial, disabled, modify }: { css: string; disabled: boolean; modify: Modify }) {
+function CustomCssForm({ css: initial, disabled, modify }: Readonly<{ css: string; disabled: boolean; modify: Modify }>) {
   const [css, setCss] = useState(initial ?? "");
   return (
     <Form onSubmit={(e) => e.preventDefault()}>
@@ -434,12 +434,12 @@ function CreateTenantModal({
   existing,
   onHide,
   onCreated,
-}: {
+}: Readonly<{
   show: boolean;
   existing: string[];
   onHide: () => void;
   onCreated: (name: string) => void;
-}) {
+}>) {
   const { getAccessToken } = useAuth();
   const [name, setName] = useState("");
   const [definition, setDefinition] = useState<TenantDefinition>({});

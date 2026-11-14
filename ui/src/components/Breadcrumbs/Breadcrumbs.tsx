@@ -60,11 +60,11 @@ const BreadcrumbLabel = ({
   label,
   color,
   isCurrent,
-}: {
+}: Readonly<{
   label: string;
   color?: string;
   isCurrent?: boolean;
-}) => (
+}>) => (
   <span className="breadcrumb-label">
     {color && (
       <FontAwesomeIcon
@@ -85,10 +85,10 @@ const BreadcrumbLabel = ({
 const BreadcrumbLink = ({
   item,
   onClick,
-}: {
+}: Readonly<{
   item: BreadcrumbCrumb;
   onClick: (item: BreadcrumbItem, index: number) => void;
-}) => (
+}>) => (
   <button
     type="button"
     className="breadcrumb-link"
@@ -101,10 +101,10 @@ const BreadcrumbLink = ({
 const BreadcrumbEllipsisMenu = ({
   items,
   onClick,
-}: {
+}: Readonly<{
   items: BreadcrumbCrumb[];
   onClick: (item: BreadcrumbItem, index: number) => void;
-}) => {
+}>) => {
   const menuId = useId();
   const wrapperRef = useRef<HTMLLIElement>(null);
   const closeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -224,7 +224,7 @@ export default function Breadcrumbs({
   items,
   onItemClick,
   className,
-}: BreadcrumbsProps) {
+}: Readonly<BreadcrumbsProps>) {
   if (!items || items.length === 0) {
     return null;
   }

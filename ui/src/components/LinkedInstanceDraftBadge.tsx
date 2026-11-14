@@ -10,7 +10,7 @@ type LinkedInstanceDraftBadgeProps = {
 export default function LinkedInstanceDraftBadge({
   instance,
   className,
-}: LinkedInstanceDraftBadgeProps) {
+}: Readonly<LinkedInstanceDraftBadgeProps>) {
   if (!instance.isDraft) {
     return null;
   }

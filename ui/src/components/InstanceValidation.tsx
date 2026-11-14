@@ -19,11 +19,11 @@ function formatCompliance(compliance: number) {
 export function ValidationStatus({
   validation,
   variant = "bar",
-}: {
+}: Readonly<{
   validation: InstanceValidation;
   /** The schema name, its icon, and the percent share a pill: "name - percentage". */
   variant?: "bar" | "badge";
-}) {
+}>) {
   const state = validation.valid ? "valid" : "invalid";
   const compliance =
     validation.compliance != null
@@ -105,11 +105,11 @@ export function validationErrorsByField(
 export function InstanceValidationSection({
   validation,
   fieldLabels,
-}: {
+}: Readonly<{
   validation: InstanceValidation[];
   /** The labels of the fields by their identifier */
   fieldLabels: Map<string, string>;
-}) {
+}>) {
   const errorCount = validation.reduce((count, v) => count + (v.errors?.length ?? 0), 0);
   return (
     <InstanceHeaderSection
@@ -141,10 +141,10 @@ export function InstanceValidationSection({
 function InstanceValidationErrors({
   validation,
   fieldLabels,
-}: {
+}: Readonly<{
   validation: InstanceValidation[];
   fieldLabels: Map<string, string>;
-}) {
+}>) {
   const failed = validation.filter((v) => v.errors && v.errors.length > 0);
   return (
     <section aria-label="Validation errors">
@@ -192,7 +192,7 @@ function InstanceValidationErrors({
 }
 
 /** Flags a field in its label - the errors are told by the title (and listed below the field). */
-export function FieldValidationIndicator({ errors }: { errors: FieldValidationError[] }) {
+export function FieldValidationIndicator({ errors }: Readonly<{ errors: FieldValidationError[] }>) {
   return (
     <FontAwesomeIcon
       icon={faTriangleExclamation}
@@ -203,7 +203,7 @@ export function FieldValidationIndicator({ errors }: { errors: FieldValidationEr
 }
 
 /** The errors of the validations concerning a field - shown below it. */
-export function FieldValidationErrors({ errors }: { errors: FieldValidationError[] }) {
+export function FieldValidationErrors({ errors }: Readonly<{ errors: FieldValidationError[] }>) {
   return (
     <ul className="instance-field-validation-errors" aria-label="Validation errors">
       {errors.map((error, index) => (

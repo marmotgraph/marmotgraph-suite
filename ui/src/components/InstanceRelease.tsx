@@ -92,11 +92,11 @@ interface ReleaseProgress {
 export default function InstanceRelease({
   instanceId,
   onInstanceClick,
-}: {
+}: Readonly<{
   instanceId: string;
   /** Called when the name of an instance of the tree is clicked */
   onInstanceClick: (instanceId: string) => void;
-}) {
+}>) {
   const { getAccessToken } = useAuth();
   const [tree, setTree] = useState<ReleaseNode>();
   const [loadError, setLoadError] = useState<string>();
@@ -335,7 +335,7 @@ export default function InstanceRelease({
   );
 }
 
-export function StatusTag({ status }: { status: ReleaseStatus }) {
+export function StatusTag({ status }: Readonly<{ status: ReleaseStatus }>) {
   const { modifier, icon } = STATUS_STYLES[status];
   return (
     <span className={`release-status release-status--${modifier}`}>
@@ -350,7 +350,7 @@ const describeCounts = (counts: Record<ReleaseStatus, number>) =>
   RELEASE_STATUSES.map((status) => `${counts[status]} ${status}`).join(", ");
 
 /** The share of the instances per release status - now and after proceeding. */
-function ReleaseStatsPanel({ stats }: { stats: ReleaseStats }) {
+function ReleaseStatsPanel({ stats }: Readonly<{ stats: ReleaseStats }>) {
   const rows: Array<[string, Record<ReleaseStatus, number>]> = [
     ["Now", stats.current],
     ["After proceeding", stats.after],
@@ -396,11 +396,11 @@ export function ReleaseNodeLabel({
   node,
   isTop,
   onInstanceClick,
-}: {
+}: Readonly<{
   node: ReleaseNode;
   isTop: boolean;
   onInstanceClick?: (instanceId: string) => void;
-}) {
+}>) {
   return (
     <div className="release-node-label">
       <span className="release-node-type">
@@ -435,7 +435,7 @@ function ReleaseTreeRow({
   disabled,
   onActionChange,
   onInstanceClick,
-}: {
+}: Readonly<{
   node: ReleaseNode;
   level: number;
   pending: PendingActions;
@@ -443,7 +443,7 @@ function ReleaseTreeRow({
   disabled: boolean;
   onActionChange: (action: ReleaseAction) => void;
   onInstanceClick: (instanceId: string) => void;
-}) {
+}>) {
   const action = pendingAction(node, pending);
   const available = availableActions(node);
   const after = pendingStatus(node, pending);
@@ -508,11 +508,11 @@ function ReleaseProgressPanel({
   progress,
   onStop,
   onDismiss,
-}: {
+}: Readonly<{
   progress: ReleaseProgress;
   onStop: () => void;
   onDismiss: () => void;
-}) {
+}>) {
   const percent = Math.round((progress.done / progress.total) * 100);
   if (progress.running) {
     return (

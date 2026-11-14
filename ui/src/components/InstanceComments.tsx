@@ -22,7 +22,7 @@ function CommentsToggle({
   disabled = false,
   className,
   onClick,
-}: {
+}: Readonly<{
   buttonRef?: React.Ref<HTMLButtonElement>;
   subject: string;
   count: number;
@@ -30,7 +30,7 @@ function CommentsToggle({
   disabled?: boolean;
   className: string;
   onClick: () => void;
-}) {
+}>) {
   const label = `Comments on ${subject}${count > 0 ? ` (${count})` : ""}`;
   return (
     <Button
@@ -56,12 +56,12 @@ export function InstanceCommentsOverview({
   comments,
   fieldProperties,
   canModerate,
-}: {
+}: Readonly<{
   comments: Comments;
   /** The properties shown as fields - their comments are listed with the field */
   fieldProperties: Set<string>;
   canModerate: boolean;
-}) {
+}>) {
   const onInstance = comments.comments.filter((comment) => !comment.property);
   const otherProperties = [
     ...new Set(
@@ -121,7 +121,7 @@ export function CommentThread({
   subject,
   startAdding = true,
   onClose,
-}: {
+}: Readonly<{
   comments: Comments;
   property?: string;
   canModerate: boolean;
@@ -129,7 +129,7 @@ export function CommentThread({
   subject: string;
   startAdding?: boolean;
   onClose?: () => void;
-}) {
+}>) {
   const thread = comments.comments.filter((comment) => comment.property === property);
   const [isAdding, setIsAdding] = useState(startAdding && thread.length === 0);
   return (
@@ -177,12 +177,12 @@ export function FieldComments({
   property,
   canModerate,
   subject,
-}: {
+}: Readonly<{
   comments: Comments;
   property: string;
   canModerate: boolean;
   subject: string;
-}) {
+}>) {
   const [show, setShow] = useState(false);
   const [popup, setPopup] = useState<HTMLElement | null>(null);
   const toggleRef = useRef<HTMLButtonElement>(null);
@@ -264,11 +264,11 @@ function CommentItem({
   comment,
   comments,
   canModerate,
-}: {
+}: Readonly<{
   comment: InstanceComment;
   comments: Comments;
   canModerate: boolean;
-}) {
+}>) {
   const [isEditing, setIsEditing] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const author = comment.own ? "You" : (comment.createdBy?.name ?? "A reviewer");
@@ -344,13 +344,13 @@ function CommentForm({
   submitLabel,
   onSubmit,
   onCancel,
-}: {
+}: Readonly<{
   label: string;
   initialText?: string;
   submitLabel: string;
   onSubmit: (text: string) => Promise<void>;
   onCancel: () => void;
-}) {
+}>) {
   const [text, setText] = useState(initialText);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string>();
@@ -407,12 +407,12 @@ function DeleteCommentModal({
   author,
   onHide,
   onDelete,
-}: {
+}: Readonly<{
   comment: InstanceComment;
   author: string;
   onHide: () => void;
   onDelete: () => Promise<void>;
-}) {
+}>) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string>();
 

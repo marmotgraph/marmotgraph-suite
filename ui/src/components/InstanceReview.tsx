@@ -57,11 +57,11 @@ function errorMessage(e: unknown) {
 export default function InstanceReview({
   instanceId,
   onInstanceClick,
-}: {
+}: Readonly<{
   instanceId: string;
   /** Called when the name of an instance in scope is clicked */
   onInstanceClick?: (instanceId: string) => void;
-}) {
+}>) {
   const { getAccessToken } = useAuth();
   const [invitations, setInvitations] = useState<InstanceInvitations>();
   const [loadError, setLoadError] = useState<string>();
@@ -174,13 +174,13 @@ function InviteForm({
   scopeTrees,
   onInvited,
   onInstanceClick,
-}: {
+}: Readonly<{
   instanceId: string;
   scopes: string[];
   scopeTrees: ScopeTrees;
   onInvited: () => void;
   onInstanceClick?: (instanceId: string) => void;
-}) {
+}>) {
   const { getAccessToken } = useAuth();
   const [search, setSearch] = useState("");
   const [selectedScopes, setSelectedScopes] = useState<string[]>(scopes);
@@ -286,14 +286,14 @@ function InviteeSearch({
   onSearchChange,
   submitting,
   onInvite,
-}: {
+}: Readonly<{
   instanceId: string;
   search: string;
   onSearchChange: (search: string) => void;
   /** The invitation being created - all others wait for it */
   submitting?: Invitee;
   onInvite: (invitee: Invitee) => void;
-}) {
+}>) {
   const { getAccessToken } = useAuth();
   const [candidates, setCandidates] = useState<InvitationCandidate[]>();
   const [searching, setSearching] = useState(false);
@@ -422,13 +422,13 @@ function ScopeSelection({
   selected,
   onChange,
   trees,
-}: {
+}: Readonly<{
   scopes: string[];
   selected: string[];
   onChange: (scopes: string[]) => void;
   /** The trees loaded so far - by scope - to tell how many instances each scope reaches */
   trees: Record<string, ReleaseNode>;
-}) {
+}>) {
   if (scopes.length === 0) {
     return (
       <p className="instance-review-help mb-0">
@@ -480,7 +480,7 @@ function ScopeSelection({
 }
 
 /** The link of a newly created invitation - to be copied, since it can't be shown again. */
-function CreatedLink({ invitation }: { invitation: InvitationLink }) {
+function CreatedLink({ invitation }: Readonly<{ invitation: InvitationLink }>) {
   const [copied, setCopied] = useState(false);
   const url = invitationUrl(invitation.token!);
 
@@ -525,7 +525,7 @@ function CreatedLink({ invitation }: { invitation: InvitationLink }) {
   );
 }
 
-function ScopeTags({ scopes }: { scopes: string[] }) {
+function ScopeTags({ scopes }: Readonly<{ scopes: string[] }>) {
   return (
     <span className="instance-review-scope-tags">
       {scopes.length === 0 ? (
@@ -547,14 +547,14 @@ function InvitedUsers({
   scopeTrees,
   onInstanceClick,
   onRemove,
-}: {
+}: Readonly<{
   users?: InvitedUser[];
   /** The scopes of the type - to list the instances an invitation covers */
   typeScopes: string[];
   scopeTrees: ScopeTrees;
   onInstanceClick?: (instanceId: string) => void;
   onRemove: (username: string) => void;
-}) {
+}>) {
   return (
     <section className="instance-review-section" aria-labelledby="instance-review-users">
       <h3 id="instance-review-users" className="view-label">
@@ -605,14 +605,14 @@ function PendingInvitations({
   scopeTrees,
   onInstanceClick,
   onRemove,
-}: {
+}: Readonly<{
   invitations: InvitationLink[];
   /** The scopes of the type - to list the instances an invitation covers */
   typeScopes: string[];
   scopeTrees: ScopeTrees;
   onInstanceClick?: (instanceId: string) => void;
   onRemove: (invitation: InvitationLink) => void;
-}) {
+}>) {
   return (
     <section className="instance-review-section" aria-labelledby="instance-review-pending">
       <h3 id="instance-review-pending" className="view-label">
@@ -766,12 +766,12 @@ function CoveredInstances({
   selected,
   scopeTrees,
   onInstanceClick,
-}: {
+}: Readonly<{
   scopes: string[];
   selected: string[];
   scopeTrees: ScopeTrees;
   onInstanceClick?: (instanceId: string) => void;
-}) {
+}>) {
   const covered = useCoveredInstances(scopes, selected, scopeTrees.trees);
   const labelId = useId();
 
@@ -792,12 +792,12 @@ function CoveredInstancesToggle({
   selected,
   scopeTrees,
   onInstanceClick,
-}: {
+}: Readonly<{
   scopes: string[];
   selected: string[];
   scopeTrees: ScopeTrees;
   onInstanceClick?: (instanceId: string) => void;
-}) {
+}>) {
   const [expanded, setExpanded] = useState(false);
   const covered = useCoveredInstances(scopes, selected, scopeTrees.trees);
   const treeId = useId();
@@ -831,11 +831,11 @@ function CoveredTree({
   covered,
   scopeTrees: { error, retry },
   onInstanceClick,
-}: {
+}: Readonly<{
   covered: ReturnType<typeof useCoveredInstances>;
   scopeTrees: ScopeTrees;
   onInstanceClick?: (instanceId: string) => void;
-}) {
+}>) {
   if (!covered) {
     return error ? (
       <Alert variant="danger" className="mb-0">
@@ -880,11 +880,11 @@ function RemoveInvitationModal({
   removal,
   onCancel,
   onRemove,
-}: {
+}: Readonly<{
   removal?: Removal;
   onCancel: () => void;
   onRemove: () => Promise<void>;
-}) {
+}>) {
   const [removing, setRemoving] = useState(false);
   const [error, setError] = useState<string>();
   const show = Boolean(removal);

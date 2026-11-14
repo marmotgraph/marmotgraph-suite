@@ -17,7 +17,7 @@ export function FilterPill({
   onRemove,
   className,
   title,
-}: FilterPillProps) {
+}: Readonly<FilterPillProps>) {
   return (
     <Badge
       bg="secondary"

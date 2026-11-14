@@ -16,16 +16,16 @@ export interface InstanceListState {
 export const PREVIEW_PARAM = "preview";
 const DEFAULT_SORT: InstanceSort = { by: "LAST_MODIFICATION", direction: "DESC" };
 const NO_SORT = "none";
-const RELEASE_STATUSES: ReleaseStatus[] = ["released", "has changed", "in progress"];
-const SORT_FIELDS: InstanceSortBy[] = ["TYPE", "NAME", "LAST_MODIFICATION"];
-const SORT_DIRECTIONS: InstanceSortDirection[] = ["ASC", "DESC"];
+const RELEASE_STATUSES = new Set<string>(["released", "has changed", "in progress"] satisfies ReleaseStatus[]);
+const SORT_FIELDS = new Set<string>(["TYPE", "NAME", "LAST_MODIFICATION"] satisfies InstanceSortBy[]);
+const SORT_DIRECTIONS = new Set<string>(["ASC", "DESC"] satisfies InstanceSortDirection[]);
 
 function parseSort(value: string | null): InstanceSort | null {
   if (value === NO_SORT) {
     return null;
   }
   const [by, direction] = (value ?? "").split(":") as [InstanceSortBy, InstanceSortDirection];
-  return SORT_FIELDS.includes(by) && SORT_DIRECTIONS.includes(direction) ? { by, direction } : DEFAULT_SORT;
+  return SORT_FIELDS.has(by) && SORT_DIRECTIONS.has(direction) ? { by, direction } : DEFAULT_SORT;
 }
 
 export function parseInstanceList(params: URLSearchParams): InstanceListState {
@@ -35,7 +35,7 @@ export function parseInstanceList(params: URLSearchParams): InstanceListState {
     spaceFilter: params.getAll("space"),
     favoritesOnly: params.get("favorites") === "1",
     contributedOnly: params.get("contributed") === "1",
-    releaseStatusFilter: params.getAll("release").filter((s): s is ReleaseStatus => RELEASE_STATUSES.includes(s as ReleaseStatus)),
+    releaseStatusFilter: params.getAll("release").filter((s): s is ReleaseStatus => RELEASE_STATUSES.has(s)),
     sort: parseSort(params.get("sort")),
   };
 }

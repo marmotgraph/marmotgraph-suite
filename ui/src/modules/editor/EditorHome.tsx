@@ -980,10 +980,10 @@ function canDeleteReleased(instance: InstanceSummary) {
 function FavoriteToggle({
   instance,
   onToggle,
-}: {
+}: Readonly<{
   instance: InstanceSummary;
   onToggle: (instanceId: string) => void;
-}) {
+}>) {
   const label = instance.favorite
     ? `Remove ${instance.instanceName} from favorites`
     : `Add ${instance.instanceName} to favorites`;
@@ -1024,12 +1024,12 @@ function InstancePermissionButtons({
   instance,
   labeled = false,
   onOpen,
-}: {
+}: Readonly<{
   instance: InstanceSummary;
   /** Shows the permission name beside the icon (the narrow-screen card). */
   labeled?: boolean;
   onOpen: (instanceId: string, search: string) => void;
-}) {
+}>) {
   // All permissions are shown - the ones the user lacks disabled - so the icons line up from row to row
   return (
     <div className="instance-permissions">
@@ -1077,7 +1077,7 @@ function InstanceCardList({
   onOpenPermission,
   onToggleDetails,
   onCopyId,
-}: {
+}: Readonly<{
   instances: InstanceSummary[];
   loading: boolean;
   selectedInstances: Set<string>;
@@ -1091,7 +1091,7 @@ function InstanceCardList({
   onOpenPermission: (instanceId: string, search: string) => void;
   onToggleDetails: (instanceId: string) => void;
   onCopyId: (instanceId: string) => void;
-}) {
+}>) {
   if (loading) {
     return (
       <div className="text-center py-4">
@@ -1240,14 +1240,14 @@ function InstancePreview({
   onOpen,
   onEdit,
   onRaw,
-}: {
+}: Readonly<{
   instance: InstanceSummary;
   onToggleFavorite: (instanceId: string) => void;
   onClose: () => void;
   onOpen: () => void;
   onEdit: () => void;
   onRaw: () => void;
-}) {
+}>) {
   const navigate = useNavigate();
   const { getAccessToken } = useAuth();
   const [detail, setDetail] = useState<InstanceDetail | undefined>();
@@ -1437,10 +1437,10 @@ function InstancePreview({
 function PreviewField({
   field,
   onInstanceClick,
-}: {
+}: Readonly<{
   field: InstanceField;
   onInstanceClick: (instanceId: string) => void;
-}) {
+}>) {
   return (
     <div className="instance-preview-field">
       <div className="instance-preview-field-label" title={field.tooltip}>
@@ -1460,10 +1460,10 @@ function PreviewField({
 function PreviewUnsupportedFields({
   fields,
   onInstanceClick,
-}: {
+}: Readonly<{
   fields: InstanceField[];
   onInstanceClick: (instanceId: string) => void;
-}) {
+}>) {
   const [isExpanded, setIsExpanded] = useState(false);
   return (
     <div className="instance-preview-unsupported">

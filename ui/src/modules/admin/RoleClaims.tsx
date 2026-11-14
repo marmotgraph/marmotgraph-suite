@@ -89,12 +89,12 @@ export function definitionsOf(definitions: RoleDefinition[] | undefined, space: 
 }
 
 /** The claims of the roles in one space - each claim can be removed on its own (read only without onRemove). */
-export function RoleClaimsList({ roleDefinitions, emptyText, busy = false, onRemove }: {
+export function RoleClaimsList({ roleDefinitions, emptyText, busy = false, onRemove }: Readonly<{
   roleDefinitions: RoleDefinition[];
   emptyText: string;
   busy?: boolean;
   onRemove?: (definition: RoleDefinition, claim: Claims) => void;
-}) {
+}>) {
   if (roleDefinitions.length === 0) {
     return <p className="admin-space-empty">{emptyText}</p>;
   }
@@ -148,7 +148,7 @@ export function newClaimDraft(space: string, role: string): ClaimDraft {
  *
  * @param spaces the spaces to suggest - the space can't be changed if they are not given
  */
-export function AddClaimModal({ draft, roles, spaces, busy, onChange, onHide, onSave }: {
+export function AddClaimModal({ draft, roles, spaces, busy, onChange, onHide, onSave }: Readonly<{
   draft?: ClaimDraft;
   roles: string[];
   spaces?: string[];
@@ -156,7 +156,7 @@ export function AddClaimModal({ draft, roles, spaces, busy, onChange, onHide, on
   onChange: (draft: ClaimDraft) => void;
   onHide: () => void;
   onSave: (draft: ClaimDraft, claim: Claims) => void;
-}) {
+}>) {
   const parsed = useMemo(() => parseClaim(draft?.json), [draft?.json]);
 
   return (

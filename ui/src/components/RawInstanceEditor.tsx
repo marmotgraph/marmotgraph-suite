@@ -40,7 +40,7 @@ export default function RawInstanceEditor({
   draftText,
   onDraftChange,
   onSaved,
-}: {
+}: Readonly<{
   instanceId: string;
   canEdit: boolean;
   /** The edited text - undefined if the stored document is shown unchanged */
@@ -49,7 +49,7 @@ export default function RawInstanceEditor({
   onDraftChange: (text: string | undefined) => void;
   /** Called once the edited document is stored by the core */
   onSaved: () => void;
-}) {
+}>) {
   const { getAccessToken } = useAuth();
   const [savedText, setSavedText] = useState<string>();
   const [loadError, setLoadError] = useState<string>();

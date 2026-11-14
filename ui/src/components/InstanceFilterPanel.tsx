@@ -37,7 +37,7 @@ function ItemListFilter({
   descriptions,
   idPrefix = "item",
   listMaxHeight = 300,
-}: {
+}: Readonly<{
   items: string[];
   selectedItems: string[];
   onItemToggle: (itemName: string) => void;
@@ -49,7 +49,7 @@ function ItemListFilter({
   descriptions?: Record<string, string | undefined>;
   idPrefix?: string;
   listMaxHeight?: number;
-}) {
+}>) {
   const [filter, setFilter] = useState("");
 
   const labelOf = (item: string) => labels?.[item] ?? item;
@@ -96,7 +96,7 @@ export function InstanceFilterPanel({
   availableTypes,
   availableSpaces,
   variant = "toolbar",
-}: InstanceFilterPanelProps) {
+}: Readonly<InstanceFilterPanelProps>) {
   const [showTypeModal, setShowTypeModal] = useState(false);
   const [showSpaceModal, setShowSpaceModal] = useState(false);
 

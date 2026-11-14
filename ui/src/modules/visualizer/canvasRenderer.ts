@@ -10,7 +10,8 @@ import { ROUTE_SIZE, RouteAt, routeCurve } from "./layouts";
 
 export interface RenderNode extends LayoutNode {
   initial: string;
-  status: "resolved" | "restricted" | "unresolved" | string;
+  /** "resolved", "restricted" or "unresolved" - or any other status reported by the backend */
+  status: string;
   expandable: boolean;
 }
 
@@ -145,8 +146,8 @@ export function buildScene(nodes: RenderNode[], links: RenderLink[]): Scene {
   let hash = 2166136261;
   nodes.forEach((node, i) => {
     maxRadius = Math.max(maxRadius, node.radius);
-    for (let c = 0; c < node.id.length; c++) {
-      hash = Math.imul(hash ^ node.id.charCodeAt(c), 16777619);
+    for (const char of node.id) {
+      hash = Math.imul(hash ^ char.codePointAt(0)!, 16777619);
     }
     if (node.status !== "resolved") {
       ghosts.push(i);
@@ -355,7 +356,7 @@ function drawLinks(ctx: CanvasRenderingContext2D, scene: Scene, f: Frame, b: Bou
       path.lineTo(tx, ty);
       continue;
     }
-    routeCurve(f.layout, links[i].curved, sx, sy, tx, ty, nodes[s].radius, nodes[t].radius, f.angle ? f.angle[s] : NaN, f.angle ? f.angle[t] : NaN, scratch);
+    routeCurve(f.layout, links[i].curved, sx, sy, tx, ty, nodes[s].radius, nodes[t].radius, f.angle ? f.angle[s] : Number.NaN, f.angle ? f.angle[t] : Number.NaN, scratch);
     path.moveTo(scratch[RouteAt.StartX], scratch[RouteAt.StartY]);
     const straight = scratch[RouteAt.Straight] === 1;
     if (straight) {
@@ -692,7 +693,7 @@ function drawLinkLabels(ctx: CanvasRenderingContext2D, scene: Scene, f: Frame, b
     const tx = f.x[t];
     const ty = f.y[t];
     if (Math.max(sx, tx) < b.minX || Math.min(sx, tx) > b.maxX || Math.max(sy, ty) < b.minY || Math.min(sy, ty) > b.maxY) continue;
-    routeCurve(f.layout, link.curved, sx, sy, tx, ty, nodes[s].radius, nodes[t].radius, f.angle ? f.angle[s] : NaN, f.angle ? f.angle[t] : NaN, scratch);
+    routeCurve(f.layout, link.curved, sx, sy, tx, ty, nodes[s].radius, nodes[t].radius, f.angle ? f.angle[s] : Number.NaN, f.angle ? f.angle[t] : Number.NaN, scratch);
     ctx.font = `${isActive ? 600 : 400} 10px ${f.fontFamily}`;
     haloText(ctx, truncate(link.labels.join(", "), 28), v.x + scratch[RouteAt.LabelX] * v.k, v.y + scratch[RouteAt.LabelY] * v.k + 3, isActive ? "#212529" : MUTED_INK, 3);
     shown++;

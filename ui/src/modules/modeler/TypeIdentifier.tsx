@@ -2,7 +2,7 @@ import React, { useEffect, useState } from "react";
 import { Copy } from "lucide-react";
 
 /** The identifier (IRI) of a type or property - on one line, with the control to copy it. */
-export default function TypeIdentifier({ identifier }: { identifier: string }) {
+export default function TypeIdentifier({ identifier }: Readonly<{ identifier: string }>) {
   const [copied, setCopied] = useState(false);
 
   useEffect(() => {

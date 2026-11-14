@@ -30,7 +30,7 @@ function roundPx(value: number) {
  */
 export default function InstanceLinkConnectors({
   layout,
-}: InstanceLinkConnectorsProps) {
+}: Readonly<InstanceLinkConnectorsProps>) {
   const markerId = `link-arrow-${useId().replace(/:/g, "")}`;
   const [graph, setGraph] = useState<Graph>(EMPTY_GRAPH);
   const signature = useRef("");

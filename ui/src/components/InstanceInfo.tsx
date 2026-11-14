@@ -12,7 +12,7 @@ import "./InstanceInfo.css";
  * Shows the administrative information of an instance: when it was created, last modified and (first / last)
  * released - and the users who have contributed to it (if the user may see them).
  */
-export default function InstanceInfo({ instanceId }: { instanceId: string }) {
+export default function InstanceInfo({ instanceId }: Readonly<{ instanceId: string }>) {
   const { getAccessToken } = useAuth();
   const [info, setInfo] = useState<InstanceInformation>();
   const [loadError, setLoadError] = useState<string>();

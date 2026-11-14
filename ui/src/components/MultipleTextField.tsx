@@ -2,13 +2,15 @@ import React, { useRef, useState } from "react";
 import { Badge, Form } from "react-bootstrap";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faTimes } from "@fortawesome/free-solid-svg-icons";
+import { fieldValueText } from "./fieldValueText";
 import "./MultipleTextField.css";
 
 function asTexts(value: unknown): string[] {
   if (Array.isArray(value)) {
-    return value.map(String);
+    return value.map(fieldValueText);
   }
-  return value === null || value === undefined || value === "" ? [] : [String(value)];
+  const text = fieldValueText(value);
+  return text === "" ? [] : [text];
 }
 
 /**
@@ -20,12 +22,12 @@ export default function MultipleTextField({
   value,
   onChange,
   isEditMode,
-}: {
+}: Readonly<{
   label: string;
   value: unknown;
   onChange: (value: string[]) => void;
   isEditMode: boolean;
-}) {
+}>) {
   const [text, setText] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
   const texts = asTexts(value);

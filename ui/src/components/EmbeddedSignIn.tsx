@@ -3,7 +3,7 @@ import { Alert, Button, Modal } from "react-bootstrap";
 import { openSignInWindow, SignInTokens } from "../services/embedding";
 
 /** Asks the user to sign in while the suite is embedded in an iframe. Whatever is shown behind it stays untouched. */
-export default function EmbeddedSignIn({ onSignedIn }: { onSignedIn: (tokens: SignInTokens) => void }) {
+export default function EmbeddedSignIn({ onSignedIn }: Readonly<{ onSignedIn: (tokens: SignInTokens) => void }>) {
   const [blocked, setBlocked] = useState(false);
   const stopListening = useRef<(() => void) | undefined>(undefined);
   useEffect(() => () => stopListening.current?.(), []);

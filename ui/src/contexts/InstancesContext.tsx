@@ -53,7 +53,7 @@ export interface InstanceSort {
 
 const InstancesContext = createContext<InstancesContextType | undefined>(undefined);
 
-export function InstancesProvider({ children }: { children: ReactNode }) {
+export function InstancesProvider({ children }: Readonly<{ children: ReactNode }>) {
   const { getAccessToken } = useAuth();
   const [instances, setInstances] = useState<InstanceSummary[]>([]);
   const [total, setTotal] = useState<number>(0);

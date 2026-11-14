@@ -171,7 +171,7 @@ function useBreadcrumbTrail(
   return breadcrumbTrail;
 }
 
-function InstanceDetailView({ instanceId }: { instanceId: string }) {
+function InstanceDetailView({ instanceId }: Readonly<{ instanceId: string }>) {
   const navigate = useNavigate();
   const { getAccessToken } = useAuth();
   const { addInstance, deleteInstances, instances } = useInstances();
@@ -1316,7 +1316,7 @@ function UnsupportedFieldsSection({
   fieldErrors,
   onInstanceClick,
   fieldAlternatives,
-}: {
+}: Readonly<{
   fields: InstanceField[];
   values: InstanceFieldValues;
   onChange: (identifier: string, value: unknown) => void;
@@ -1326,7 +1326,7 @@ function UnsupportedFieldsSection({
   onInstanceClick: (instanceId: string) => void;
   /** The contributions are only offered while editing */
   fieldAlternatives?: FieldAlternativesControls;
-}) {
+}>) {
   const [isExpanded, setIsExpanded] = useState(false);
   // The section is flagged if any of its fields is - so the errors aren't missed while it is collapsed
   const errors = fields.flatMap((field) => fieldErrors.get(field.identifier) ?? []);
@@ -1435,13 +1435,13 @@ function ViewFieldLabel({
   required = false,
   isLabel = false,
   validationErrors,
-}: {
+}: Readonly<{
   children: React.ReactNode;
   tooltip?: string;
   required?: boolean;
   isLabel?: boolean;
   validationErrors?: FieldValidationError[];
-}) {
+}>) {
   return (
     <div className="view-label" title={tooltip}>
       {children}
@@ -1452,7 +1452,7 @@ function ViewFieldLabel({
   );
 }
 
-function FieldErrors({ errors }: { errors?: FieldValidationError[] }) {
+function FieldErrors({ errors }: Readonly<{ errors?: FieldValidationError[] }>) {
   return errors ? <FieldValidationErrors errors={errors} /> : null;
 }
 
@@ -1463,14 +1463,14 @@ function InstanceFieldLabel({
   required = false,
   isLabel = false,
   validationErrors,
-}: {
+}: Readonly<{
   children: React.ReactNode;
   isChanged?: boolean;
   tooltip?: string;
   required?: boolean;
   isLabel?: boolean;
   validationErrors?: FieldValidationError[];
-}) {
+}>) {
   return (
     <Form.Label
       className={`view-label${isChanged ? " instance-field-label--changed" : ""}`}
@@ -1498,7 +1498,7 @@ function DeleteInstanceModal({
   linked,
   onCancel,
   onDelete,
-}: {
+}: Readonly<{
   show: boolean;
   instanceName: string;
   type: string;
@@ -1508,7 +1508,7 @@ function DeleteInstanceModal({
   linked: boolean;
   onCancel: () => void;
   onDelete: () => Promise<void>;
-}) {
+}>) {
   const [deleting, setDeleting] = useState(false);
   const [error, setError] = useState<string>();
 

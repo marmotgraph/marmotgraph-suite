@@ -10,7 +10,7 @@ import type { ModelerContext } from "./ModelerHome";
 import TypeDetails from "./TypeDetails";
 
 /** Lists the types of the model - the selected one is shown with its details to be edited. */
-export default function TypeList(context: ModelerContext) {
+export default function TypeList(context: Readonly<ModelerContext>) {
   const { types, specificationStatus, canDefineTypes } = context;
   const [searchParams, setSearchParams] = useSearchParams();
   const isMobile = useMediaQuery(MOBILE_VIEWPORT_QUERY);
@@ -145,14 +145,14 @@ function NewTypeModal({
   existing,
   onHide,
   onCreated,
-}: {
+}: Readonly<{
   show: boolean;
   /** An existing type - its namespace is suggested for the new one */
   example?: string;
   existing: string[];
   onHide: () => void;
   onCreated: (identifier: string) => void;
-}) {
+}>) {
   const { getAccessToken } = useAuth();
   const [name, setName] = useState("");
   const [identifier, setIdentifier] = useState<string>();
