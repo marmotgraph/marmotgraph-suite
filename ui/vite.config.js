@@ -29,7 +29,8 @@ export default defineConfig({
     // The suite runs many jsdom workers in parallel - interaction-heavy tests need headroom on loaded CI runners
     testTimeout: 20000,
     coverage: {
-      reporter: ["text", "html"],
+      // lcov is picked up by Sonar (sonar.javascript.lcov.reportPaths=coverage/lcov.info)
+      reporter: ["text", "html", "lcov"],
     },
   },
 });
