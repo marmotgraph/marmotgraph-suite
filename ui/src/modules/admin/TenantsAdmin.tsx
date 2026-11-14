@@ -93,7 +93,7 @@ export default function TenantsAdmin() {
 
   const created = (name: string) => {
     setCreating(false);
-    setNames((current) => (current?.includes(name) ? current : [...(current ?? []), name].sort()));
+    setNames((current) => (current?.includes(name) ? current : [...(current ?? []), name].sort((a, b) => a.localeCompare(b))));
     setSelected(name);
     if (selected === name) {
       loadTenant(name);

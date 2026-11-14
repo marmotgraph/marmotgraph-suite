@@ -6,7 +6,7 @@ import { fetchRoleDefinitions, fetchRoles, updateRoleDefinition } from "../../se
 const auth = vi.hoisted(() => ({ getAccessToken: () => Promise.resolve("token") }));
 
 vi.mock("../../contexts/AuthContext", () => ({ useAuth: () => auth }));
-vi.mock("../../hooks/useSpaces", () => ({ useSpaces: () => [{ identifier: "known" }] }));
+vi.mock("../../hooks/useManagedSpaces", () => ({ useManagedSpaces: () => ({ spaces: [{ identifier: "known" }, { identifier: "another" }] }) }));
 vi.mock("../../services/permissions", async (original) => ({
   ...(await original<object>()),
   fetchRoles: vi.fn(),
@@ -24,14 +24,16 @@ beforeEach(() => {
 });
 
 describe("PermissionsAdmin", () => {
-  it("lists the global claims first and the spaces with claims by name", async () => {
+  it("lists the global claims first and the spaces by name - managed ones even without claims", async () => {
     render(<PermissionsAdmin />);
     await screen.findByText("withclaims");
     const headers = [...document.querySelectorAll(".admin-space-header span")].map((e) => e.textContent);
-    expect(headers).toEqual(["Global", "another", "withclaims"]);
+    expect(headers).toEqual(["Global", "another", "known", "withclaims"]);
     const global = screen.getByText("Global").closest("section") as HTMLElement;
     expect(within(global).getByText("No global claims are defined.")).toBeInTheDocument();
-    expect(screen.getByText("3 groups")).toBeInTheDocument();
+    const known = screen.getByText("known").closest("section") as HTMLElement;
+    expect(within(known).getByText("No claims are defined for this space.")).toBeInTheDocument();
+    expect(screen.getByText("4 groups")).toBeInTheDocument();
     // Claims are added per space - not per role
     expect(screen.queryByRole("button", { name: /Add claim to/ })).not.toBeInTheDocument();
   });

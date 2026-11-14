@@ -237,18 +237,20 @@ export default function TypeGraph({ types }: ModelerContext) {
   // The nodes are dragged with d3 - the drag starts at the current position of the node (in the coordinates of the graph)
   useEffect(() => {
     let moved = false;
-    const behavior = drag<SVGGElement, unknown>()
-      .subject(function () {
-        return latest.current.layout.get(this.dataset.id!)!;
+    // The subject carries the id of the dragged node (taken from the element the drag started on)
+    const behavior = drag<SVGGElement, unknown, Point & { id: string }>()
+      .subject((event) => {
+        const id = (event.sourceEvent.currentTarget as SVGGElement).dataset.id!;
+        return { ...latest.current.layout.get(id)!, id };
       })
       .on("start", () => (moved = false))
-      .on("drag", function (event) {
+      .on("drag", (event) => {
         moved = true;
-        setDragged({ node: this.dataset.id!, position: { x: event.x, y: event.y } });
+        setDragged({ node: event.subject.id, position: { x: event.x, y: event.y } });
       })
-      .on("end", function (event) {
+      .on("end", (event) => {
         if (moved) {
-          latest.current.drop(this.dataset.id!, { x: event.x, y: event.y });
+          latest.current.drop(event.subject.id, { x: event.x, y: event.y });
         }
         setDragged(undefined);
       });

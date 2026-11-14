@@ -559,6 +559,16 @@ export function LinkItem({
       onMouseEnter={() => setHot(true)}
       onMouseLeave={() => setHot(false)}
       onClick={resolved ? () => onLinkClick(link.instanceId) : undefined}
+      onKeyDown={
+        resolved
+          ? (event) => {
+              if (event.target === event.currentTarget && event.key === "Enter") {
+                event.preventDefault();
+                onLinkClick(link.instanceId);
+              }
+            }
+          : undefined
+      }
       title={linkedInstanceStatusDescription(link)}
       style={
         {

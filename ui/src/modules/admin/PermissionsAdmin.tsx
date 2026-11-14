@@ -2,27 +2,31 @@ import React, { useMemo, useState } from "react";
 import { Alert, Button, Form, Spinner } from "react-bootstrap";
 import { Globe, Plus } from "lucide-react";
 import { RoleDefinition } from "../../services/permissions";
-import { useSpaces } from "../../hooks/useSpaces";
+import { useManagedSpaces } from "../../hooks/useManagedSpaces";
 import { useSubNavActions } from "../../contexts/SubNavActionsContext";
 import { AddClaimModal, ClaimDraft, GLOBAL, newClaimDraft, RoleClaimsList, useRoleDefinitions } from "./RoleClaims";
 
 /**
  * The overview of all claims mapped to the roles of the core - grouped by space (with the global roles first) and
- * role. Claims are added as JSON patterns and removed one by one. The claims of a single space are managed along with
- * the space as well.
+ * role. Every space the user manages is listed - even without claims (e.g. right after it has been created). Claims
+ * are added as JSON patterns and removed one by one. The claims of a single space are managed along with the space as
+ * well.
  */
 export default function PermissionsAdmin() {
   const { roles, definitions, error, setError, busy, update, removeClaim } = useRoleDefinitions();
-  const spaces = useSpaces();
+  const { spaces } = useManagedSpaces();
   const [filter, setFilter] = useState("");
   const [draft, setDraft] = useState<ClaimDraft>();
 
-  /** The role definitions grouped by space - global first (even without definitions), then the spaces by name. */
+  /** The role definitions grouped by space - global first, then the spaces by name (both even without definitions). */
   const sections = useMemo(() => {
     if (!definitions) {
       return [];
     }
-    const grouped = new Map<string, RoleDefinition[]>([[GLOBAL, []]]);
+    const grouped = new Map<string, RoleDefinition[]>([
+      [GLOBAL, []],
+      ...(spaces ?? []).map((s): [string, RoleDefinition[]] => [s.identifier, []]),
+    ]);
     definitions.forEach((d) => {
       const key = d.space ?? GLOBAL;
       grouped.set(key, [...(grouped.get(key) ?? []), d]);
@@ -35,7 +39,7 @@ export default function PermissionsAdmin() {
         roleDefinitions.some((d) => JSON.stringify(d.claims).toLowerCase().includes(term)),
       )
       .sort(([a], [b]) => (a === GLOBAL ? -1 : b === GLOBAL ? 1 : a.localeCompare(b)));
-  }, [definitions, filter]);
+  }, [definitions, spaces, filter]);
 
   const openDraft = (space: string) => setDraft(newClaimDraft(space, roles[0] ?? ""));
 
@@ -113,7 +117,7 @@ export default function PermissionsAdmin() {
       <AddClaimModal
         draft={draft}
         roles={roles}
-        spaces={spaces.map((s) => s.identifier)}
+        spaces={(spaces ?? []).map((s) => s.identifier)}
         busy={busy}
         onChange={setDraft}
         onHide={() => setDraft(undefined)}

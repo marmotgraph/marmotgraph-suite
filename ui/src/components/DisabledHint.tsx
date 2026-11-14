@@ -11,7 +11,8 @@ export function DisabledHint({ reason, children }: { reason?: string; children: 
     return <>{children}</>;
   }
   return (
-    <span className="disabled-hint" title={reason} onClick={(event) => event.stopPropagation()}>
+    <span className="disabled-hint" title={reason} onClick={(event) => event.stopPropagation()}
+      onKeyDown={(event) => event.stopPropagation()}>
       {children}
     </span>
   );
