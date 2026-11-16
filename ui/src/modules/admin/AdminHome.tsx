@@ -4,6 +4,7 @@ import { Navigate, Route, Routes } from "react-router-dom";
 import PermissionsAdmin from "./PermissionsAdmin";
 import TenantsAdmin from "./TenantsAdmin";
 import ToolsAdmin from "./ToolsAdmin";
+import ImportExportAdmin from "./ImportExportAdmin";
 import { AdminSection, adminSections } from "./adminSections";
 import { useGlobalFunctionalities } from "../../hooks/useGlobalFunctionalities";
 import "./Admin.css";
@@ -12,6 +13,7 @@ const ELEMENTS: Record<AdminSection, React.ReactNode> = {
   permissions: <PermissionsAdmin />,
   tenants: <TenantsAdmin />,
   tools: <ToolsAdmin />,
+  "import-export": <ImportExportAdmin />,
 };
 
 /**
