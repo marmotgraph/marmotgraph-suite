@@ -19,6 +19,7 @@ import { modelerAvailable } from "../services/modeler";
 import { useTools } from "../contexts/ToolsContext";
 import ToolCategoryIcon from "./ToolCategoryIcon";
 import {
+  ArrowDownUp,
   Blocks,
   BookmarkCheck,
   Building2,
@@ -38,6 +39,7 @@ const ADMIN_SECTION_ICONS: Record<AdminSection, React.ReactNode> = {
   permissions: <KeyRound size={18} />,
   tenants: <Building2 size={18} />,
   tools: <Wrench size={18} />,
+  "import-export": <ArrowDownUp size={18} />,
 };
 
 interface SidebarMGProps {

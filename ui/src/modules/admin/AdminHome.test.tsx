@@ -7,6 +7,7 @@ import { useGlobalFunctionalities } from "../../hooks/useGlobalFunctionalities";
 vi.mock("./PermissionsAdmin", () => ({ default: () => <div>permissions view</div> }));
 vi.mock("./TenantsAdmin", () => ({ default: () => <div>tenants view</div> }));
 vi.mock("./ToolsAdmin", () => ({ default: () => <div>tools view</div> }));
+vi.mock("./ImportExportAdmin", () => ({ default: () => <div>import export view</div> }));
 vi.mock("../../hooks/useGlobalFunctionalities", () => ({ useGlobalFunctionalities: vi.fn() }));
 
 const ALL = ["CREATE_PERMISSION", "TENANT_MANAGEMENT", "DEFINE_TOOLS"];
@@ -37,6 +38,11 @@ describe("AdminHome", () => {
   it("shows the tenants", async () => {
     renderAt("/admin/tenants", ALL);
     expect(await screen.findByText("tenants view")).toBeInTheDocument();
+  });
+
+  it("shows the import/export", async () => {
+    renderAt("/admin/import-export", ALL);
+    expect(await screen.findByText("import export view")).toBeInTheDocument();
   });
 
   it("shows no tabs - each section is an entry of the navigation", async () => {
