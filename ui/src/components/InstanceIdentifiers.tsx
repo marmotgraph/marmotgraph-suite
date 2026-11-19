@@ -1,29 +1,40 @@
 import React, { useId, useState } from "react";
-import { Button, Form } from "react-bootstrap";
+import { Button, Form, Spinner } from "react-bootstrap";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { faCopy, faPlus, faXmark } from "@fortawesome/free-solid-svg-icons";
+import { faCopy, faPlus, faTrashCan, faXmark } from "@fortawesome/free-solid-svg-icons";
 import InstanceHeaderSection from "./InstanceHeaderSection";
 import "./InstanceIdentifiers.css";
 
 /**
- * The identifiers of an instance - shown apart from its fields since each of them identifies the instance. They can
- * only be added: the stored ones stay, only the ones added (and not saved yet) can be taken back. They are collapsed
- * by default - unless there are unsaved ones (e.g. of a draft), which are not to go unnoticed.
+ * The identifiers of an instance - shown apart from its fields since each of them identifies the instance. The added
+ * ones are saved with the fields (and can be taken back until then). The stored ones are removed right away, after
+ * confirmation - the core refuses it if a relation targets the identifier. The ones representing the id of the
+ * instance stay. They are collapsed by default - unless there are unsaved ones (e.g. of a draft), which are not to go
+ * unnoticed.
  */
 export default function InstanceIdentifiers({
+  instanceId,
   identifiers,
   saved,
   isEditMode,
   onChange,
+  onRemove,
 }: {
+  instanceId: string;
   /** The identifiers as currently edited */
   identifiers: string[];
   /** The identifiers as stored */
   saved: string[];
   isEditMode: boolean;
   onChange: (identifiers: string[]) => void;
+  /** Removes a stored identifier - not offered without it (e.g. for a new instance) */
+  onRemove?: (identifier: string) => Promise<void>;
 }) {
   const [draft, setDraft] = useState("");
+  /** The stored identifier whose removal is to be confirmed */
+  const [confirming, setConfirming] = useState<string>();
+  const [removing, setRemoving] = useState(false);
+  const [removeError, setRemoveError] = useState<string>();
   const inputId = useId();
   const candidate = draft.trim();
   const duplicate = identifiers.includes(candidate);
@@ -42,6 +53,18 @@ export default function InstanceIdentifiers({
     setDraft("");
   };
 
+  const remove = (identifier: string) => {
+    if (!onRemove) {
+      return;
+    }
+    setRemoving(true);
+    setRemoveError(undefined);
+    onRemove(identifier)
+      .then(() => setConfirming(undefined))
+      .catch((e: unknown) => setRemoveError(e instanceof Error ? e.message : String(e)))
+      .finally(() => setRemoving(false));
+  };
+
   return (
     <InstanceHeaderSection
       title="Identifiers"
@@ -55,6 +78,40 @@ export default function InstanceIdentifiers({
         <ul className="instance-identifiers-list">
           {identifiers.map((identifier) => {
             const added = !saved.includes(identifier);
+            const removable = isEditMode && !added && onRemove !== undefined && !identifier.endsWith(instanceId);
+            if (removable && confirming === identifier) {
+              return (
+                <li key={identifier} className="instance-identifier instance-identifier--removing">
+                  <span className="instance-identifier-value" title={identifier}>
+                    {identifier}
+                  </span>
+                  <span className="instance-identifier-confirm">Remove permanently?</span>
+                  <Button
+                    size="sm"
+                    variant="outline-secondary"
+                    className="instance-identifier-confirm-btn"
+                    disabled={removing}
+                    onClick={() => {
+                      setConfirming(undefined);
+                      setRemoveError(undefined);
+                    }}
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="danger"
+                    className="instance-identifier-confirm-btn"
+                    disabled={removing}
+                    onClick={() => remove(identifier)}
+                    aria-label={`Remove identifier ${identifier}`}
+                  >
+                    {removing && <Spinner animation="border" size="sm" className="me-1" aria-hidden="true" />}
+                    Remove
+                  </Button>
+                </li>
+              );
+            }
             return (
               <li
                 key={identifier}
@@ -86,10 +143,31 @@ export default function InstanceIdentifiers({
                     <FontAwesomeIcon icon={faXmark} />
                   </Button>
                 )}
+                {removable && (
+                  <Button
+                    variant="link"
+                    size="sm"
+                    className="edit-icon-btn instance-identifier-action"
+                    disabled={removing}
+                    onClick={() => {
+                      setConfirming(identifier);
+                      setRemoveError(undefined);
+                    }}
+                    aria-label={`Remove identifier ${identifier}`}
+                    title="Remove identifier"
+                  >
+                    <FontAwesomeIcon icon={faTrashCan} />
+                  </Button>
+                )}
               </li>
             );
           })}
         </ul>
+      )}
+      {removeError && (
+        <p className="instance-identifiers-error" role="alert">
+          {removeError}
+        </p>
       )}
       {isEditMode && (
         <div className="instance-identifiers-add">
@@ -126,7 +204,7 @@ export default function InstanceIdentifiers({
           <Form.Text id={`${inputId}-help`} className={duplicate ? "text-danger" : "instance-identifiers-help"}>
             {duplicate
               ? "The instance already has this identifier."
-              : "Identifiers can be added but not removed once they are saved."}
+              : "New identifiers are kept when the instance is saved. Removing a stored one applies right away - unless it is in use by a link."}
           </Form.Text>
         </div>
       )}

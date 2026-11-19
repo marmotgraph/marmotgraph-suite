@@ -497,6 +497,23 @@ public class Instances {
     }
 
     /**
+     * Removes a stored identifier of the instance - also from all its contributions, so it doesn't come back. The
+     * released version keeps it until the instance is released again. The core rejects the request if the user is not
+     * allowed to edit the instance, with a 400 if the identifier represents the id of the instance and with a 409 if a
+     * relation targets the identifier (it is in use).
+     *
+     * @param id         the uuid of the instance as known by the core
+     * @param identifier the identifier to remove
+     * @return the instance as stored by the core
+     */
+    @DeleteMapping("/{id}/identifiers")
+    public InstanceDetail removeIdentifier(@AuthenticatedClient MarmotGraphClient client, @PathVariable UUID id,
+                                           @RequestParam String identifier) {
+        client.instances().removeIdentifier(id, identifier);
+        return get(client, id);
+    }
+
+    /**
      * The identifiers of an instance (the JSON-LD value of its {@link FieldCache#IDENTIFIER}) - distinct, in the order
      * they are stored.
      */

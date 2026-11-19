@@ -14,6 +14,7 @@ import {
   InstanceDetail as InstanceDetailData,
   InstanceField,
   replaceRawInstance,
+  removeIdentifier,
   updateInstance,
 } from "../../services/instances";
 import { fetchTypeFields, fetchTypes } from "../../services/types";
@@ -47,6 +48,7 @@ vi.mock("../../services/instances", () => ({
   fetchRawInstance: vi.fn(),
   fetchReleaseTree: vi.fn(),
   releaseInstance: vi.fn(),
+  removeIdentifier: vi.fn(),
   unreleaseInstance: vi.fn(),
   appendIncomingLinks: vi.fn(),
   replaceRawInstance: vi.fn(),
@@ -1481,7 +1483,7 @@ describe("InstanceDetail", () => {
     expect(within(validation).queryByRole("button")).not.toBeInTheDocument();
   });
 
-  it("only adds identifiers - the stored ones can't be removed", async () => {
+  it("adds identifiers when the instance is saved", async () => {
     vi.mocked(updateInstance).mockResolvedValue({
       instanceId: "inst-1",
       type: "Building",
@@ -1499,7 +1501,6 @@ describe("InstanceDetail", () => {
 
     const identifiers = await screen.findByRole("region", { name: /Identifiers/ });
     fireEvent.click(within(identifiers).getByRole("button", { name: "Identifiers (1)" }));
-    expect(within(identifiers).queryByRole("button", { name: /Remove/ })).not.toBeInTheDocument();
 
     const input = within(identifiers).getByRole("textbox", { name: "New identifier" });
     fireEvent.change(input, { target: { value: "hq" } });
@@ -1520,6 +1521,36 @@ describe("InstanceDetail", () => {
         "http://schema.org/identifier": ["hq", "bern-hq"],
       }),
     );
+  });
+
+  it("removes a stored identifier right away - and keeps the other unsaved changes", async () => {
+    vi.mocked(removeIdentifier).mockResolvedValue({
+      instanceId: "inst-1",
+      type: "Building",
+      instanceName: "Headquarters",
+      space: "default",
+      permissions: "View, Edit",
+      releaseStatus: "has changed",
+      fields: [{ identifier: "name", label: "Name", kind: "TEXT", value: "Headquarters", required: false, readOnly: false }],
+      identifiers: ["bern-hq"],
+      directLinks: [],
+    });
+    renderDetail("?edit=1", [
+      { identifier: "name", label: "Name", kind: "TEXT", value: "Headquarters", required: false, readOnly: false },
+    ], "inst-1", { identifiers: ["hq", "bern-hq"] });
+
+    fireEvent.change(await screen.findByDisplayValue("Headquarters"), { target: { value: "Main building" } });
+    const identifiers = screen.getByRole("region", { name: /Identifiers/ });
+    fireEvent.click(within(identifiers).getByRole("button", { name: "Identifiers (2)" }));
+    fireEvent.click(within(identifiers).getByRole("button", { name: "Remove identifier hq" }));
+    fireEvent.click(within(identifiers).getByRole("button", { name: "Remove identifier hq" }));
+
+    await waitFor(() => expect(removeIdentifier).toHaveBeenCalledWith("token", "inst-1", "hq"));
+    await waitFor(() => expect(within(identifiers).queryByText("hq")).not.toBeInTheDocument());
+    // The removal is no unsaved change - the edited name still is
+    expect(screen.getByDisplayValue("Main building")).toBeInTheDocument();
+    expect(screen.getByRole("status")).not.toHaveTextContent("Identifiers");
+    expect(screen.getByRole("status")).toHaveTextContent("Name");
   });
 
   it("shows the validation results and flags the fields with errors", async () => {

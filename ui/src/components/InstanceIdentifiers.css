@@ -31,6 +31,38 @@
     border-color: #ffe08a;
 }
 
+/* A stored identifier whose removal is to be confirmed */
+.instance-identifier--removing {
+    background: #f8f9fa;
+    padding-right: 4px;
+}
+
+.instance-identifier--removing .instance-identifier-value {
+    text-decoration: line-through;
+    color: #6c757d;
+}
+
+.instance-identifier-confirm {
+    flex: none;
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: #495057;
+}
+
+.instance-identifier-confirm-btn.btn {
+    flex: none;
+    padding: 2px 10px;
+    font-size: 0.75rem;
+    min-height: 26px;
+}
+
+.instance-identifiers-error {
+    margin: 0 0 8px;
+    font-size: 0.8rem;
+    color: #b02a37;
+    overflow-wrap: anywhere;
+}
+
 .instance-identifier-value {
     flex: 1 1 auto;
     min-width: 0;
@@ -92,5 +124,15 @@
 @media (max-width: 767.98px) {
     .instance-identifiers-add-row {
         flex-direction: column;
+    }
+
+    .instance-identifier--removing {
+        flex-wrap: wrap;
+        padding-top: 4px;
+        padding-bottom: 4px;
+    }
+
+    .instance-identifier--removing .instance-identifier-value {
+        flex-basis: 100%;
     }
 }

@@ -980,6 +980,30 @@ class InstancesTest {
     }
 
     @Test
+    void removeIdentifierIsForwardedToTheCore() throws Exception {
+        gadgetWithIdentifiers(List.of("device-1"));
+
+        mockMvc.perform(delete("/instances/" + RELEASED_ID + "/identifiers").header(HttpHeaders.AUTHORIZATION, "Bearer theToken")
+                        .param("identifier", "https://example.org/devices/1"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.identifiers.length()").value(1))
+                .andExpect(jsonPath("$.identifiers[0]").value("device-1"));
+
+        verify(instancesResource).removeIdentifier(RELEASED_ID, "https://example.org/devices/1");
+    }
+
+    @Test
+    void removeIdentifierForwardsAConflictOfTheCore() throws Exception {
+        Mockito.doThrow(new MarmotGraphApiException(409, "The identifier device-1 can't be removed because it is the target of a relation", null, null))
+                .when(instancesResource).removeIdentifier(RELEASED_ID, "device-1");
+
+        mockMvc.perform(delete("/instances/" + RELEASED_ID + "/identifiers").header(HttpHeaders.AUTHORIZATION, "Bearer theToken")
+                        .param("identifier", "device-1"))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.detail").value("The identifier device-1 can't be removed because it is the target of a relation"));
+    }
+
+    @Test
     void updateRejectsUnknownFields() throws Exception {
         when(instancesResource.get(any(UUID.class), any(), any())).thenReturn(instance(RELEASED_ID, DEVICE, Map.of()));
         when(typesResource.getByNames(List.of(DEVICE), Stage.IN_PROGRESS, null, true, false))

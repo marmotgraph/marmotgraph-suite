@@ -241,6 +241,23 @@ export function updateInstance(
 }
 
 /**
+ * Removes a stored identifier of an instance - the core rejects it (409) if a relation targets the identifier. The
+ * instance as stored by the core is returned.
+ */
+export function removeIdentifier(
+  accessToken: string,
+  instanceId: string,
+  identifier: string,
+): Promise<InstanceDetail> {
+  return send(
+    "DELETE",
+    `/api/instances/${encodeURIComponent(instanceId)}/identifiers?identifier=${encodeURIComponent(identifier)}`,
+    "remove the identifier",
+    accessToken,
+  );
+}
+
+/**
  * Creates an instance of the type with the given (client generated) id - the values of its fields by their identifier,
  * in the shape required by the kind of the field. It is created in the private space of the user if no space is given.
  */
