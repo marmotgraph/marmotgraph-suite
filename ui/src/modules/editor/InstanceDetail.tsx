@@ -39,6 +39,7 @@ import {
   IncomingLinksOfType,
   InstanceDetail as InstanceDetailData,
   InstanceField,
+  removeIdentifier,
   updateInstance,
 } from "../../services/instances";
 import { fetchTypeFields, fetchTypes, typeLabel } from "../../services/types";
@@ -856,6 +857,22 @@ function InstanceDetailView({ instanceId }: Readonly<{ instanceId: string }>) {
     navigate("/editor");
   };
 
+  /** Removes a stored identifier right away - the other unsaved changes are kept. */
+  const handleRemoveIdentifier = async (identifier: string) => {
+    const token = await getAccessToken();
+    const stored = await removeIdentifier(token, instanceId, identifier);
+    // The draft keeps the identifiers as edited - the removed one would come back as an added one otherwise
+    const draft = getDraft(instanceId);
+    if (draft && draft.rawJson === undefined) {
+      upsertDraft({
+        ...draft,
+        fieldValues: withoutIdentifier(draft.fieldValues, identifier),
+        baseline: draft.baseline && withoutIdentifier(draft.baseline, identifier),
+      });
+    }
+    setInstance(stored);
+  };
+
   /** Reverts the changed fields - stays in the edit mode (like the reset of the raw mode). */
   const handleReset = () => {
     removeDraft(instanceId || "");
@@ -1028,10 +1045,12 @@ function InstanceDetailView({ instanceId }: Readonly<{ instanceId: string }>) {
                   {isFieldValuesReady && (
                     <InstanceIdentifiers
                       key={`${instanceId}-${mode === "edit"}`}
+                      instanceId={instanceId}
                       identifiers={identifiersOf(currentFieldValues)}
                       saved={isNewInstance ? [] : savedIdentifiers}
                       isEditMode={mode === "edit"}
                       onChange={(identifiers) => setFieldValue(IDENTIFIER, identifiers)}
+                      onRemove={isNewInstance ? undefined : handleRemoveIdentifier}
                     />
                   )}
                 </div>
@@ -1395,6 +1414,13 @@ function UnsupportedFieldsSection({
       </Collapse>
     </div>
   );
+}
+
+/** The values without the identifier - unchanged if they have no identifiers (a draft stored before they were edited). */
+function withoutIdentifier(values: InstanceFieldValues, identifier: string): InstanceFieldValues {
+  return IDENTIFIER in values
+    ? { ...values, [IDENTIFIER]: identifiersOf(values).filter((i) => i !== identifier) }
+    : values;
 }
 
 /** The identifiers among the values of the fields - also of a draft stored before they were edited. */
