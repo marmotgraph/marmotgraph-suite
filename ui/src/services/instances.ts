@@ -84,6 +84,8 @@ export interface InstanceDetail {
   releaseStatus: ReleaseStatus;
   /** Whether the current user has contributed to the instance */
   contributed?: boolean;
+  /** Whether the current user has flagged the instance as favorite */
+  favorite?: boolean;
   /** The fields in the order they are to be shown - not available for new instances (yet) */
   fields?: InstanceField[];
   /** The identifiers of the instance (the values of the IDENTIFIER) */

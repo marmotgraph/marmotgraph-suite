@@ -129,7 +129,7 @@ describe("readLinkEdgeInputs", () => {
     item.dataset.linkId = "a";
     item.dataset.linkField = "Site";
     item.dataset.linkColor = "#4caf50";
-    item.dataset.linkHighlighted = "true";
+    item.dataset.linkHot = "true";
     const handle = document.createElement("span");
     handle.dataset.linkHandle = "";
     item.append(handle);

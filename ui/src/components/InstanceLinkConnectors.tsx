@@ -71,7 +71,7 @@ export default function InstanceLinkConnectors({
       subtree: true,
       childList: true,
       attributes: true,
-      attributeFilter: ["class", "data-link-highlighted", "data-link-hot", "data-link-color"],
+      attributeFilter: ["class", "data-link-hot", "data-link-color"],
     });
     document.addEventListener("scroll", schedule, true);
     window.addEventListener("resize", schedule);

@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { useLocation, useNavigate, useParams, useSearchParams } from "react-router-dom";
+import { Link, useLocation, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { Alert, Button, Collapse, Form, Modal, Spinner } from "react-bootstrap";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
@@ -9,6 +9,7 @@ import {
   faCircleInfo,
   faCode,
   faCopy,
+  faDiagramProject,
   faEye,
   faPencil,
   faRocket,
@@ -28,6 +29,7 @@ import { useInstances } from "../../contexts/InstancesContext";
 import { useUnsavedInstances } from "../../contexts/UnsavedInstancesContext";
 import { useSessionStorage } from "../../hooks/useSessionStorage";
 import { EDITOR_BREADCRUMB_TRAIL_KEY } from "./editorConstants";
+import { visualizerPath } from "../visualizer/visualizerUrl";
 import {
   appendIncomingLinks,
   createInstance,
@@ -39,16 +41,17 @@ import {
   IncomingLinksOfType,
   InstanceDetail as InstanceDetailData,
   InstanceField,
+  setFavorite,
   updateInstance,
 } from "../../services/instances";
 import { fetchTypeFields, fetchTypes, typeLabel } from "../../services/types";
 import { Breadcrumbs, BreadcrumbItem as BreadcrumbTrailItem } from "../../components/Breadcrumbs";
 import { FieldAlternativesControls, useFieldAlternatives } from "../../components/InstanceAlternatives";
+import FavoriteButton from "../../components/FavoriteButton";
 import InstanceFieldControl from "../../components/InstanceFieldControl";
 import InstanceHeaderSection from "../../components/InstanceHeaderSection";
 import InstanceIdentifiers from "../../components/InstanceIdentifiers";
 import InstanceLinksPanel, {
-  HoveredLink,
 } from "../../components/InstanceLinksPanel";
 import IncomingLinksPanel from "../../components/IncomingLinksPanel";
 import InstanceLinkConnectors from "../../components/InstanceLinkConnectors";
@@ -130,6 +133,11 @@ const BREADCRUMB_TRAIL_LIMIT = 10;
 
 type BreadcrumbItem = BreadcrumbTrailItem;
 
+/** Which of the link panels beside the instance are reduced to a rail (on the side-by-side layout) */
+type CollapsedSides = { incoming: boolean; outgoing: boolean };
+const COLLAPSED_SIDES_KEY = "instance-detail-collapsed-sides";
+const NO_COLLAPSED_SIDES: CollapsedSides = { incoming: false, outgoing: false };
+
 function useBreadcrumbTrail(
   instanceId: string,
   instanceName?: string,
@@ -170,7 +178,7 @@ function useBreadcrumbTrail(
 function InstanceDetailView({ instanceId }: { instanceId: string }) {
   const navigate = useNavigate();
   const { getAccessToken } = useAuth();
-  const { addInstance, deleteInstances, instances } = useInstances();
+  const { addInstance, deleteInstances, instances, updateInstance: updateListedInstance } = useInstances();
   const { drafts: unsavedDrafts, getDraft, upsertDraft, removeDraft } = useUnsavedInstances();
   const [searchParams, setSearchParams] = useSearchParams();
   const [baseline, setBaseline] = useState<InstanceFieldValues>(
@@ -238,6 +246,22 @@ function InstanceDetailView({ instanceId }: { instanceId: string }) {
           }
         : undefined,
   );
+  /** Flags the instance as favorite (or removes the flag) - shown right away and reverted if the backend rejects it */
+  const handleToggleFavorite = () => {
+    const favorite = !instance?.favorite;
+    const show = (value: boolean) => {
+      setInstance((previous) => previous && { ...previous, favorite: value });
+      // The list of instances shows the same star
+      updateListedInstance(instanceId, { favorite: value });
+    };
+    show(favorite);
+    getAccessToken()
+      .then((token) => setFavorite(token, instanceId, favorite))
+      .catch((e: unknown) => {
+        console.error("Failed to change the favorite", e);
+        show(!favorite);
+      });
+  };
   const permissions = instance?.permissions.split(",").map((permission) => permission.trim()) ?? [];
   const canEdit = permissions.includes("Edit");
   /** Whether the user may invite others to review the instance */
@@ -264,8 +288,14 @@ function InstanceDetailView({ instanceId }: { instanceId: string }) {
   // Falls back to the read mode if the user lacks the permission for the mode requested
   const mode: InstanceMode = isReviewMode ? "review" : isInfoMode ? "info" : isReleaseMode ? "release" : isRawMode ? "raw" : isEditMode  ? "edit" : "read";
   /** The linked instance hovered - either in the form or in the outgoing links */
-  const [hoveredLink, setHoveredLink] = useState<HoveredLink>();
   const [layoutEl, setLayoutEl] = useState<HTMLDivElement | null>(null);
+  // The link panels can be reduced to a slim rail to give the instance more room - kept while going through instances
+  const [collapsedSides, setCollapsedSides] = useSessionStorage<CollapsedSides>(
+    COLLAPSED_SIDES_KEY,
+    NO_COLLAPSED_SIDES,
+  );
+  const toggleSide = (side: keyof CollapsedSides) =>
+    setCollapsedSides((current) => ({ ...current, [side]: !current[side] }));
   // New instances are only loading while the fields of their type are fetched
   const [loading, setLoading] = useState(!isNewInstance || Boolean(newInstanceType));
   const [loadError, setLoadError] = useState<string>();
@@ -853,23 +883,6 @@ function InstanceDetailView({ instanceId }: { instanceId: string }) {
     setCurrentFieldValues(baseline);
   };
 
-  /** Highlights a linked instance in a field together with its representation in the outgoing links (and vice versa) when hovered. */
-  const linkHoverProps = (field: InstanceField) => {
-    // The instances linked by embedded instances are labeled with the nested field as well
-    if (!["LINK", "LINKS", "NESTED", "SINGLE_NESTED"].includes(field.kind)) {
-      return {};
-    }
-    const fieldLabel = field.label.trim();
-    return {
-      highlightedInstanceId:
-        hoveredLink?.fieldLabel === fieldLabel
-          ? hoveredLink.instanceId
-          : undefined,
-      onInstanceHover: (instanceId: string | undefined) =>
-        setHoveredLink(instanceId ? { fieldLabel, instanceId } : undefined),
-    };
-  };
-
   const hasOutgoingLinks = (instance.directLinks?.length ?? 0) > 0;
   const hasIncomingLinks = incomingLinks.some((group) =>
     group.types.some((entry) => (entry.total ?? entry.links.length) > 0),
@@ -895,7 +908,16 @@ function InstanceDetailView({ instanceId }: { instanceId: string }) {
 
   return (
     <>
-      <div className="instance-detail-layout" ref={setLayoutEl}>
+      <div
+        className={[
+          "instance-detail-layout",
+          collapsedSides.incoming && "instance-detail-layout--incoming-collapsed",
+          collapsedSides.outgoing && "instance-detail-layout--outgoing-collapsed",
+        ]
+          .filter(Boolean)
+          .join(" ")}
+        ref={setLayoutEl}
+      >
         <InstanceLinkConnectors layout={layoutEl} />
         <Breadcrumbs
           items={[
@@ -919,6 +941,8 @@ function InstanceDetailView({ instanceId }: { instanceId: string }) {
             onLinkClick={handleLinkClick}
             onLoadMore={loadMoreIncomingLinks}
             isLoadingMore={isLoadingMoreIncomingLinks}
+            collapsed={collapsedSides.incoming}
+            onToggleCollapsed={() => toggleSide("incoming")}
           />
         </aside>
 
@@ -971,10 +995,31 @@ function InstanceDetailView({ instanceId }: { instanceId: string }) {
                       })}
                     </div>
                   )}
+                  {!isNewInstance && instanceId && (
+                    <Link
+                      className="btn btn-link edit-icon-btn instance-header-visualizer-link"
+                      to={visualizerPath(instanceId)}
+                      aria-label="Open in visualizer"
+                      title="Open in visualizer"
+                    >
+                      <FontAwesomeIcon icon={faDiagramProject} />
+                    </Link>
+                  )}
                 </div>
                 <div className="instance-header-title-row">
                   <div className="instance-header-title-column">
-                    <h2 className="instance-name">{instanceName}</h2>
+                    <div className="instance-name-row">
+                      <h2 className="instance-name">{instanceName}</h2>
+                      {/* A new instance is not known to the core yet - there is nothing to flag */}
+                      {!isNewInstance && (
+                        <FavoriteButton
+                          favorite={Boolean(instance.favorite)}
+                          instanceName={instanceName}
+                          onToggle={handleToggleFavorite}
+                          className="instance-name-favorite"
+                        />
+                      )}
+                    </div>
                     <div className="instance-meta">
                       <div className="mb-1">
                         <strong>ID:</strong> {instanceId}
@@ -1089,7 +1134,6 @@ function InstanceDetailView({ instanceId }: { instanceId: string }) {
                           }
                           isEditMode={false}
                           onInstanceClick={handleLinkClick}
-                          {...linkHoverProps(field)}
                         />
                         <FieldErrors errors={fieldErrors.get(field.identifier)} />
                       </div>
@@ -1120,7 +1164,6 @@ function InstanceDetailView({ instanceId }: { instanceId: string }) {
                           onInstanceClick={handleLinkClick}
                           currentInstanceId={instanceId}
                           parentSpace={instance.space}
-                          {...linkHoverProps(field)}
                         />
                         <FieldErrors errors={fieldErrors.get(field.identifier)} />
                         {fieldAlternatives.panel(field)}
@@ -1232,8 +1275,8 @@ function InstanceDetailView({ instanceId }: { instanceId: string }) {
             links={instance?.directLinks || []}
             onLinkClick={handleLinkClick}
             title="Outgoing Links"
-            highlightedLink={hoveredLink}
-            onLinkHover={setHoveredLink}
+            collapsed={collapsedSides.outgoing}
+            onToggleCollapsed={() => toggleSide("outgoing")}
           />
         </aside>
       </div>

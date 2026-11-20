@@ -15,6 +15,9 @@ vi.mock("../../contexts/AuthContext", () => {
   const getAccessToken = () => Promise.resolve("token");
   return { useAuth: () => ({ getAccessToken }) };
 });
+vi.mock("../../components/RawInstanceEditor", () => ({
+  default: ({ instanceId }: { instanceId: string }) => <div>{`raw json of ${instanceId}`}</div>,
+}));
 vi.mock("../../services/instances", () => ({ deleteInstance: vi.fn(), fetchInstance: vi.fn() }));
 const { removeDraft } = vi.hoisted(() => ({ removeDraft: vi.fn() }));
 vi.mock("../../contexts/UnsavedInstancesContext", () => ({
@@ -59,8 +62,9 @@ function renderHome(
   instances: InstanceSummary[] = [instance],
   total = instances.length,
   overrides: Partial<ReturnType<typeof useInstances>> = {},
+  types: ReturnType<typeof useTypes> = [],
 ) {
-  vi.mocked(useTypes).mockReturnValue([]);
+  vi.mocked(useTypes).mockReturnValue(types);
   vi.mocked(useSpaces).mockReturnValue([]);
   vi.mocked(fetchInstance).mockResolvedValue({
     instanceId: instance.instanceId,
@@ -107,6 +111,7 @@ function renderHome(
     deleteInstances: vi.fn(),
     getInstance: vi.fn(),
     requestInstances: vi.fn(),
+    reloadInstances: vi.fn(),
     ...overrides,
   });
 
@@ -129,9 +134,18 @@ describe("EditorHome", () => {
     renderHome();
 
     expect(screen.getByRole("columnheader", { name: "Status" })).toBeInTheDocument();
-    const headers = screen.getAllByRole("columnheader");
-    expect(headers.at(-1)).toHaveAccessibleName("Permissions");
-    expect(headers.at(-1)).toHaveTextContent("");
+    // The select-all checkbox says what it selects, and the favorites column has no visible header beside it
+    expect(screen.getByRole("checkbox", { name: "Select all 1 instances" })).toBeInTheDocument();
+    expect(screen.getByRole("columnheader", { name: "Favorite" })).toHaveTextContent("");
+    // The actions have no column - they are a line of their own under the data of the instance, across the columns
+    expect(screen.getAllByRole("columnheader").at(-1)).toHaveAccessibleName("Status");
+    const dataRow = screen.getByText("Headquarters").closest("tr") as HTMLElement;
+    const actionsRow = dataRow.nextElementSibling as HTMLElement;
+    expect(actionsRow).toHaveClass("instance-actions-row");
+    expect(actionsRow.querySelector("td")).toHaveAttribute("colspan", "4");
+    expect(
+      within(actionsRow).getByRole("button", { name: "Open Headquarters in view mode" }),
+    ).toBeInTheDocument();
     expect(screen.getByText("released")).toBeInTheDocument();
     const minimal = screen.getByTitle('Validation "minimal": valid (100% compliant)');
     const complete = screen.getByTitle('Validation "complete": invalid (62% compliant)');
@@ -289,6 +303,17 @@ describe("EditorHome", () => {
     );
   });
 
+  it("opens the instance in raw mode from the actions of the row", () => {
+    renderHome([{ ...instance, permissions: "View" }]);
+
+    fireEvent.click(
+      screen.getByRole("button", { name: "Open Headquarters in raw mode" }),
+    );
+    expect(screen.getByTestId("location")).toHaveTextContent(
+      "/editor/instances/inst-1?raw=1",
+    );
+  });
+
   it("disables the permission icons the user lacks and tells why", () => {
     renderHome([{ ...instance, permissions: "View" }]);
 
@@ -308,28 +333,47 @@ describe("EditorHome", () => {
     ).toBeDisabled();
   });
 
-  it("opens the instance page in edit mode from the preview", () => {
+  it("switches the preview between the read and the raw view without leaving the list", async () => {
     renderHome();
     fireEvent.click(screen.getByText("Headquarters"));
+    const preview = screen.getByRole("complementary", { name: "Preview of Headquarters" });
 
-    fireEvent.click(screen.getByRole("button", { name: "Edit instance" }));
+    expect(within(preview).getByRole("button", { name: "Read" })).toHaveAttribute("aria-pressed", "true");
+    expect(within(preview).getByRole("button", { name: "Raw" })).toHaveAttribute("aria-pressed", "false");
+    expect(await within(preview).findByText("Zurich")).toBeInTheDocument();
 
-    expect(screen.getByTestId("location")).toHaveTextContent(
-      "/editor/instances/inst-1?edit=1",
-    );
+    fireEvent.click(within(preview).getByRole("button", { name: "Raw" }));
+
+    expect(within(preview).getByRole("button", { name: "Raw" })).toHaveAttribute("aria-pressed", "true");
+    expect(within(preview).getByRole("button", { name: "Read" })).toHaveAttribute("aria-pressed", "false");
+    expect(within(preview).getByText("raw json of inst-1")).toBeInTheDocument();
+    expect(within(preview).queryByText("Zurich")).not.toBeInTheDocument();
+    expect(screen.getByTestId("location")).toHaveTextContent("/editor");
+    expect(screen.queryByText("instance detail")).not.toBeInTheDocument();
+
+    fireEvent.click(within(preview).getByRole("button", { name: "Read" }));
+    expect(await within(preview).findByText("Zurich")).toBeInTheDocument();
   });
 
-  it("opens the instance page in raw mode from the preview", () => {
+  it("opens the instance page in the raw mode when the preview shows the raw view", () => {
     renderHome();
     fireEvent.click(screen.getByText("Headquarters"));
+    const preview = screen.getByRole("complementary", { name: "Preview of Headquarters" });
 
-    fireEvent.click(
-      screen.getByRole("button", { name: "Open instance in raw mode" }),
-    );
+    fireEvent.click(within(preview).getByRole("button", { name: "Raw" }));
+    fireEvent.click(within(preview).getByRole("button", { name: "Open instance in raw mode" }));
 
     expect(screen.getByTestId("location")).toHaveTextContent(
       "/editor/instances/inst-1?raw=1",
     );
+  });
+
+  it("leaves editing, reviewing and releasing to the instance page - the preview has no such buttons", () => {
+    renderHome();
+    fireEvent.click(screen.getByText("Headquarters"));
+    const preview = screen.getByRole("complementary", { name: "Preview of Headquarters" });
+
+    expect(within(preview).queryByRole("button", { name: /^(edit|review|release)\b/i })).not.toBeInTheDocument();
   });
 
   it("shows the instance id, space, and fields", async () => {
@@ -407,14 +451,27 @@ describe("EditorHome", () => {
     }
   });
 
-  it("keeps filters inline on a wide screen", () => {
+  it("keeps filters in a column beside the list on a wide screen", () => {
     renderHome();
 
-    expect(screen.getByLabelText("Show favorites only")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Type (0)" })).toBeInTheDocument();
+    const filters = screen.getByRole("complementary", { name: "Filters" });
+    expect(within(filters).getByLabelText("Show favorites only")).toBeInTheDocument();
+    expect(within(filters).getByRole("heading", { name: "Type" })).toBeInTheDocument();
+    expect(within(filters).getByRole("heading", { name: "Space" })).toBeInTheDocument();
     expect(
       screen.queryByRole("button", { name: "Filters" }),
     ).not.toBeInTheDocument();
+  });
+
+  it("shows each type of the filter with its color, name and semantic name", () => {
+    renderHome([instance], 1, {}, [
+      { identifier: "https://example.org/types/Building", name: "Building", color: "#4caf50" },
+    ]);
+
+    const filters = screen.getByRole("complementary", { name: "Filters" });
+    const label = within(filters).getByText("Building").closest("label") as HTMLElement;
+    expect(label).toHaveTextContent("https://example.org/types/Building");
+    expect(label.querySelector(".type-color-icon")).toHaveStyle({ color: "#4caf50" });
   });
 
   it("groups filters behind one button on a narrow screen", () => {
@@ -447,6 +504,20 @@ describe("EditorHome", () => {
     } finally {
       window.matchMedia = originalMatchMedia;
     }
+  });
+
+  it("loads the instances again every time the search is run - also with the same term", () => {
+    const setSearchTerm = vi.fn();
+    const reloadInstances = vi.fn();
+    renderHome([instance], 1, { searchTerm: "brain", setSearchTerm, reloadInstances });
+
+    fireEvent.click(screen.getByRole("button", { name: "Search button" }));
+    fireEvent.click(screen.getByRole("button", { name: "Search button" }));
+    fireEvent.keyDown(screen.getByLabelText("Search instances"), { key: "Enter" });
+
+    expect(setSearchTerm).toHaveBeenCalledTimes(3);
+    expect(setSearchTerm).toHaveBeenCalledWith("brain");
+    expect(reloadInstances).toHaveBeenCalledTimes(3);
   });
 
   it("flags an instance as favorite without opening its preview", () => {

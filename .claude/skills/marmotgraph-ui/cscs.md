@@ -48,7 +48,8 @@ The values come from the CSCS console screenshots. If a new screenshot disagrees
 - **Titles.** The top bar names the module. The title of a list ("Instances", "Queries", "Statistics") is a 1.25rem section heading, not a second page title. The home screen keeps its large title (tenant name plus "Knowledge Graph Suite").
 - **Buttons.** 6px radius, weight 500. Quiet actions are white with a hairline. The dark primary action keeps the default dark (no CSCS reference for an enabled primary yet).
 - **Lists.** Rows are white with a hairline between them, no zebra stripes. The header row is a light band. The list sits in a white card with a hairline edge (not on a phone). Hover is the page tone, selection is the green tint with a green bar.
-- **Permission buttons.** One row of four, or a 2 x 2 grid when the list is 900px wide or less (a container query), so they never wrap by accident. The column is headed "Actions".
+- **Permission buttons.** In the editor list they are one row of their own under the data of the instance, across the columns from the type on (each instance is a `tbody` of two rows; hover and selection belong to the `tbody`), never wrapping; the card and the preview use a grid of 3 per row when the list is 900px wide or less (a container query), so they never wrap by accident.
+- **Editor filters.** A white card in a column left of the list (not on a phone, where one "Filters" button opens a dialog).
 - **Color.** Green is the only accent. Purple hover and selection, and the blue of links and focus rings, are remapped to green. Status colors keep their meaning: released green, changed and unsaved amber, contribution blue, errors red.
 - **Cards.** 8px radius and `--cscs-border`. Cards inside a card use 6px.
 

@@ -24,7 +24,7 @@ import {
   Edit3Icon,
   Network,
   PanelLeftClose,
-  PanelRightOpenIcon,
+  PanelLeftOpen,
   ShieldCheck,
 } from "lucide-react";
 
@@ -194,8 +194,11 @@ function SidebarMG({ isCollapsed, onToggle }: SidebarMGProps) {
             variant="filled-light"
             // className="sidebar-collapse-button"
             onClick={onToggle}
+            aria-label={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+            aria-expanded={!isCollapsed}
+            title={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
           >
-            {isCollapsed ? <PanelRightOpenIcon /> : <PanelLeftClose />}
+            {isCollapsed ? <PanelLeftOpen /> : <PanelLeftClose />}
           </Button>
         </div>
       </div>

@@ -4,6 +4,7 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import { instanceListSearch, PREVIEW_PARAM } from "./instanceListUrl";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
+  faArrowRight,
   faChevronDown,
   faChevronUp,
   faCircle,
@@ -20,8 +21,10 @@ import {
   faStar as faStarSolid,
   faTriangleExclamation,
   faXmark,
+  IconDefinition,
 } from "@fortawesome/free-solid-svg-icons";
 import { faStar as faStarRegular } from "@fortawesome/free-regular-svg-icons";
+import RawInstanceEditor from "../../components/RawInstanceEditor";
 import { useAuth } from "../../contexts/AuthContext";
 import { useInstances } from "../../contexts/InstancesContext";
 import { useUnsavedInstances } from "../../contexts/UnsavedInstancesContext";
@@ -81,6 +84,7 @@ export default function EditorHome() {
     loadMore,
     searchTerm,
     setSearchTerm,
+    reloadInstances,
     typeFilter,
     setTypeFilter,
     spaceFilter,
@@ -179,6 +183,7 @@ export default function EditorHome() {
         name: typeLabel(type),
         url: type.identifier,
         description: type.description,
+        color: type.color || typeColors[typeLabel(type)],
       }))
       .sort((a, b) => a.name.localeCompare(b.name));
   }, [types]);
@@ -196,6 +201,9 @@ export default function EditorHome() {
 
   const handleSearch = () => {
     setSearchTerm(searchQuery.trim());
+    // Every search loads the instances again, also with the same term (the list may have changed meanwhile). A new
+    // term is batched with this into a single load.
+    reloadInstances();
   };
 
   const handleRemoveFilter = (
@@ -399,10 +407,10 @@ export default function EditorHome() {
         </Col>
       </Row>
 
-      {/* Filters. On a phone they collapse into one button so the list stays in view. */}
-      <Row className="mb-3">
-        <Col>
-          {isMobile ? (
+      {/* On a phone the filters collapse into one button so the list stays in view. Otherwise they are a column beside the list. */}
+      {isMobile && (
+        <Row className="mb-3">
+          <Col>
             <Button
               type="button"
               variant={activeFilterCount > 0 ? "dark" : "outline-secondary"}
@@ -414,32 +422,9 @@ export default function EditorHome() {
               <FontAwesomeIcon icon={faFilter} />
               Filters{activeFilterCount > 0 ? ` (${activeFilterCount})` : ""}
             </Button>
-          ) : (
-            <div className="d-flex gap-3 align-items-center flex-wrap">
-              <Form.Check
-                type="checkbox"
-                id="favorites-filter-editor"
-                label="Show favorites only"
-                checked={favoritesOnly}
-                onChange={(e) => setFavoritesOnly(e.target.checked)}
-              />
-              <Form.Check
-                type="checkbox"
-                id="contributed-filter-editor"
-                label="Show my contributions only"
-                checked={contributedOnly}
-                onChange={(e) => setContributedOnly(e.target.checked)}
-              />
-              <InstanceFilterPanel
-                filters={filters}
-                onFiltersChange={setFilters}
-                availableTypes={availableTypes}
-                availableSpaces={availableSpaces}
-              />
-            </div>
-          )}
-        </Col>
-      </Row>
+          </Col>
+        </Row>
+      )}
 
       {isMobile && (
         <Modal
@@ -470,7 +455,6 @@ export default function EditorHome() {
               className="mb-3"
             />
             <InstanceFilterPanel
-              variant="stacked"
               filters={filters}
               onFiltersChange={setFilters}
               availableTypes={availableTypes}
@@ -604,6 +588,45 @@ export default function EditorHome() {
 
       {/* The table takes the remaining height of the page and only scrolls its body (the header is sticky) */}
       <div className="editor-home-body">
+        {!isMobile && (
+          <aside className="instance-filters" aria-label="Filters">
+            <div className="instance-filters-header">
+              <h3 className="instance-filters-title">Filters</h3>
+              {activeFilterCount > 0 && (
+                <Button
+                  variant="link"
+                  size="sm"
+                  className="instance-filters-clear p-0"
+                  onClick={clearFilters}
+                >
+                  Clear all
+                </Button>
+              )}
+            </div>
+            <div className="instance-filters-toggles">
+              <Form.Check
+                type="checkbox"
+                id="favorites-filter-editor"
+                label="Show favorites only"
+                checked={favoritesOnly}
+                onChange={(e) => setFavoritesOnly(e.target.checked)}
+              />
+              <Form.Check
+                type="checkbox"
+                id="contributed-filter-editor"
+                label="Show my contributions only"
+                checked={contributedOnly}
+                onChange={(e) => setContributedOnly(e.target.checked)}
+              />
+            </div>
+            <InstanceFilterPanel
+              filters={filters}
+              onFiltersChange={setFilters}
+              availableTypes={availableTypes}
+              availableSpaces={availableSpaces}
+            />
+          </aside>
+        )}
         <div className="table-scroll-container" ref={scrollContainerRef}>
           {isMobile ? (
             <InstanceCardList
@@ -642,6 +665,8 @@ export default function EditorHome() {
                   <th style={{ width: "40px" }}>
                     <Form.Check
                       type="checkbox"
+                      aria-label={`Select all ${instances.length} instances`}
+                      title={`Select all ${instances.length} instances`}
                       checked={
                         selectedInstances.size ===
                           instances.length && selectedInstances.size > 0
@@ -649,7 +674,8 @@ export default function EditorHome() {
                       onChange={handleSelectAll}
                     />
                   </th>
-                  <th>Fav</th>
+                  {/* No visible header: next to the select-all checkbox any text or icon reads as what it selects */}
+                  <th aria-label="Favorite" />
                   <th
                     onClick={() => handleSort("TYPE")}
                     aria-sort={getAriaSort("TYPE")}
@@ -672,13 +698,12 @@ export default function EditorHome() {
                     Last modified {getSortIcon("LAST_MODIFICATION")}
                   </th>
                   <th>Status</th>
-                  <th aria-label="Permissions" />
                 </tr>
               </thead>
-              <tbody>
-                {loading && (
+              {loading && (
+                <tbody>
                   <tr>
-                    <td colSpan={7} className="text-center py-4">
+                    <td colSpan={6} className="text-center py-4">
                       <Spinner
                         animation="border"
                         size="sm"
@@ -688,10 +713,12 @@ export default function EditorHome() {
                       Loading instances...
                     </td>
                   </tr>
-                )}
-                {!loading &&
-                  instances.map((instance) => (
-                      <tr
+                </tbody>
+              )}
+              {/* An instance is a group of two rows: its data, and below it a line for the actions across the columns */}
+              {!loading &&
+                instances.map((instance) => (
+                      <tbody
                         key={instance.instanceId}
                         className={
                           previewInstance?.instanceId === instance.instanceId
@@ -714,7 +741,8 @@ export default function EditorHome() {
                         }
                         style={{ cursor: "pointer" }}
                       >
-                        <td onClick={(e) => e.stopPropagation()}>
+                      <tr className="instance-main-row">
+                        <td rowSpan={2} onClick={(e) => e.stopPropagation()}>
                           <Form.Check
                             type="checkbox"
                             aria-label={`Select ${instance.instanceName}`}
@@ -724,7 +752,7 @@ export default function EditorHome() {
                             }
                           />
                         </td>
-                        <td>
+                        <td rowSpan={2}>
                           <FavoriteToggle
                             instance={instance}
                             onToggle={handleToggleFavorite}
@@ -785,15 +813,17 @@ export default function EditorHome() {
                             validation={instance.validation}
                           />
                         </td>
-                        <td>
+                      </tr>
+                      <tr className="instance-actions-row">
+                        <td colSpan={4} className="instance-actions-cell">
                           <InstancePermissionButtons
                             instance={instance}
                             onOpen={openInstance}
                           />
                         </td>
                       </tr>
+                      </tbody>
                     ))}
-              </tbody>
             </Table>
           )}
           {showLoadMore && (
@@ -811,15 +841,7 @@ export default function EditorHome() {
             instance={previewInstance}
             onToggleFavorite={handleToggleFavorite}
             onClose={() => setPreviewInstanceId(null)}
-            onOpen={() =>
-              navigate(`/editor/instances/${previewInstance.instanceId}`)
-            }
-            onEdit={() =>
-              navigate(`/editor/instances/${previewInstance.instanceId}?edit=1`)
-            }
-            onRaw={() =>
-              navigate(`/editor/instances/${previewInstance.instanceId}?raw=1`)
-            }
+            onOpen={openInstance}
           />
         )}
       </div>
@@ -1002,10 +1024,12 @@ function FavoriteToggle({
  * without it. Review is the right to invite reviewers; the instance page has no review mode, so it opens in view.
  */
 const permissionItems = [
-  { key: "View", icon: faEye, search: "", action: "view this instance" },
-  { key: "Edit", icon: faPen, search: "?edit=1", action: "edit this instance" },
-  { key: "Review", icon: faClipboardCheck, search: "?review=1", action: "invite reviewers for this instance" },
-  { key: "Release", icon: faRocket, search: "?release=1", action: "release this instance" },
+  { key: "View", permission: "View", icon: faEye, search: "", action: "view this instance" },
+  { key: "Edit", permission: "Edit", icon: faPen, search: "?edit=1", action: "edit this instance" },
+  { key: "Review", permission: "Review", icon: faClipboardCheck, search: "?review=1", action: "invite reviewers for this instance" },
+  { key: "Release", permission: "Release", icon: faRocket, search: "?release=1", action: "release this instance" },
+  // The raw JSON is shown to anyone who may view the instance - it can only be edited with the right to edit
+  { key: "Raw", permission: "View", icon: faCode, search: "?raw=1", action: "view the raw JSON of this instance" },
 ] as const;
 
 function InstancePermissionButtons({
@@ -1022,7 +1046,7 @@ function InstancePermissionButtons({
   return (
     <div className="instance-permissions">
       {permissionItems.map((item) => {
-        const permitted = instance.permissions.includes(item.key);
+        const permitted = instance.permissions.includes(item.permission);
         return (
           <DisabledHint key={item.key} reason={permitted ? undefined : noPermission(item.action)}>
             <button
@@ -1211,28 +1235,34 @@ function InstanceCardList({
   );
 }
 
+/** What the preview shows. Editing, reviewing and releasing need the instance page. */
+type PreviewMode = "read" | "raw";
+
+const previewModes: Array<{ mode: PreviewMode; label: string; icon: IconDefinition }> = [
+  { mode: "read", label: "Read", icon: faEye },
+  { mode: "raw", label: "Raw", icon: faCode },
+];
+
 function InstancePreview({
   instance,
   onToggleFavorite,
   onClose,
   onOpen,
-  onEdit,
-  onRaw,
 }: {
   instance: InstanceSummary;
   onToggleFavorite: (instanceId: string) => void;
   onClose: () => void;
-  onOpen: () => void;
-  onEdit: () => void;
-  onRaw: () => void;
+  /** Opens the instance page - with the search of the mode ("" for the read mode) */
+  onOpen: (instanceId: string, search: string) => void;
 }) {
   const navigate = useNavigate();
   const { getAccessToken } = useAuth();
+  // Kept when another instance is previewed, to go through the list in the same view
+  const [previewMode, setPreviewMode] = useState<PreviewMode>("read");
   const [detail, setDetail] = useState<InstanceDetail | undefined>();
   const [fieldsLoading, setFieldsLoading] = useState(true);
   const [fieldsError, setFieldsError] = useState<string>();
   const [copied, setCopied] = useState(false);
-  const canEdit = instance.permissions.includes("Edit");
   const typeColor =
     instance.typeColor || typeColors[instance.type] || "#6c757d";
 
@@ -1330,45 +1360,63 @@ function InstancePreview({
           <span className="instance-preview-meta-label">Space</span>
           {instance.space}
         </div>
-        <div
-          className="instance-preview-actions"
-          role="group"
-          aria-label="Open instance"
-        >
-          <Button
-            variant="dark"
-            size="sm"
-            onClick={onOpen}
-            aria-label="Open instance"
+        <div className="instance-preview-actions">
+          {/* What the preview shows - it stays in the list */}
+          <div
+            className="instance-preview-modes"
+            role="group"
+            aria-label="Preview mode"
           >
-            <FontAwesomeIcon icon={faEye} aria-hidden="true" />
-            Open
-          </Button>
-          <DisabledHint reason={canEdit ? undefined : noPermission("edit this instance")}>
-            <Button
-              variant="outline-secondary"
-              size="sm"
-              onClick={onEdit}
-              disabled={!canEdit}
-              aria-label="Edit instance"
-            >
-              <FontAwesomeIcon icon={faPen} aria-hidden="true" />
-              Edit
-            </Button>
-          </DisabledHint>
-          <Button
-            variant="outline-secondary"
-            size="sm"
-            onClick={onRaw}
-            aria-label="Open instance in raw mode"
+            {previewModes.map((item) => (
+              <button
+                key={item.mode}
+                type="button"
+                className={`instance-permission-btn instance-permission-btn--labeled${
+                  previewMode === item.mode
+                    ? " instance-permission-btn--active"
+                    : ""
+                }`}
+                aria-pressed={previewMode === item.mode}
+                onClick={() => setPreviewMode(item.mode)}
+              >
+                <FontAwesomeIcon icon={item.icon} aria-hidden="true" />
+                {item.label}
+              </button>
+            ))}
+          </div>
+          {/* Leaves the list - opens the instance page in the mode shown by the preview */}
+          <button
+            type="button"
+            className="instance-permission-btn instance-permission-btn--labeled"
+            onClick={() =>
+              onOpen(
+                instance.instanceId,
+                previewMode === "raw" ? "?raw=1" : "",
+              )
+            }
+            aria-label={
+              previewMode === "raw"
+                ? "Open instance in raw mode"
+                : "Open instance"
+            }
+            title="Open the instance page"
           >
-            <FontAwesomeIcon icon={faCode} aria-hidden="true" />
-            Raw
-          </Button>
+            <FontAwesomeIcon icon={faArrowRight} aria-hidden="true" />
+            Open instance
+          </button>
         </div>
       </div>
       <div className="instance-preview-fields">
-        {fieldsLoading && (
+        {previewMode === "raw" && (
+          <RawInstanceEditor
+            key={instance.instanceId}
+            instanceId={instance.instanceId}
+            canEdit={false}
+            onDraftChange={() => undefined}
+            onSaved={() => undefined}
+          />
+        )}
+        {previewMode === "read" && fieldsLoading && (
           <div className="instance-preview-fields-status text-muted">
             <Spinner
               animation="border"
@@ -1379,17 +1427,18 @@ function InstancePreview({
             Loading fields...
           </div>
         )}
-        {!fieldsLoading && fieldsError && (
+        {previewMode === "read" && !fieldsLoading && fieldsError && (
           <p className="instance-preview-fields-status text-muted mb-0">
             The fields could not be loaded.
           </p>
         )}
-        {!fieldsLoading && !fieldsError && fields.length === 0 && (
+        {previewMode === "read" && !fieldsLoading && !fieldsError && fields.length === 0 && (
           <p className="instance-preview-fields-status text-muted mb-0">
             This instance has no fields.
           </p>
         )}
-        {!fieldsLoading &&
+        {previewMode === "read" &&
+          !fieldsLoading &&
           !fieldsError &&
           supportedFields.map((field) => (
             <PreviewField
@@ -1400,7 +1449,7 @@ function InstancePreview({
               }
             />
           ))}
-        {!fieldsLoading && !fieldsError && unsupportedFields.length > 0 && (
+        {previewMode === "read" && !fieldsLoading && !fieldsError && unsupportedFields.length > 0 && (
           <PreviewUnsupportedFields
             fields={unsupportedFields}
             onInstanceClick={(linkedId) =>

@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useMemo, useRef, useState } from "react";
+import React, { createContext, useContext, useMemo, useState } from "react";
 import { Badge, Button } from "react-bootstrap";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
@@ -34,7 +34,8 @@ const typeColors: Record<string, string> = {
  */
 export const LinkIdentifiersOnlyContext = createContext(false);
 
-const PREVIEW_LIMIT = 10;
+/** How many linked instances are shown before the rest is left to the dialog - as many as the links panel starts with */
+const PREVIEW_LIMIT = 5;
 const NO_TYPES: string[] = [];
 
 type LinkedInstancesFieldProps = {
@@ -50,10 +51,6 @@ type LinkedInstancesFieldProps = {
   currentInstanceId?: string;
   parentSpace?: string;
   variant?: "view" | "edit";
-  /** The id of the linked instance to highlight */
-  highlightedInstanceId?: string;
-  /** Called with the id of the linked instance hovered (undefined when left) */
-  onInstanceHover?: (instanceId: string | undefined) => void;
 };
 
 export default function LinkedInstancesField({
@@ -67,8 +64,6 @@ export default function LinkedInstancesField({
   currentInstanceId,
   parentSpace,
   variant = "view",
-  highlightedInstanceId,
-  onInstanceHover,
 }: LinkedInstancesFieldProps) {
   const identifiersOnly = useContext(LinkIdentifiersOnlyContext);
   const { getDraft } = useUnsavedInstances();
@@ -78,24 +73,12 @@ export default function LinkedInstancesField({
     () => enrichLinkedInstancesWithDrafts(linkedInstances, getDraft),
     [getDraft, linkedInstances],
   );
-  const highlightedRef = useRef<HTMLElement>(null);
+  // While editing, the tags are plain information - the instances are managed in the dialog
+  const navigable = !(isEditMode && onChange);
+  // The tags don't react to the pointer beyond being clickable: with only a few of them shown there is little to find,
+  // and the links panel doesn't highlight them either
   const previewInstances = displayInstances.slice(0, PREVIEW_LIMIT);
-  if (
-    highlightedInstanceId &&
-    !previewInstances.some((instance) => instance.instanceId === highlightedInstanceId)
-  ) {
-    const highlighted = displayInstances.find(
-      (instance) => instance.instanceId === highlightedInstanceId,
-    );
-    if (highlighted) {
-      previewInstances.push(highlighted);
-    }
-  }
   const hiddenCount = Math.max(displayInstances.length - previewInstances.length, 0);
-
-  useEffect(() => {
-    highlightedRef.current?.scrollIntoView({ block: "nearest", inline: "nearest" });
-  }, [highlightedInstanceId]);
   const singleAction = displayInstances.length > 0 ? "Change" : "Select";
   const badgeClassName =
     variant === "edit" ? "tag-badge me-2 mb-2" : "view-badge me-2 mb-2";
@@ -127,28 +110,14 @@ export default function LinkedInstancesField({
           previewInstances.map((instance) => {
             const typeColor =
               instance.typeColor || typeColors[instance.type] || "#6c757d";
-            const hoverProps = {
-              onMouseEnter:
-                onInstanceHover &&
-                (() => onInstanceHover(instance.instanceId)),
-              onMouseLeave: onInstanceHover && (() => onInstanceHover(undefined)),
-            };
-            const highlightClassName =
-              highlightedInstanceId === instance.instanceId
-                ? " linked-instance-badge--highlighted"
-                : "";
-
-            const highlighted = highlightedInstanceId === instance.instanceId;
             if (!isResolvedLink(instance)) {
               const restricted = instance.linkStatus === "restricted";
               return (
                 <Badge
                   key={instance.instanceId}
-                  ref={highlighted ? highlightedRef : undefined}
                   bg="light"
                   text="dark"
-                  className={`${badgeClassName} linked-instance-badge linked-instance-badge--${instance.linkStatus}${highlightClassName}`}
-                  {...hoverProps}
+                  className={`${badgeClassName} linked-instance-badge linked-instance-badge--${instance.linkStatus}`}
                   title={linkedInstanceStatusDescription(instance)}
                 >
                   <FontAwesomeIcon
@@ -167,20 +136,24 @@ export default function LinkedInstancesField({
             return (
               <Badge
                 key={instance.instanceId}
-                ref={highlighted ? highlightedRef : undefined}
                 bg="light"
                 text="dark"
-                className={`${badgeClassName} linked-instance-badge${highlightClassName}`}
-                {...hoverProps}
-                onClick={() => onInstanceClick(instance.instanceId)}
-                role="button"
-                tabIndex={0}
-                onKeyDown={(event) => {
-                  if (event.key === "Enter" || event.key === " ") {
-                    event.preventDefault();
-                    onInstanceClick(instance.instanceId);
-                  }
-                }}
+                className={`${badgeClassName} linked-instance-badge${
+                  navigable ? "" : " linked-instance-badge--static"
+                }`}
+                {...(navigable
+                  ? {
+                      onClick: () => onInstanceClick(instance.instanceId),
+                      role: "button",
+                      tabIndex: 0,
+                      onKeyDown: (event: React.KeyboardEvent) => {
+                        if (event.key === "Enter" || event.key === " ") {
+                          event.preventDefault();
+                          onInstanceClick(instance.instanceId);
+                        }
+                      },
+                    }
+                  : {})}
               >
                 <FontAwesomeIcon
                   icon={faCircle}
@@ -199,6 +172,18 @@ export default function LinkedInstancesField({
           })
         )}
 
+        {/* Tells the list is cut off - plain information, the link beside it opens the instances */}
+        {isEditMode && onChange && !single && hiddenCount > 0 && (
+          <Badge
+            bg="light"
+            text="dark"
+            className={`${badgeClassName} linked-instances-more-badge`}
+            title={`Showing ${previewInstances.length} of ${displayInstances.length}`}
+          >
+            +{hiddenCount} more
+          </Badge>
+        )}
+
         {isEditMode && onChange ? (
           <Button
             variant="link"
@@ -207,7 +192,11 @@ export default function LinkedInstancesField({
             onClick={() => setShowEditModal(true)}
             aria-label={single ? `${singleAction} ${fieldLabel}` : undefined}
           >
-            {single ? singleAction : `Manage (${displayInstances.length})`}
+            {single
+              ? singleAction
+              : hiddenCount > 0
+                ? `Manage all ${displayInstances.length}`
+                : `Manage (${displayInstances.length})`}
           </Button>
         ) : (
           hiddenCount > 0 && (

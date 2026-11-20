@@ -2,6 +2,9 @@ import React, { useEffect, useState } from "react";
 import { Button, Spinner } from "react-bootstrap";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
+  faAnglesLeft,
+  faAnglesRight,
+  faArrowRight,
   faChevronDown,
   faChevronRight,
   faCircle,
@@ -19,6 +22,7 @@ import DirLinkIcon from "../assets/icons/DirLink.svg";
 import RevLinkIcon from "../assets/icons/RevLink.svg";
 import RevDirLinkIcon from "../assets/icons/RevDirLink.svg";
 import NoLinksIcon from "../assets/icons/NoLinks.svg";
+import LinksModal from "./LinksModal";
 import "./InstanceLinksPanel.css";
 
 const typeColors: Record<string, string> = {
@@ -30,28 +34,31 @@ const typeColors: Record<string, string> = {
   Canton: "#00bcd4",
 };
 
-/** A link to an instance - identified by the field it is linked by and the linked instance */
-export type HoveredLink = { fieldLabel: string; instanceId: string };
+/** How many links of one type are shown before asking for more. */
+export const LINKS_PAGE = 5;
 
-/** How many outgoing links of one type are shown before asking for more. */
-const LINKS_PAGE = 5;
+/**
+ * Up to this many links of one type can be revealed in the panel ("Show x more"). A type with more links is not
+ * unfolded in the narrow panel - "Show all" lists them in a dialog.
+ */
+export const LINKS_INLINE_MAX = 10;
 
 interface InstanceLinksPanelProps {
   links: LinkedInstance[];
   onLinkClick: (instanceId: string) => void;
   title: string;
-  /** The link whose instance is highlighted */
-  highlightedLink?: HoveredLink;
-  /** Called with the link whose instance is hovered (undefined when left) */
-  onLinkHover?: (link: HoveredLink | undefined) => void;
+  /** Whether the panel is reduced to a slim rail (on the side-by-side layout) */
+  collapsed?: boolean;
+  /** Collapses or expands the panel - the panel can't be collapsed without it */
+  onToggleCollapsed?: () => void;
 }
 
 export default function InstanceLinksPanel({
   links,
   onLinkClick,
   title,
-  highlightedLink,
-  onLinkHover,
+  collapsed,
+  onToggleCollapsed,
 }: InstanceLinksPanelProps) {
   // Group links by field label - and within a field by the type of the linked instance
   const groupedLinks = links.reduce(
@@ -71,6 +78,9 @@ export default function InstanceLinksPanel({
       title={title}
       count={links?.length}
       isEmpty={!links || links.length === 0}
+      side="outgoing"
+      collapsed={collapsed}
+      onToggleCollapsed={onToggleCollapsed}
     >
       {Object.entries(groupedLinks).map(([fieldLabel, fieldLinks]) => (
         <FieldGroup
@@ -88,9 +98,7 @@ export default function InstanceLinksPanel({
               }
               fieldLabel={fieldLabel}
               typeLinks={typeLinks}
-              highlightedLink={highlightedLink}
               onLinkClick={onLinkClick}
-              onLinkHover={onLinkHover}
             />
           ))}
         </FieldGroup>
@@ -106,21 +114,20 @@ const UNRESOLVED_TYPE = "\u0000unresolved";
 function OutgoingTypeLinks({
   fieldLabel,
   typeLinks,
-  highlightedLink,
   onLinkClick,
-  onLinkHover,
 }: {
   fieldLabel: string;
   typeLinks: LinkedInstance[];
-  highlightedLink?: HoveredLink;
   onLinkClick: (instanceId: string) => void;
-  onLinkHover?: (link: HoveredLink | undefined) => void;
 }) {
-  const [limit, setLimit] = useState(LINKS_PAGE);
+  const [expanded, setExpanded] = useState(false);
+  const [showAll, setShowAll] = useState(false);
   const first = typeLinks[0];
   const unresolved = first.linkStatus === "unresolved";
   const typeColor = first.typeColor || typeColors[first.type] || undefined;
-  const shown = typeLinks.slice(0, limit);
+  // Up to LINKS_INLINE_MAX links unfold in the panel - a type with more has them all in a dialog
+  const many = typeLinks.length > LINKS_INLINE_MAX;
+  const shown = expanded ? typeLinks : typeLinks.slice(0, LINKS_PAGE);
   const remaining = typeLinks.length - shown.length;
 
   return (
@@ -139,30 +146,38 @@ function OutgoingTypeLinks({
           fieldLabel={fieldLabel}
           typeColor={typeColor}
           onLinkClick={onLinkClick}
-          highlighted={
-            highlightedLink?.fieldLabel === fieldLabel &&
-            highlightedLink.instanceId === link.instanceId
-          }
-          onHover={
-            onLinkHover &&
-            ((hovered) =>
-              onLinkHover(
-                hovered
-                  ? { fieldLabel, instanceId: link.instanceId }
-                  : undefined,
-              ))
-          }
         />
       ))}
       <LinksPageActions
-        hasMore={remaining > 0}
-        moreCount={remaining > 0 ? Math.min(LINKS_PAGE, remaining) : undefined}
-        expanded={shown.length > LINKS_PAGE}
-        onMore={() => setLimit((current) => current + LINKS_PAGE)}
-        onLess={() => setLimit(LINKS_PAGE)}
+        hasMore={remaining > 0 && !many}
+        moreCount={remaining > 0 ? remaining : undefined}
+        showAllLabel={many ? showAllLabel(typeLinks.length, first.type, unresolved) : undefined}
+        showAllTitle={many ? `${showAllLabel(typeLinks.length, first.type, unresolved)} in ${fieldLabel}` : undefined}
+        onShowAll={many ? () => setShowAll(true) : undefined}
+        expanded={expanded}
+        onMore={() => setExpanded(true)}
+        onLess={() => setExpanded(false)}
       />
+      {many && (
+        <LinksModal
+          show={showAll}
+          onHide={() => setShowAll(false)}
+          direction="outgoing"
+          fieldLabel={fieldLabel}
+          type={unresolved ? "Unknown type" : first.type}
+          typeColor={typeColor}
+          links={typeLinks}
+          onLinkClick={onLinkClick}
+        />
+      )}
     </TypeGroup>
   );
+}
+
+/** The label of the link opening all links of a type - it names the type (a count is left out if it is not known). */
+export function showAllLabel(count: number | undefined, type: string, unresolved = false) {
+  const number = count !== undefined ? ` ${count}` : "";
+  return unresolved ? `Show all${number} unknown connections` : `Show all${number} ${type} links`;
 }
 
 /**
@@ -171,6 +186,9 @@ function OutgoingTypeLinks({
 export function LinksPageActions({
   hasMore,
   moreCount,
+  showAllLabel,
+  showAllTitle,
+  onShowAll,
   expanded,
   loading = false,
   onMore,
@@ -179,18 +197,39 @@ export function LinksPageActions({
   hasMore: boolean;
   /** How many the next step reveals, when that number is known */
   moreCount?: number;
+  /**
+   * Set for a type with too many links to unfold in the panel: "Show all" opens them in a dialog - instead of
+   * "Show more". The label names what is opened (e.g. "Show all 16 Person links") since several groups of links are
+   * listed one below the other - the title adds the field they belong to.
+   */
+  onShowAll?: () => void;
+  showAllLabel?: string;
+  showAllTitle?: string;
   /** Whether more than the first page is visible */
   expanded: boolean;
   loading?: boolean;
   onMore: () => void;
   onLess: () => void;
 }) {
-  if (!hasMore && !expanded) {
+  if (!hasMore && !expanded && !onShowAll) {
     return null;
   }
   return (
     <div className="links-page-actions">
-      {hasMore && (
+      {onShowAll && (
+        <Button
+          variant="link"
+          size="sm"
+          className="links-load-more-btn"
+          onClick={onShowAll}
+          aria-haspopup="dialog"
+          title={showAllTitle}
+          aria-label={showAllTitle}
+        >
+          {showAllLabel ?? "Show all"}
+        </Button>
+      )}
+      {hasMore && !onShowAll && (
         <Button
           variant="link"
           size="sm"
@@ -314,6 +353,9 @@ export function LinksPanelFrame({
   count,
   isEmpty,
   emptyMessage,
+  side,
+  collapsed = false,
+  onToggleCollapsed,
   children,
 }: {
   title: string;
@@ -322,11 +364,60 @@ export function LinksPanelFrame({
   isEmpty: boolean;
   /** Shown instead of the default message if there are no links */
   emptyMessage?: React.ReactNode;
+  /** The side of the instance the panel sits on - the arrow of the collapse button points to it */
+  side?: "incoming" | "outgoing";
+  /** On the side-by-side layout, the panel is reduced to a slim rail to give the instance more room */
+  collapsed?: boolean;
+  /** Collapses or expands the panel on the side-by-side layout - without it (and the side), the panel can't be collapsed there */
+  onToggleCollapsed?: () => void;
   children: React.ReactNode;
 }) {
   const narrow = useNarrowLayout();
   const [open, setOpen] = useState(false);
-  const showBody = !narrow || open;
+  const collapsible = !narrow && onToggleCollapsed !== undefined && side !== undefined;
+  const showBody = narrow ? open : !(collapsible && collapsed);
+  // The arrow points to the edge of the page when collapsing, and away from it when expanding
+  const towardsEdge = side === "incoming" ? faAnglesLeft : faAnglesRight;
+  const awayFromEdge = side === "incoming" ? faAnglesRight : faAnglesLeft;
+
+  if (collapsible && collapsed) {
+    return (
+      <div className="links-rail-wrap">
+        <div className="instance-links-panel is-rail">
+          <Button
+            variant="link"
+            size="sm"
+            className="links-panel-toggle"
+            onClick={onToggleCollapsed}
+            aria-expanded={false}
+            aria-label={`Show ${title.toLowerCase()}`}
+            title={`Show ${title.toLowerCase()}`}
+          >
+            <FontAwesomeIcon icon={awayFromEdge} />
+          </Button>
+          {count !== undefined && (
+            <span
+              className="links-rail-count"
+              title={`${count} ${title.toLowerCase()}`}
+            >
+              {count}
+            </span>
+          )}
+          <span className="links-rail-title">{title}</span>
+        </div>
+        {/* With links, the arrow shows their direction: incoming ones point to the instance, outgoing ones leave it.
+            It sits outside the box, in the gap towards the instance - on the same side as the links, so it points
+            right in either case. */}
+        {count !== undefined && count > 0 && (
+          <FontAwesomeIcon
+            icon={faArrowRight}
+            className={`links-rail-arrow links-rail-arrow--${side}`}
+            aria-hidden="true"
+          />
+        )}
+      </div>
+    );
+  }
   return (
     <div className={`instance-links-panel${showBody ? "" : " is-closed"}`}>
       <div className="links-panel-header">
@@ -336,6 +427,19 @@ export function LinksPanelFrame({
             <span className="links-panel-count ms-1">({count})</span>
           )}
         </h3>
+        {collapsible && (
+          <Button
+            variant="link"
+            size="sm"
+            className="links-panel-toggle"
+            onClick={onToggleCollapsed}
+            aria-expanded
+            aria-label={`Hide ${title.toLowerCase()}`}
+            title={`Hide ${title.toLowerCase()}`}
+          >
+            <FontAwesomeIcon icon={towardsEdge} />
+          </Button>
+        )}
         {narrow && (
           <Button
             variant="link"
@@ -419,8 +523,6 @@ const getLinkStatusIcon = (
 export function LinkItem({
   link,
   onLinkClick,
-  highlighted = false,
-  onHover,
   edge,
   fieldLabel,
   typeColor,
@@ -435,9 +537,6 @@ export function LinkItem({
     | "hasReverseLinks"
   >;
   onLinkClick: (instanceId: string) => void;
-  highlighted?: boolean;
-  /** Called with true when the link is hovered and with false when it is left */
-  onHover?: (hovered: boolean) => void;
   /** Which side of the open instance this card sits on, so a connector can be drawn */
   edge?: "incoming" | "outgoing";
   fieldLabel?: string;
@@ -450,22 +549,15 @@ export function LinkItem({
     <div
       className={`link-item${
         resolved ? "" : ` link-item--${link.linkStatus}`
-      }${highlighted ? " link-item--highlighted" : ""}`}
+      }`}
       data-link-edge={edge}
       data-link-id={link.instanceId}
       data-link-field={fieldLabel}
       data-link-color={typeColor}
       data-link-dashed={unresolved ? "true" : undefined}
-      data-link-highlighted={highlighted ? "true" : undefined}
       data-link-hot={hot ? "true" : undefined}
-      onMouseEnter={() => {
-        setHot(true);
-        onHover?.(true);
-      }}
-      onMouseLeave={() => {
-        setHot(false);
-        onHover?.(false);
-      }}
+      onMouseEnter={() => setHot(true)}
+      onMouseLeave={() => setHot(false)}
       onClick={resolved ? () => onLinkClick(link.instanceId) : undefined}
       title={linkedInstanceStatusDescription(link)}
       style={

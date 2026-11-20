@@ -184,13 +184,14 @@ public class Instances {
      * to be shown in. The direct links are the instances linked by its fields (labeled with the field they are linked
      * by, in the order of the fields). The incoming links are provided separately (see {@link #incomingLinks}) since they are paginated.
      * The validation holds the results of the last validation per validation schema of the type - with their errors.
-     * contributed tells whether the current user has contributed to the instance. The identifiers are the values of
+     * contributed tells whether the current user has contributed to the instance, favorite whether they flagged it as
+     * favorite (see {@link #addFavorite}). The identifiers are the values of
      * the {@link FieldCache#IDENTIFIER} - they are no field (they can only be added, see {@link #update}). The
      * alternatives are the values contributed to the fields - by the identifier of the field.
      */
     @JsonInclude(JsonInclude.Include.NON_NULL)
     public record InstanceDetail(String instanceId, String type, String typeDescription, String typeColor, String instanceName,
-                                 String space, String permissions, String releaseStatus, boolean contributed, List<Field> fields,
+                                 String space, String permissions, String releaseStatus, boolean contributed, boolean favorite, List<Field> fields,
                                  List<String> identifiers, List<LinkedInstance> directLinks, List<Validation> validation,
                                  Map<String, List<Alternative>> alternatives) {
     }
@@ -355,7 +356,7 @@ public class Instances {
     public InstanceDetail get(@AuthenticatedClient MarmotGraphClient client, @PathVariable UUID id) {
         org.marmotgraph.sdk.model.Instance instance = client.instances().get(id, Stage.IN_PROGRESS,
                 ResponseOptions.builder().returnPermissions(true).returnSummaryOfOutgoingLinks(true).returnAlternatives(true)
-                        .returnValidationResults(true).returnHasContributed(true).build());
+                        .returnValidationResults(true).returnHasContributed(true).returnFavorite(true).build());
         String instanceId = instance.getUuid().map(UUID::toString).orElse(id.toString());
         String typeName = instance.getType();
         TypeDefinition type = typeName != null ? typeCache.get(client, List.of(typeName)).get(typeName) : null;
@@ -363,7 +364,7 @@ public class Instances {
         List<Field> fields = fields(client, instance, typeName);
         return new InstanceDetail(instanceId, typeLabel(typeName, type), type != null ? type.description() : null, type != null ? type.color() : null,
                 instanceName(instance, type, instanceId), instance.getSpace(), permissions(instance.getPermissions()),
-                releaseStatus(releaseStatus), Boolean.TRUE.equals(instance.hasContributed()), fields,
+                releaseStatus(releaseStatus), Boolean.TRUE.equals(instance.hasContributed()), Boolean.TRUE.equals(instance.isFavorite()), fields,
                 identifiers(instance.get(FieldCache.IDENTIFIER)), directLinks(fields),
                 instance.getValidation().stream().map(v -> Validation.of(v, fields)).toList(),
                 alternatives(client, instance, typeName));
