@@ -1270,7 +1270,7 @@ function InstancePreview({
   onToggleFavorite,
   onClose,
   onOpen,
-  onEdit,
+  // onEdit,
   onRaw,
 }: Readonly<{
   instance: InstanceSummary;
@@ -1278,7 +1278,7 @@ function InstancePreview({
   onClose: () => void;
     /** Opens the instance page - with the search of the mode ("" for the read mode) */
     onOpen: (instanceId: string, search: string) => void;
-  onEdit: () => void;
+  // onEdit: () => void;
   onRaw: () => void;
 }>) {
   const navigate = useNavigate();

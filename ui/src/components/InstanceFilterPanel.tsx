@@ -216,6 +216,27 @@ export function InstanceFilterPanel({
     filters.spaces.length +
     filters.releaseStatuses.length;
 
+  // A type: its color, its name and below it the semantic name (the identifier) - the types of a space often share a name
+  const typesByUrl = new Map(availableTypes.map((t) => [t.url, t]));
+  const renderType = (url: string) => {
+    const type = typesByUrl.get(url);
+    const name = type?.name ?? url;
+    return (
+      <span className="instance-filter-type">
+        <FontAwesomeIcon
+          icon={faCircle}
+          className="type-color-icon instance-filter-type-dot"
+          style={{ color: type?.color ?? "#6c757d" }}
+          aria-hidden="true"
+        />
+        <span className="instance-filter-type-text">
+          <span>{name}</span>
+          {name !== url && <span className="instance-filter-type-id">{url}</span>}
+        </span>
+      </span>
+    );
+  };
+
   const typeList = (
     <ItemListFilter
       items={availableTypes.map((t) => t.url)}

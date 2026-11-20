@@ -155,7 +155,7 @@ export default function IncomingLinksPanel({
   isLoadingMore,
   collapsed,
   onToggleCollapsed,
-}: Readonly<IncomingLinksPanelProps>) {
+}: IncomingLinksPanelProps) {
   const title = "Incoming Links";
   let emptyMessage: React.ReactNode = undefined;
   if (loading) {

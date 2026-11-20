@@ -31,8 +31,10 @@ import {
   KeyRound,
   Network,
   PanelLeftClose,
-  PanelRightOpenIcon,
+  // PanelRightOpenIcon,
   Wrench,
+  PanelLeftOpen,
+  ShieldCheck,
 } from "lucide-react";
 
 const ADMIN_SECTION_ICONS: Record<AdminSection, React.ReactNode> = {
@@ -278,7 +280,7 @@ function SidebarMG({ isCollapsed, onToggle }: SidebarMGProps) {
             aria-expanded={!isCollapsed}
             title={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
           >
-            {isCollapsed ? <PanelRightOpenIcon /> : <PanelLeftClose />}
+            {isCollapsed ? <PanelLeftOpen /> : <PanelLeftClose />}
           </Button>
         </div>
       </div>
