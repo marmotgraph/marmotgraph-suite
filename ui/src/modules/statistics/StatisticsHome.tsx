@@ -1,10 +1,14 @@
-import React, { useEffect, useState } from "react";
-import { Alert, Button, Table } from "react-bootstrap";
+import React, { useEffect, useRef, useState } from "react";
+import { Alert, Button, ProgressBar, Table } from "react-bootstrap";
 import { useAuth } from "../../contexts/AuthContext";
 import {
+  BulkValidationStatus,
+  ComplianceCounts,
   fetchStatistics,
+  fetchValidationStatus,
   GraphStatistics,
   StatisticsTotals,
+  TypeValidationStatistics,
   ValidationStatistics,
 } from "../../services/statistics";
 import "./Statistics.css";
@@ -12,9 +16,15 @@ import "./Statistics.css";
 /** The number of types shown until the user asks for all of them. */
 const MOST_OCCURRING_TYPES = 10;
 
+/** How often the status of the validation of all instances is checked while it runs - and while it doesn't. */
+export const VALIDATION_POLL_INTERVAL = { running: 3000, idle: 30000 };
+
+/** The color of a type without one. */
+const NEUTRAL_TYPE_COLOR = "#6c757d";
+
 type ComplianceGroup = {
   key: keyof Pick<
-    ValidationStatistics,
+    ComplianceCounts,
     | "fullyCompliant"
     | "above80Percent"
     | "between40And80Percent"
@@ -116,7 +126,7 @@ function MostOccurringTypes({ types }: Readonly<{ types: GraphStatistics["types"
               <td>
                 <span
                   className="statistics-type-dot"
-                  style={{ backgroundColor: type.color || "#6c757d" }}
+                  style={{ backgroundColor: type.color || NEUTRAL_TYPE_COLOR }}
                   aria-hidden="true"
                 />
                 <span title={type.identifier}>{type.name}</span>
@@ -142,10 +152,87 @@ function MostOccurringTypes({ types }: Readonly<{ types: GraphStatistics["types"
   );
 }
 
-function SchemaCompliance({ schema }: Readonly<{ schema: ValidationStatistics }>) {
-  const groups = COMPLIANCE_GROUPS.filter((g) => !g.optional || schema[g.key] > 0);
-  const describe = (g: ComplianceGroup) =>
-    `${g.label}: ${plural(schema[g.key], "instance")} (${formatShare(schema[g.key], schema.instances)})`;
+/** The groups shown for the given counts - an optional group only if it has instances. */
+function shownGroups(counts: ComplianceCounts) {
+  return COMPLIANCE_GROUPS.filter((g) => !g.optional || counts[g.key] > 0);
+}
+
+function describeGroup(g: ComplianceGroup, counts: ComplianceCounts) {
+  return `${g.label}: ${plural(counts[g.key], "instance")} (${formatShare(counts[g.key], counts.instances)})`;
+}
+
+/** The instances as one bar with a segment per group - groups without instances don't get one. */
+function ComplianceBar({ counts, label, small }: Readonly<{ counts: ComplianceCounts; label?: string; small?: boolean }>) {
+  const groups = shownGroups(counts);
+  const description = groups.map((g) => describeGroup(g, counts)).join(", ");
+  return (
+    <div
+      className={`statistics-compliance-bar${small ? " statistics-compliance-bar--small" : ""}`}
+      role="img"
+      aria-label={label ? `${label}: ${description}` : description}
+    >
+      {groups
+        .filter((g) => counts[g.key] > 0)
+        .map((g) => (
+          <div
+            key={g.key}
+            className={`statistics-compliance-group--${g.key}`}
+            style={{ flexGrow: counts[g.key] }}
+            title={describeGroup(g, counts)}
+          />
+        ))}
+    </div>
+  );
+}
+
+/** The compliance of the instances of a schema per type - the type with the most instances first. */
+function ComplianceByType({
+  types,
+  colors,
+}: Readonly<{ types: TypeValidationStatistics[]; colors: Map<string, string | null | undefined> }>) {
+  return (
+    <Table responsive className="statistics-table statistics-compliance-types">
+      <thead>
+        <tr>
+          <th>Type</th>
+          <th className="statistics-bar-cell">Compliance</th>
+          <th className="statistics-number">Instances</th>
+          <th className="statistics-number">Fully compliant</th>
+        </tr>
+      </thead>
+      <tbody>
+        {types.map((type) => (
+          <tr key={type.identifier}>
+            <td>
+              <span
+                className="statistics-type-dot"
+                style={{ backgroundColor: colors.get(type.identifier) || NEUTRAL_TYPE_COLOR }}
+                aria-hidden="true"
+              />
+              <span title={type.identifier}>{type.name}</span>
+            </td>
+            <td className="statistics-bar-cell">
+              <ComplianceBar counts={type} label={type.name} small />
+            </td>
+            <td className="statistics-number">{formatCount(type.instances)}</td>
+            <td className="statistics-number">
+              {formatCount(type.fullyCompliant)}
+              <span className="statistics-share">{formatShare(type.fullyCompliant, type.instances)}</span>
+            </td>
+          </tr>
+        ))}
+      </tbody>
+    </Table>
+  );
+}
+
+function SchemaCompliance({
+  schema,
+  colors,
+}: Readonly<{ schema: ValidationStatistics; colors: Map<string, string | null | undefined> }>) {
+  const [showTypes, setShowTypes] = useState(false);
+  const groups = shownGroups(schema);
+  const perType = schema.perType ?? [];
   return (
     <article className="statistics-card statistics-schema">
       <header className="statistics-schema-header">
@@ -154,22 +241,7 @@ function SchemaCompliance({ schema }: Readonly<{ schema: ValidationStatistics }>
           {plural(schema.instances, "instance")} · {plural(schema.types, "type")}
         </span>
       </header>
-      <div
-        className="statistics-compliance-bar"
-        role="img"
-        aria-label={groups.map(describe).join(", ")}
-      >
-        {groups
-          .filter((g) => schema[g.key] > 0)
-          .map((g) => (
-            <div
-              key={g.key}
-              className={`statistics-compliance-group--${g.key}`}
-              style={{ flexGrow: schema[g.key] }}
-              title={describe(g)}
-            />
-          ))}
-      </div>
+      <ComplianceBar counts={schema} />
       <dl className="statistics-compliance-legend">
         {groups.map((g) => (
           <div key={g.key}>
@@ -184,7 +256,97 @@ function SchemaCompliance({ schema }: Readonly<{ schema: ValidationStatistics }>
           </div>
         ))}
       </dl>
+      {perType.length > 0 && (
+        <div className="statistics-schema-types">
+          <Button
+            variant="link"
+            size="sm"
+            className="statistics-show-all"
+            aria-expanded={showTypes}
+            onClick={() => setShowTypes(!showTypes)}
+          >
+            {showTypes ? "Hide the compliance per type" : `Show the compliance per type (${perType.length})`}
+          </Button>
+          {showTypes && <ComplianceByType types={perType} colors={colors} />}
+        </div>
+      )}
     </article>
+  );
+}
+
+/**
+ * Keeps track of the validation of all instances - checked often while it runs and rarely otherwise. The callback is
+ * invoked when a validation finishes while the page is open. Without the status (e.g. a failed request) there is no
+ * indication - the statistics stay usable without it.
+ */
+function useValidationStatus(onFinished: (status: BulkValidationStatus) => void) {
+  const { getAccessToken } = useAuth();
+  const [status, setStatus] = useState<BulkValidationStatus>();
+  const finished = useRef(onFinished);
+  useEffect(() => {
+    finished.current = onFinished;
+  }, [onFinished]);
+
+  useEffect(() => {
+    let current = true;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    let wasRunning = false;
+    const poll = () => {
+      getAccessToken()
+        .then(fetchValidationStatus)
+        .then((s) => {
+          if (!current) {
+            return;
+          }
+          const running = s.state === "RUNNING";
+          setStatus(s);
+          if (wasRunning && !running) {
+            finished.current(s);
+          }
+          wasRunning = running;
+          timer = setTimeout(poll, running ? VALIDATION_POLL_INTERVAL.running : VALIDATION_POLL_INTERVAL.idle);
+        })
+        .catch(() => current && setStatus(undefined));
+    };
+    poll();
+    return () => {
+      current = false;
+      clearTimeout(timer);
+    };
+  }, [getAccessToken]);
+  return status;
+}
+
+function formatTime(timestamp?: string | null) {
+  return timestamp ? new Date(timestamp).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : undefined;
+}
+
+/** The progress of a running validation of all instances. */
+function ValidationProgress({ status }: Readonly<{ status: BulkValidationStatus }>) {
+  const percent = status.total > 0 ? Math.min(100, Math.floor((100 * status.processed) / status.total)) : 0;
+  const started = formatTime(status.startedAt);
+  return (
+    <section className="statistics-card statistics-validation-progress" role="status" aria-label="Validation in progress">
+      <div className="statistics-validation-progress-header">
+        <span className="statistics-validation-progress-title">
+          Validating {status.space ? `the instances of ${status.space}` : "all instances"}
+        </span>
+        <span className="statistics-meta">
+          {status.total > 0
+            ? `${formatCount(status.processed)} of ${plural(status.total, "instance")} · ${percent}%`
+            : "Preparing…"}
+        </span>
+      </div>
+      <ProgressBar
+        animated
+        now={percent}
+        className="statistics-validation-progress-bar"
+        aria-label="Validated instances"
+      />
+      <p className="statistics-note">
+        {started && `Started at ${started}. `}The figures below are updated when the validation has finished.
+      </p>
+    </section>
   );
 }
 
@@ -193,17 +355,31 @@ export default function StatisticsHome() {
   const { getAccessToken } = useAuth();
   const [statistics, setStatistics] = useState<GraphStatistics>();
   const [error, setError] = useState<string>();
+  /** Increased to load the statistics again - e.g. once a validation has finished. */
+  const [version, setVersion] = useState(0);
+  const [validationFailure, setValidationFailure] = useState<string>();
+  const validation = useValidationStatus((s) => {
+    setValidationFailure(s.state === "FAILED" ? `The validation of the instances failed${s.error ? `: ${s.error}` : "."}` : undefined);
+    setVersion((v) => v + 1);
+  });
 
   useEffect(() => {
     let current = true;
     getAccessToken()
       .then(fetchStatistics)
-      .then((s) => current && setStatistics(s))
+      .then((s) => {
+        if (current) {
+          setStatistics(s);
+          setError(undefined);
+        }
+      })
       .catch((e: Error) => current && setError(e.message));
     return () => {
       current = false;
     };
-  }, [getAccessToken]);
+  }, [getAccessToken, version]);
+
+  const colors = new Map(statistics?.types.map((t) => [t.identifier, t.color]));
 
   const loading = !statistics && !error;
   return (
@@ -240,12 +416,18 @@ export default function StatisticsHome() {
               </h3>
               <span className="statistics-meta">{plural(statistics.validation.length, "schema")}</span>
             </div>
+            {validation?.state === "RUNNING" && <ValidationProgress status={validation} />}
+            {validationFailure && (
+              <Alert variant="warning" dismissible onClose={() => setValidationFailure(undefined)}>
+                {validationFailure}
+              </Alert>
+            )}
             {statistics.validation.length === 0 ? (
               <p className="statistics-empty text-muted">No validation schema applies to these instances.</p>
             ) : (
               <>
                 {statistics.validation.map((schema) => (
-                  <SchemaCompliance key={schema.schema} schema={schema} />
+                  <SchemaCompliance key={schema.schema} schema={schema} colors={colors} />
                 ))}
                 <p className="statistics-note">
                   Validation only covers live instances. Percentages are the share of the properties of the schema an

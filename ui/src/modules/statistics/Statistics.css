@@ -201,6 +201,59 @@
     border-radius: 4px;
 }
 
+.statistics-compliance-bar--small {
+    height: 10px;
+    margin-bottom: 0;
+}
+
+/* Compliance per type - a disclosure at the bottom of the schema card */
+.statistics-schema-types {
+    margin-top: 12px;
+    padding-top: 8px;
+    border-top: 1px solid #e9ecef;
+}
+
+.statistics-schema-types .statistics-show-all {
+    padding-left: 0;
+}
+
+.statistics-compliance-types {
+    margin-top: 4px;
+}
+
+.statistics-compliance-types thead th {
+    font-size: 0.85rem;
+}
+
+/* Progress of the validation of all instances */
+.statistics-validation-progress {
+    margin-bottom: 12px;
+}
+
+.statistics-validation-progress-header {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 4px 12px;
+    margin-bottom: 8px;
+}
+
+.statistics-validation-progress-title {
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: #212529;
+}
+
+.statistics-validation-progress .statistics-meta {
+    font-variant-numeric: tabular-nums;
+}
+
+.statistics-validation-progress-bar {
+    height: 8px;
+    background-color: #e9ecef;
+}
+
 /* A diverging scale: its neutral midpoint and the two arms keep apart for color blind readers (the text says the same) */
 .statistics-compliance-group--fullyCompliant {
     background-color: #1e7a42;
