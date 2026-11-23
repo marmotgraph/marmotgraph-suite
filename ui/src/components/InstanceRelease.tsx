@@ -22,10 +22,11 @@ import {
 } from "@fortawesome/free-solid-svg-icons";
 import { useAuth } from "../contexts/AuthContext";
 import {
+  batchRelease,
+  batchUnrelease,
+  BatchOutcome,
   fetchReleaseTree,
   ReleaseNode,
-  releaseInstance,
-  unreleaseInstance,
 } from "../services/instances";
 import { ReleaseStatus } from "../modules/editor/editorMockData";
 import {
@@ -79,15 +80,15 @@ interface ReleaseProgress {
   total: number;
   done: number;
   running: boolean;
-  stopped: boolean;
-  current?: ReleaseOperation;
+  /** The action carried out right now - and the number of instances it is carried out on */
+  current?: { action: ReleaseAction; count: number };
   errors: ReleaseError[];
 }
 
 /**
  * Shows the release tree of an instance (the instances in the scope of its type) with the release status of every
- * instance. The user chooses what to do with each instance (release, unrelease, leave as it is) - the chosen actions
- * are carried out one after the other when proceeding.
+ * instance. The user chooses what to do with each instance (release, unrelease, leave as it is) - when proceeding, the
+ * chosen releases are carried out in a single batch, followed by the unreleases.
  */
 export default function InstanceRelease({
   instanceId,
@@ -105,7 +106,7 @@ export default function InstanceRelease({
   const [pending, setPending] = useState<PendingActions>({});
   const [hideReleased, setHideReleased] = useState(false);
   const [progress, setProgress] = useState<ReleaseProgress>();
-  const stopRequested = useRef(false);
+  const left = useRef(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -129,13 +130,13 @@ export default function InstanceRelease({
     };
   }, [getAccessToken, instanceId, reloadCount]);
 
-  // Pending releases are not continued once the view is left
-  useEffect(
-    () => () => {
-      stopRequested.current = true;
-    },
-    [],
-  );
+  // The unreleases are not carried out anymore once the view is left while releasing
+  useEffect(() => {
+    left.current = false;
+    return () => {
+      left.current = true;
+    };
+  }, []);
 
   const entries = useMemo(
     () => (tree ? flattenReleaseTree(tree, pending, hideReleased) : []),
@@ -204,46 +205,50 @@ export default function InstanceRelease({
     if (operations.length === 0) {
       return;
     }
-    stopRequested.current = false;
     const errors: ReleaseError[] = [];
-    setProgress({
-      total: operations.length,
-      done: 0,
-      running: true,
-      stopped: false,
-      errors,
-    });
-    for (const [index, operation] of operations.entries()) {
-      if (stopRequested.current) {
-        break;
+    setProgress({ total: operations.length, done: 0, running: true, errors });
+    const batches: Array<[ReleaseAction, typeof batchRelease]> = [
+      ["release", batchRelease],
+      ["unrelease", batchUnrelease],
+    ];
+    let done = 0;
+    for (const [action, send] of batches) {
+      const batch = operations.filter((operation) => operation.action === action);
+      if (batch.length === 0 || left.current) {
+        continue;
       }
-      setProgress((p) => p && { ...p, current: operation });
-      try {
-        const token = await getAccessToken();
-        const send =
-          operation.action === "release" ? releaseInstance : unreleaseInstance;
-        await send(token, operation.node.instanceId);
-      } catch (e: unknown) {
-        console.error(`Failed to ${operation.action} the instance`, e);
-        errors.push({
-          operation,
-          message: e instanceof Error ? e.message : String(e),
-        });
-      }
-      setProgress(
-        (p) => p && { ...p, done: index + 1, errors: [...errors] },
-      );
+      setProgress((p) => p && { ...p, current: { action, count: batch.length } });
+      errors.push(...(await carryOut(batch, send)));
+      done += batch.length;
+      setProgress((p) => p && { ...p, done, errors: [...errors] });
     }
-    setProgress(
-      (p) =>
-        p && {
-          ...p,
-          running: false,
-          stopped: stopRequested.current,
-          current: undefined,
-        },
-    );
+    setProgress((p) => p && { ...p, running: false, current: undefined });
     setReloadCount((count) => count + 1);
+  };
+
+  /** Carries out the operations in a single batch - and provides the ones which have failed. */
+  const carryOut = async (
+    batch: ReleaseOperation[],
+    send: typeof batchRelease,
+  ): Promise<ReleaseError[]> => {
+    let outcome: BatchOutcome;
+    try {
+      const token = await getAccessToken();
+      outcome = await send(token, batch.map((operation) => operation.node.instanceId));
+    } catch (e: unknown) {
+      console.error(`Failed to ${batch[0].action} the instances`, e);
+      const message = e instanceof Error ? e.message : String(e);
+      return batch.map((operation) => ({ operation, message }));
+    }
+    const failures = new Map(
+      outcome.items.filter((item) => !item.succeeded).map((item) => [item.instanceId, item]),
+    );
+    return batch.flatMap((operation) => {
+      const failure = failures.get(operation.node.instanceId);
+      return failure
+        ? [{ operation, message: failure.error ?? `Failed to ${operation.action} the instance` }]
+        : [];
+    });
   };
 
   return (
@@ -305,9 +310,6 @@ export default function InstanceRelease({
       {progress && (
         <ReleaseProgressPanel
           progress={progress}
-          onStop={() => {
-            stopRequested.current = true;
-          }}
           onDismiss={() => setProgress(undefined)}
         />
       )}
@@ -506,11 +508,9 @@ function ReleaseTreeRow({
 
 function ReleaseProgressPanel({
   progress,
-  onStop,
   onDismiss,
 }: Readonly<{
   progress: ReleaseProgress;
-  onStop: () => void;
   onDismiss: () => void;
 }>) {
   const percent = Math.round((progress.done / progress.total) * 100);
@@ -518,14 +518,9 @@ function ReleaseProgressPanel({
     return (
       <div className="release-progress" role="status">
         <ProgressBar animated now={percent} label={`${progress.done} / ${progress.total}`} />
-        <div className="d-flex align-items-center justify-content-between mt-2">
-          <span className="text-muted small text-truncate">
-            {progress.current &&
-              `${progress.current.action === "release" ? "Releasing" : "Unreleasing"} ${progress.current.node.instanceName}...`}
-          </span>
-          <Button size="sm" variant="outline-danger" onClick={onStop}>
-            Stop
-          </Button>
+        <div className="text-muted small text-truncate mt-2">
+          {progress.current &&
+            `${progress.current.action === "release" ? "Releasing" : "Unreleasing"} ${progress.current.count} ${progress.current.count === 1 ? "instance" : "instances"}...`}
         </div>
       </div>
     );
@@ -538,8 +533,7 @@ function ReleaseProgressPanel({
       dismissible
       onClose={onDismiss}
     >
-      {succeeded} of {progress.total} changes carried out
-      {progress.stopped && " (stopped)"}.
+      {succeeded} of {progress.total} changes carried out.
       {progress.errors.length > 0 && (
         <ul className="release-errors mb-0 mt-2">
           {progress.errors.map(({ operation, message }) => (

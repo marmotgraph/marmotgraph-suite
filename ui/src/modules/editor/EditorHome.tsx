@@ -39,7 +39,7 @@ import { useTypes } from "../../hooks/useTypes";
 import { useSpaces } from "../../hooks/useSpaces";
 import { typeLabel } from "../../services/types";
 import {
-  deleteInstance,
+  batchDelete,
   fetchInstance,
   InstanceDetail,
   InstanceField,
@@ -299,20 +299,14 @@ export default function EditorHome() {
     setDeleteError(undefined);
     try {
       const token = await getAccessToken();
-      const results = await Promise.allSettled(
-        ids.map((id) => deleteInstance(token, id)),
-      );
-      const deleted = ids.filter((_, index) => results[index].status === "fulfilled");
+      const { items } = await batchDelete(token, ids);
+      const deleted = items.filter((item) => item.succeeded).map((item) => item.instanceId);
       deleted.forEach((id) => removeDraft(id));
       deleteInstances(deleted);
-      const failedIds = ids.filter((_, index) => results[index].status === "rejected");
-      setSelectedInstances(new Set(failedIds));
-      const failure = results.find(
-        (result): result is PromiseRejectedResult => result.status === "rejected",
-      );
-      if (failure) {
-        const reason = failure.reason instanceof Error ? failure.reason.message : String(failure.reason);
-        setDeleteError(`${failedIds.length} of ${ids.length} could not be deleted: ${reason}`);
+      const failures = items.filter((item) => !item.succeeded);
+      setSelectedInstances(new Set(failures.map((item) => item.instanceId)));
+      if (failures.length > 0) {
+        setDeleteError(`${failures.length} of ${ids.length} could not be deleted: ${failures[0].error ?? "unknown reason"}`);
       } else {
         setShowDeleteModal(false);
       }

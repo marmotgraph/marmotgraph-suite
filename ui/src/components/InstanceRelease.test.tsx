@@ -2,10 +2,10 @@ import React from "react";
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import InstanceRelease from "./InstanceRelease";
 import {
+  batchRelease,
+  batchUnrelease,
   fetchReleaseTree,
   ReleaseNode,
-  releaseInstance,
-  unreleaseInstance,
 } from "../services/instances";
 
 vi.mock("../contexts/AuthContext", () => {
@@ -15,9 +15,20 @@ vi.mock("../contexts/AuthContext", () => {
 
 vi.mock("../services/instances", () => ({
   fetchReleaseTree: vi.fn(),
-  releaseInstance: vi.fn(),
-  unreleaseInstance: vi.fn(),
+  batchRelease: vi.fn(),
+  batchUnrelease: vi.fn(),
 }));
+
+/** The outcome of a batch - the instances given with an error have failed */
+function outcome(ids: string[], errors: Record<string, string> = {}) {
+  const items = ids.map((instanceId) =>
+    errors[instanceId]
+      ? { instanceId, succeeded: false, error: errors[instanceId] }
+      : { instanceId, succeeded: true },
+  );
+  const succeeded = items.filter((item) => item.succeeded).length;
+  return { succeeded, failed: items.length - succeeded, items };
+}
 
 const tree: ReleaseNode = {
   instanceId: "top",
@@ -55,8 +66,12 @@ function row(name: string) {
 describe("InstanceRelease", () => {
   beforeEach(() => {
     vi.mocked(fetchReleaseTree).mockReset().mockResolvedValue(tree);
-    vi.mocked(releaseInstance).mockReset().mockResolvedValue();
-    vi.mocked(unreleaseInstance).mockReset().mockResolvedValue();
+    vi.mocked(batchRelease)
+      .mockReset()
+      .mockImplementation((_token, ids) => Promise.resolve(outcome(ids)));
+    vi.mocked(batchUnrelease)
+      .mockReset()
+      .mockImplementation((_token, ids) => Promise.resolve(outcome(ids)));
   });
 
   it("lists the instances of the release tree with their status", async () => {
@@ -98,17 +113,15 @@ describe("InstanceRelease", () => {
     expect(
       await screen.findByText(/2 of 2 changes carried out/),
     ).toBeInTheDocument();
-    expect(releaseInstance).toHaveBeenCalledWith("token", "room");
-    expect(unreleaseInstance).toHaveBeenCalledWith("token", "top");
+    expect(batchRelease).toHaveBeenCalledWith("token", ["room"]);
+    expect(batchUnrelease).toHaveBeenCalledWith("token", ["top"]);
     // The tree is reloaded once all changes have been carried out
     await waitFor(() => expect(fetchReleaseTree).toHaveBeenCalledTimes(2));
   });
 
   it("marks all releasable instances and reports failed releases", async () => {
-    vi.mocked(releaseInstance).mockImplementation((_token, id) =>
-      id === "room"
-        ? Promise.reject(new Error("Failed to release the instance (403)"))
-        : Promise.resolve(),
+    vi.mocked(batchRelease).mockImplementation((_token, ids) =>
+      Promise.resolve(outcome(ids, { room: "Failed to release the instance (403)" })),
     );
     render(<InstanceRelease instanceId="top" onInstanceClick={vi.fn()} />);
     await screen.findByText("Headquarters");
@@ -121,6 +134,28 @@ describe("InstanceRelease", () => {
       await screen.findByText(/Failed to release the instance \(403\)/),
     ).toBeInTheDocument();
     expect(screen.getByText(/1 of 2 changes carried out/)).toBeInTheDocument();
+    // All releases are sent at once
+    expect(batchRelease).toHaveBeenCalledTimes(1);
+    expect(batchRelease).toHaveBeenCalledWith("token", ["top", "room"]);
+    expect(batchUnrelease).not.toHaveBeenCalled();
+  });
+
+  it("reports every instance of a rejected batch as failed", async () => {
+    vi.mocked(batchRelease).mockRejectedValue(
+      new Error("Failed to release the instances (401 Unauthorized)"),
+    );
+    render(<InstanceRelease instanceId="top" onInstanceClick={vi.fn()} />);
+    await screen.findByText("Headquarters");
+
+    fireEvent.click(screen.getByRole("button", { name: /Release all/ }));
+    fireEvent.click(screen.getByRole("button", { name: /Proceed/ }));
+
+    expect(
+      await screen.findByText(/0 of 2 changes carried out/),
+    ).toBeInTheDocument();
+    expect(
+      screen.getAllByText(/Failed to release the instances \(401 Unauthorized\)/),
+    ).toHaveLength(2);
   });
 
   it("opens an instance of the tree", async () => {

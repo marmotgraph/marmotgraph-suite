@@ -210,6 +210,65 @@ export function deleteInstance(
   );
 }
 
+/** The outcome of a batch for a single instance - the error is only provided if it failed. */
+export interface BatchItemOutcome {
+  instanceId: string;
+  succeeded: boolean;
+  /** The status code the core rejected the instance with (if known) */
+  code?: number;
+  error?: string;
+}
+
+/** The outcome of a batch - the instances succeed or fail on their own. */
+export interface BatchOutcome {
+  succeeded: number;
+  failed: number;
+  /** The outcome per instance, in the order the instances were sent */
+  items: BatchItemOutcome[];
+}
+
+/**
+ * Carries out an operation on several instances at once (processed set-based by the core). The request is rejected as
+ * a whole if the user isn't allowed to carry out the operation on a single one of the instances.
+ */
+function sendBatch(
+  operation: "delete" | "release" | "unrelease",
+  accessToken: string,
+  instanceIds: string[],
+): Promise<BatchOutcome> {
+  return send(
+    "POST",
+    `/api/instances/batch/${operation}`,
+    `${operation} the instances`,
+    accessToken,
+    instanceIds,
+  );
+}
+
+/** Deletes the instances. Released instances are unreleased first, so they are also removed from search. */
+export function batchDelete(
+  accessToken: string,
+  instanceIds: string[],
+): Promise<BatchOutcome> {
+  return sendBatch("delete", accessToken, instanceIds);
+}
+
+/** Releases the current state of the instances. */
+export function batchRelease(
+  accessToken: string,
+  instanceIds: string[],
+): Promise<BatchOutcome> {
+  return sendBatch("release", accessToken, instanceIds);
+}
+
+/** Removes the released versions of the instances. */
+export function batchUnrelease(
+  accessToken: string,
+  instanceIds: string[],
+): Promise<BatchOutcome> {
+  return sendBatch("unrelease", accessToken, instanceIds);
+}
+
 /** Fetches a single instance (by its uuid) for the detail view. */
 export function fetchInstance(
   accessToken: string,
@@ -401,19 +460,6 @@ export function fetchReleaseTree(
   );
 }
 
-/** Releases the current state of an instance. */
-export function releaseInstance(
-  accessToken: string,
-  instanceId: string,
-): Promise<void> {
-  return send(
-    "PUT",
-    `/api/instances/${encodeURIComponent(instanceId)}/release`,
-    "release the instance",
-    accessToken,
-  );
-}
-
 /** Flags an instance as favorite of the user - or removes the flag. */
 export function setFavorite(
   accessToken: string,
@@ -424,19 +470,6 @@ export function setFavorite(
     favorite ? "PUT" : "DELETE",
     `/api/instances/${encodeURIComponent(instanceId)}/favorite`,
     favorite ? "add the favorite" : "remove the favorite",
-    accessToken,
-  );
-}
-
-/** Removes the released version of an instance. */
-export function unreleaseInstance(
-  accessToken: string,
-  instanceId: string,
-): Promise<void> {
-  return send(
-    "DELETE",
-    `/api/instances/${encodeURIComponent(instanceId)}/release`,
-    "unrelease the instance",
     accessToken,
   );
 }

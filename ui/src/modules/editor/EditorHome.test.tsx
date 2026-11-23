@@ -6,7 +6,7 @@ import { useInstances } from "../../contexts/InstancesContext";
 import { useTypes } from "../../hooks/useTypes";
 import { useSpaces } from "../../hooks/useSpaces";
 import { InstanceSummary } from "./editorMockData";
-import { deleteInstance, fetchInstance } from "../../services/instances";
+import { batchDelete, fetchInstance } from "../../services/instances";
 
 vi.mock("../../contexts/InstancesContext", () => ({ useInstances: vi.fn() }));
 vi.mock("../../hooks/useTypes", () => ({ useTypes: vi.fn() }));
@@ -18,7 +18,7 @@ vi.mock("../../contexts/AuthContext", () => {
 vi.mock("../../components/RawInstanceEditor", () => ({
   default: ({ instanceId }: { instanceId: string }) => <div>{`raw json of ${instanceId}`}</div>,
 }));
-vi.mock("../../services/instances", () => ({ deleteInstance: vi.fn(), fetchInstance: vi.fn() }));
+vi.mock("../../services/instances", () => ({ batchDelete: vi.fn(), fetchInstance: vi.fn() }));
 const { removeDraft } = vi.hoisted(() => ({ removeDraft: vi.fn() }));
 vi.mock("../../contexts/UnsavedInstancesContext", () => ({
   useUnsavedInstances: () => ({
@@ -620,6 +620,15 @@ describe("EditorHome", () => {
     const releasedAnnex: InstanceSummary = { ...annex, releaseStatus: "released", permissions: "View, Edit, Release" };
     const RELEASED_OPTION = /Also delete released instances/;
 
+    /** The outcome of the batch - the instances given with an error have failed */
+    const outcome = (ids: string[], errors: Record<string, string> = {}) => {
+      const items = ids.map((instanceId) =>
+        errors[instanceId] ? { instanceId, succeeded: false, error: errors[instanceId] } : { instanceId, succeeded: true },
+      );
+      const succeeded = items.filter((item) => item.succeeded).length;
+      return { succeeded, failed: items.length - succeeded, items };
+    };
+
     const openDeleteDialog = () => {
       fireEvent.click(screen.getByRole("checkbox", { name: "Select Headquarters" }));
       fireEvent.click(screen.getByRole("checkbox", { name: "Select Annex" }));
@@ -628,22 +637,21 @@ describe("EditorHome", () => {
     };
 
     beforeEach(() => {
-      vi.mocked(deleteInstance).mockReset();
+      vi.mocked(batchDelete).mockReset().mockImplementation((_, ids) => Promise.resolve(outcome(ids)));
       removeDraft.mockClear();
     });
 
     it("deletes the instances on the backend and closes the dialog", async () => {
-      vi.mocked(deleteInstance).mockResolvedValue(undefined);
       const deleteInstances = vi.fn();
       renderHome([headquarters, annex], 2, { deleteInstances });
 
       const dialog = openDeleteDialog();
-      expect(deleteInstance).not.toHaveBeenCalled();
+      expect(batchDelete).not.toHaveBeenCalled();
       fireEvent.click(within(dialog).getByRole("button", { name: "Delete" }));
 
       await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
-      expect(deleteInstance).toHaveBeenCalledWith("token", "inst-1");
-      expect(deleteInstance).toHaveBeenCalledWith("token", "inst-2");
+      expect(batchDelete).toHaveBeenCalledTimes(1);
+      expect(batchDelete).toHaveBeenCalledWith("token", ["inst-1", "inst-2"]);
       expect(deleteInstances).toHaveBeenCalledWith(["inst-1", "inst-2"]);
       expect(removeDraft).toHaveBeenCalledWith("inst-1");
       expect(removeDraft).toHaveBeenCalledWith("inst-2");
@@ -651,7 +659,6 @@ describe("EditorHome", () => {
     });
 
     it("only deletes what is left on the list of the dialog", async () => {
-      vi.mocked(deleteInstance).mockResolvedValue(undefined);
       const deleteInstances = vi.fn();
       renderHome([headquarters, annex], 2, { deleteInstances });
 
@@ -660,14 +667,12 @@ describe("EditorHome", () => {
       fireEvent.click(within(dialog).getByRole("button", { name: "Delete" }));
 
       await waitFor(() => expect(deleteInstances).toHaveBeenCalledWith(["inst-1"]));
-      expect(deleteInstance).toHaveBeenCalledTimes(1);
+      expect(batchDelete).toHaveBeenCalledWith("token", ["inst-1"]);
     });
 
     it("keeps what the backend rejected selected and reports the failure", async () => {
-      vi.mocked(deleteInstance).mockImplementation((_, id) =>
-        id === "inst-2"
-          ? Promise.reject(new Error("Failed to delete the instance (403 Forbidden)"))
-          : Promise.resolve(),
+      vi.mocked(batchDelete).mockImplementation((_, ids) =>
+        Promise.resolve(outcome(ids, { "inst-2": "Not allowed to delete the instance" })),
       );
       const deleteInstances = vi.fn();
       renderHome([headquarters, annex], 2, { deleteInstances });
@@ -676,7 +681,7 @@ describe("EditorHome", () => {
       fireEvent.click(within(dialog).getByRole("button", { name: "Delete" }));
 
       expect(await within(dialog).findByRole("alert")).toHaveTextContent(
-        "1 of 2 could not be deleted: Failed to delete the instance (403 Forbidden)",
+        "1 of 2 could not be deleted: Not allowed to delete the instance",
       );
       expect(deleteInstances).toHaveBeenCalledWith(["inst-1"]);
       expect(removeDraft).toHaveBeenCalledTimes(1);
@@ -685,8 +690,21 @@ describe("EditorHome", () => {
       expect(within(dialog).queryByText("Headquarters")).not.toBeInTheDocument();
     });
 
+    it("keeps everything selected if the backend rejects the whole batch", async () => {
+      vi.mocked(batchDelete).mockRejectedValue(new Error("Failed to delete the instances (401 Unauthorized)"));
+      const deleteInstances = vi.fn();
+      renderHome([headquarters, annex], 2, { deleteInstances });
+
+      const dialog = openDeleteDialog();
+      fireEvent.click(within(dialog).getByRole("button", { name: "Delete" }));
+
+      expect(await within(dialog).findByRole("alert")).toHaveTextContent("Failed to delete the instances (401 Unauthorized)");
+      expect(deleteInstances).not.toHaveBeenCalled();
+      expect(within(dialog).getByText("Annex")).toBeInTheDocument();
+      expect(within(dialog).getByText("Headquarters")).toBeInTheDocument();
+    });
+
     it("leaves the released instances out unless the user opts in", async () => {
-      vi.mocked(deleteInstance).mockResolvedValue(undefined);
       const deleteInstances = vi.fn();
       renderHome([headquarters, releasedAnnex], 2, { deleteInstances });
 
@@ -696,12 +714,11 @@ describe("EditorHome", () => {
       fireEvent.click(within(dialog).getByRole("button", { name: "Delete" }));
 
       await waitFor(() => expect(deleteInstances).toHaveBeenCalledWith(["inst-1"]));
-      expect(deleteInstance).toHaveBeenCalledTimes(1);
+      expect(batchDelete).toHaveBeenCalledWith("token", ["inst-1"]);
       expect(screen.queryByRole("button", { name: "Delete Selected" })).not.toBeInTheDocument();
     });
 
     it("also deletes the released instances if the user opts in", async () => {
-      vi.mocked(deleteInstance).mockResolvedValue(undefined);
       const deleteInstances = vi.fn();
       renderHome([headquarters, releasedAnnex], 2, { deleteInstances });
 
@@ -733,7 +750,6 @@ describe("EditorHome", () => {
     });
 
     it("only deletes the remaining ones without the Release permission", async () => {
-      vi.mocked(deleteInstance).mockResolvedValue(undefined);
       const deleteInstances = vi.fn();
       renderHome([headquarters, { ...annex, releaseStatus: "released" }], 2, { deleteInstances });
 
@@ -745,7 +761,7 @@ describe("EditorHome", () => {
       fireEvent.click(within(dialog).getByRole("button", { name: "Delete" }));
 
       await waitFor(() => expect(deleteInstances).toHaveBeenCalledWith(["inst-1"]));
-      expect(deleteInstance).toHaveBeenCalledTimes(1);
+      expect(batchDelete).toHaveBeenCalledWith("token", ["inst-1"]);
     });
 
     it("has nothing to confirm if only released instances are selected without the Release permission", () => {
