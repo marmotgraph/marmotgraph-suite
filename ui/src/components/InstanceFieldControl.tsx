@@ -22,10 +22,6 @@ export type InstanceFieldControlProps = ValueControlProps & {
   onInstanceClick: (instanceId: string) => void;
   currentInstanceId?: string;
   parentSpace?: string;
-  /** The id of the linked instance to highlight */
-  highlightedInstanceId?: string;
-  /** Called with the id of the linked instance hovered (undefined when left) */
-  onInstanceHover?: (instanceId: string | undefined) => void;
 };
 
 function asLinkedInstances(value: unknown): LinkedInstance[] {
@@ -104,8 +100,6 @@ function linkedInstances(single: boolean) {
     onInstanceClick,
     currentInstanceId,
     parentSpace,
-    highlightedInstanceId,
-    onInstanceHover,
   }: Readonly<InstanceFieldControlProps>) {
     return (
       <LinkedInstancesField
@@ -123,8 +117,6 @@ function linkedInstances(single: boolean) {
         currentInstanceId={currentInstanceId}
         parentSpace={parentSpace}
         variant={isEditMode ? "edit" : "view"}
-        highlightedInstanceId={highlightedInstanceId}
-        onInstanceHover={onInstanceHover}
       />
     );
   };

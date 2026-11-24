@@ -1,14 +1,13 @@
-import React, { useState } from "react";
-import {
-  Button,
-  Form,
-  Modal,
-} from "react-bootstrap";
+import React, { useId, useState } from "react";
+import { Form } from "react-bootstrap";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { faCircle, faChevronDown, faChevronRight } from "@fortawesome/free-solid-svg-icons";
 
 type EntityType = {
   name: string;
   url: string;
   description?: string;
+  color?: string;
 };
 
 type InstanceFilters = {
@@ -23,9 +22,10 @@ type InstanceFilterPanelProps = {
   onFiltersChange: (filters: InstanceFilters) => void;
   availableTypes: EntityType[];
   availableSpaces: string[];
-  /** Toolbar shows one button per filter. Stacked shows every filter in place, for a single mobile sheet. */
-  variant?: "toolbar" | "stacked";
 };
+
+/** From this many options on, a list has a search of its own */
+const SEARCH_THRESHOLD = 8;
 
 function ItemListFilter({
   items,
@@ -35,6 +35,7 @@ function ItemListFilter({
   emptyMessage = "No items found matching",
   labels,
   descriptions,
+  renderLabel,
   idPrefix = "item",
   listMaxHeight = 300,
 }: Readonly<{
@@ -47,33 +48,55 @@ function ItemListFilter({
   labels?: Record<string, string>;
   /** Optional descriptions of the items (by item) shown as tooltip */
   descriptions?: Record<string, string | undefined>;
+  /** Optional rendering of the label of an item - the text it is found by is still the label (or the item) */
+  renderLabel?: (item: string) => React.ReactNode;
   idPrefix?: string;
   listMaxHeight?: number;
 }>) {
   const [filter, setFilter] = useState("");
 
   const labelOf = (item: string) => labels?.[item] ?? item;
-  const filteredItems = items.filter((item) =>
-    labelOf(item).toLowerCase().includes(filter.toLowerCase()),
+  const query = filter.trim().toLowerCase();
+  const filteredItems = items.filter(
+    (item) =>
+      labelOf(item).toLowerCase().includes(query) ||
+      item.toLowerCase().includes(query),
   );
+  // A short list is shown as it is - the search is for the lists which are too long to scan
+  const searchable = items.length > SEARCH_THRESHOLD;
+
+  if (items.length === 0) {
+    return <div className="instance-filter-empty text-muted">No options</div>;
+  }
 
   return (
     <div>
-      <input
-        type="text"
-        className="form-control mb-3"
-        placeholder={placeholder}
-        value={filter}
-        onChange={(e) => setFilter(e.target.value)}
-      />
-      <div style={{ maxHeight: listMaxHeight, overflowY: "auto" }}>
+      {searchable && (
+        <input
+          type="text"
+          className="form-control mb-3"
+          placeholder={placeholder}
+          aria-label={placeholder}
+          value={filter}
+          onChange={(e) => setFilter(e.target.value)}
+        />
+      )}
+      {searchable && query && (
+        <div className="instance-filter-match-count text-muted">
+          {filteredItems.length} of {items.length}
+        </div>
+      )}
+      <div
+        className="instance-filter-options"
+        style={{ maxHeight: listMaxHeight, overflowY: "auto" }}
+      >
         {filteredItems.length > 0 ? (
           filteredItems.map((item) => (
             <Form.Check
               key={item}
               type="checkbox"
               id={`${idPrefix}-${item}`}
-              label={labelOf(item)}
+              label={renderLabel ? renderLabel(item) : labelOf(item)}
               title={descriptions?.[item]}
               checked={selectedItems.includes(item)}
               onChange={() => onItemToggle(item)}
@@ -87,6 +110,73 @@ function ItemListFilter({
         )}
       </div>
     </div>
+  );
+}
+
+/**
+ * A filter of the panel: its name with the number of options (and how many are selected), a way to clear it and a way
+ * to fold it away - so a filter with many options doesn't push the others out of view.
+ */
+function FilterSection({
+  title,
+  total,
+  selected,
+  onClear,
+  children,
+}: {
+  title: string;
+  total: number;
+  selected: number;
+  onClear: () => void;
+  children: React.ReactNode;
+}) {
+  const [open, setOpen] = useState(true);
+  const contentId = useId();
+
+  return (
+    <section className="instance-filter-section">
+      <div className="instance-filter-section-header">
+        <h3 className="instance-filter-sheet-title">
+          <button
+            type="button"
+            className="instance-filter-section-toggle"
+            aria-expanded={open}
+            aria-controls={contentId}
+            onClick={() => setOpen(!open)}
+          >
+            <FontAwesomeIcon
+              icon={open ? faChevronDown : faChevronRight}
+              className="instance-filter-section-chevron"
+              aria-hidden="true"
+            />
+            {title}
+          </button>
+        </h3>
+        <span
+          className={`instance-filter-section-count${
+            selected > 0 ? " instance-filter-section-count--active" : ""
+          }`}
+          title={`${total} option${total === 1 ? "" : "s"}${
+            selected > 0 ? `, ${selected} selected` : ""
+          }`}
+        >
+          {selected > 0 ? `${selected} of ${total}` : total}
+        </span>
+        {selected > 0 && (
+          <button
+            type="button"
+            className="instance-filter-section-clear"
+            aria-label={`Clear ${title}`}
+            onClick={onClear}
+          >
+            Clear
+          </button>
+        )}
+      </div>
+      <div id={contentId} hidden={!open}>
+        {children}
+      </div>
+    </section>
   );
 }
 
@@ -126,6 +216,27 @@ export function InstanceFilterPanel({
     filters.spaces.length +
     filters.releaseStatuses.length;
 
+  // A type: its color, its name and below it the semantic name (the identifier) - the types of a space often share a name
+  const typesByUrl = new Map(availableTypes.map((t) => [t.url, t]));
+  const renderType = (url: string) => {
+    const type = typesByUrl.get(url);
+    const name = type?.name ?? url;
+    return (
+      <span className="instance-filter-type">
+        <FontAwesomeIcon
+          icon={faCircle}
+          className="type-color-icon instance-filter-type-dot"
+          style={{ color: type?.color ?? "#6c757d" }}
+          aria-hidden="true"
+        />
+        <span className="instance-filter-type-text">
+          <span>{name}</span>
+          {name !== url && <span className="instance-filter-type-id">{url}</span>}
+        </span>
+      </span>
+    );
+  };
+
   const typeList = (
     <ItemListFilter
       items={availableTypes.map((t) => t.url)}
@@ -134,11 +245,12 @@ export function InstanceFilterPanel({
         availableTypes.map((t) => [t.url, t.description]),
       )}
       selectedItems={filters.types}
+      renderLabel={renderType}
       onItemToggle={handleTypeToggle}
       placeholder="Filter types..."
       emptyMessage="No types found matching"
       idPrefix="type"
-      listMaxHeight={variant === "stacked" ? 180 : 300}
+      listMaxHeight={180}
     />
   );
 
@@ -150,155 +262,52 @@ export function InstanceFilterPanel({
       placeholder="Filter spaces..."
       emptyMessage="No spaces found matching"
       idPrefix="space"
-      listMaxHeight={variant === "stacked" ? 180 : 300}
+      listMaxHeight={180}
     />
   );
 
-  if (variant === "stacked") {
-    return (
-      <div className="instance-filter-sheet">
-        <section>
-          <h3 className="instance-filter-sheet-title">Type</h3>
-          {typeList}
-        </section>
-        <section>
-          <h3 className="instance-filter-sheet-title">Space</h3>
-          {spaceList}
-        </section>
-        <section>
-          <h3 className="instance-filter-sheet-title">Release status</h3>
-          <Form.Check
-            type="checkbox"
-            id="status-released"
-            label="Released"
-            checked={filters.releaseStatuses.includes("released")}
-            onChange={() => handleStatusToggle("released")}
-            className="mb-2"
-          />
-          <Form.Check
-            type="checkbox"
-            id="status-has-changed"
-            label="Has Changed"
-            checked={filters.releaseStatuses.includes("has changed")}
-            onChange={() => handleStatusToggle("has changed")}
-            className="mb-2"
-          />
-          <Form.Check
-            type="checkbox"
-            id="status-in-progress"
-            label="In Progress"
-            checked={filters.releaseStatuses.includes("in progress")}
-            onChange={() => handleStatusToggle("in progress")}
-          />
-        </section>
-      </div>
-    );
-  }
+  const statuses: { value: string; label: string }[] = [
+    { value: "released", label: "Released" },
+    { value: "has changed", label: "Has Changed" },
+    { value: "in progress", label: "In Progress" },
+  ];
 
   return (
-    <>
-      <div className="d-flex gap-2 align-items-center flex-wrap">
-        <Button
-          variant="outline-secondary"
-          size="sm"
-          onClick={() => setShowTypeModal(true)}
-        >
-          Type ({filters.types.length})
-        </Button>
-
-        <Button
-          variant="outline-secondary"
-          size="sm"
-          onClick={() => setShowSpaceModal(true)}
-        >
-          Space ({filters.spaces.length})
-        </Button>
-
-        <Form.Check
-          type="checkbox"
-          id="status-released"
-          label="Released"
-          checked={filters.releaseStatuses.includes("released")}
-          onChange={() => handleStatusToggle("released")}
-        />
-        <Form.Check
-          type="checkbox"
-          id="status-has-changed"
-          label="Has Changed"
-          checked={filters.releaseStatuses.includes("has changed")}
-          onChange={() => handleStatusToggle("has changed")}
-        />
-        <Form.Check
-          type="checkbox"
-          id="status-in-progress"
-          label="In Progress"
-          checked={filters.releaseStatuses.includes("in progress")}
-          onChange={() => handleStatusToggle("in progress")}
-        />
-
-        {activeFilterCount > 0 && (
-          <Button
-            variant="outline-danger"
-            size="sm"
-            onClick={() =>
-              onFiltersChange({
-                types: [],
-                spaces: [],
-                permissions: [],
-                releaseStatuses: [],
-              })
-            }
-          >
-            Clear All
-          </Button>
-        )}
-      </div>
-
-      {/* Type Selection Modal */}
-      <Modal show={showTypeModal} onHide={() => setShowTypeModal(false)} centered>
-        <Modal.Header closeButton>
-          <Modal.Title>Select Types</Modal.Title>
-        </Modal.Header>
-        <Modal.Body>{typeList}</Modal.Body>
-        <Modal.Footer className="d-flex justify-content-between">
-          <Button
-            variant="outline-danger"
-            onClick={() => onFiltersChange({ ...filters, types: [] })}
-            disabled={filters.types.length === 0}
-          >
-            Clear Types
-          </Button>
-          <Button
-            variant="secondary"
-            onClick={() => setShowTypeModal(false)}
-          >
-            Done
-          </Button>
-        </Modal.Footer>
-      </Modal>
-
-      {/* Space Selection Modal */}
-      <Modal show={showSpaceModal} onHide={() => setShowSpaceModal(false)} centered>
-        <Modal.Header closeButton>
-          <Modal.Title>Select Spaces</Modal.Title>
-        </Modal.Header>
-        <Modal.Body>{spaceList}</Modal.Body>
-        <Modal.Footer className="d-flex justify-content-between">
-          <Button
-            variant="outline-danger"
-            onClick={() => onFiltersChange({ ...filters, spaces: [] })}
-            disabled={filters.spaces.length === 0}
-          >
-            Clear Spaces
-          </Button>
-          <Button
-            variant="secondary"
-            onClick={() => setShowSpaceModal(false)}
-          >
-            Done
-          </Button>
-        </Modal.Footer>
-      </Modal>
-    </>
+    <div className="instance-filter-sheet">
+      <FilterSection
+        title="Type"
+        total={availableTypes.length}
+        selected={filters.types.length}
+        onClear={() => onFiltersChange({ ...filters, types: [] })}
+      >
+        {typeList}
+      </FilterSection>
+      <FilterSection
+        title="Space"
+        total={availableSpaces.length}
+        selected={filters.spaces.length}
+        onClear={() => onFiltersChange({ ...filters, spaces: [] })}
+      >
+        {spaceList}
+      </FilterSection>
+      <FilterSection
+        title="Release status"
+        total={statuses.length}
+        selected={filters.releaseStatuses.length}
+        onClear={() => onFiltersChange({ ...filters, releaseStatuses: [] })}
+      >
+        {statuses.map(({ value, label }) => (
+          <Form.Check
+            key={value}
+            type="checkbox"
+            id={`status-${value.replace(" ", "-")}`}
+            label={label}
+            checked={filters.releaseStatuses.includes(value)}
+            onChange={() => handleStatusToggle(value)}
+            className="mb-2"
+          />
+        ))}
+      </FilterSection>
+    </div>
   );
 }

@@ -44,6 +44,8 @@ interface InstancesContextType {
   getInstance: (instanceId: string) => InstanceSummary | undefined;
   /** Requests the instances to be loaded - they are kept (and reloaded when the query changes) from then on */
   requestInstances: () => void;
+  /** Loads the instances of the current query again - e.g. when the search is run once more with the same term */
+  reloadInstances: () => void;
 }
 
 export interface InstanceSort {
@@ -73,6 +75,9 @@ export function InstancesProvider({ children }: Readonly<{ children: ReactNode }
   const [sort, setSort] = useState<InstanceSort | null>(initial.sort);
   const [requested, setRequested] = useState<boolean>(false);
   const requestInstances = useCallback(() => setRequested(true), []);
+  // Changing it loads the instances again even though the query is the same
+  const [reloadCount, setReloadCount] = useState<number>(0);
+  const reloadInstances = useCallback(() => setReloadCount((count) => count + 1), []);
 
   useEffect(() => {
     if (!requested) {
@@ -97,7 +102,7 @@ export function InstancesProvider({ children }: Readonly<{ children: ReactNode }
     return () => {
       cancelled = true;
     };
-  }, [requested, getAccessToken, searchTerm, typeFilter, spaceFilter, favoritesOnly, contributedOnly, releaseStatusFilter, sort]);
+  }, [requested, getAccessToken, searchTerm, typeFilter, spaceFilter, favoritesOnly, contributedOnly, releaseStatusFilter, sort, reloadCount]);
 
   const loadMore = useCallback(() => {
     const query = queryRef.current;
@@ -163,7 +168,7 @@ export function InstancesProvider({ children }: Readonly<{ children: ReactNode }
   };
 
   return (
-    <InstancesContext.Provider value={{ instances, total, loading, hasMore: !!nextMarker, loadingMore, loadMore, searchTerm, setSearchTerm, typeFilter, setTypeFilter, spaceFilter, setSpaceFilter, favoritesOnly, setFavoritesOnly, contributedOnly, setContributedOnly, releaseStatusFilter, setReleaseStatusFilter, sort, setSort, toggleFavorite, addInstance, updateInstance, deleteInstances, getInstance, requestInstances }}>
+    <InstancesContext.Provider value={{ instances, total, loading, hasMore: !!nextMarker, loadingMore, loadMore, searchTerm, setSearchTerm, typeFilter, setTypeFilter, spaceFilter, setSpaceFilter, favoritesOnly, setFavoritesOnly, contributedOnly, setContributedOnly, releaseStatusFilter, setReleaseStatusFilter, sort, setSort, toggleFavorite, addInstance, updateInstance, deleteInstances, getInstance, requestInstances, reloadInstances }}>
       {children}
     </InstancesContext.Provider>
   );

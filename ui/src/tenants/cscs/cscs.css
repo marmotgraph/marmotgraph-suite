@@ -6,11 +6,15 @@
  * untouched. Do not add rules outside of that scope.
  *
  * The style follows the CSCS console: white surfaces with hairline borders on a very light page, small neutral type,
- * rounded 8px controls and a dark green as the only accent color.
+ * 6px controls, 8px cards, fully rounded pills and a dark green as the only accent color.
+ * The apps of the suite (editor, query builder, ...) are covered in apps.css.
  *
  * Structure: 1. tokens  2. shell  3. sidebar  4. top bar and title  5. breadcrumbs  6. buttons  7. forms
  *            8. tables and lists  9. tags and pills  10. cards  11. footer
  */
+
+/* The apps of the suite (Editor, Query Builder, Visualizer, Modeler, Statistics, Admin) */
+@import "./apps.css";
 
 /* ------------------------------------------------------------------ 1. Tokens */
 html[data-tenant="cscs"] {
@@ -25,14 +29,19 @@ html[data-tenant="cscs"] {
     --cscs-hover: #f5f6f9;
     --cscs-border: #e8eaee;
     --cscs-border-strong: #d6dae1;
+    /* Tables: a very light rule between rows and around the card */
+    --cscs-table-line: #f1f3f5;
+    --cscs-table-edge: #eceef1;
 
     --cscs-text: #101620;
     --cscs-text-body: #344054;
     --cscs-text-muted: #6b7280;
     --cscs-text-faint: #8a8f98;
 
-    --cscs-radius: 8px;
+    /* Corners as in the console: small and subtle - 6px for controls, 8px for cards, full for pills */
+    --cscs-radius: 6px;
     --cscs-radius-sm: 6px;
+    --cscs-radius-card: 8px;
 
     /* Bootstrap: links and focus use the brand color */
     --bs-link-color: var(--cscs-brand);
@@ -60,6 +69,8 @@ html[data-tenant="cscs"] .layout-content {
 
 html[data-tenant="cscs"] .layout-main {
     background-color: var(--cscs-page);
+    /* The top bar is slim - the page title (e.g. "Instances") needs room below it */
+    padding-top: 20px;
 }
 
 /* ------------------------------------------------------------------ 3. Sidebar */
@@ -130,6 +141,118 @@ html[data-tenant="cscs"] .layout-main h2 {
     letter-spacing: -0.005em;
 }
 
+/*
+ * The top bar already names the module, so the title of a list is a section heading - not a second page title.
+ * The home screen keeps its own large title.
+ */
+html[data-tenant="cscs"] .editor-home h2,
+html[data-tenant="cscs"] .statistics-home > h2 {
+    font-size: 1.25rem;
+    line-height: 1.3;
+}
+
+html[data-tenant="cscs"] .editor-home > div:first-child {
+    margin-bottom: 1rem !important;
+}
+
+/* The search and the filters read as one group: the field is taller, the filters sit close beneath it */
+html[data-tenant="cscs"] .editor-home .input-group > .form-control {
+    padding-top: 0.5rem;
+    padding-bottom: 0.5rem;
+}
+
+html[data-tenant="cscs"] .editor-home .input-group > .btn {
+    border-top-right-radius: var(--cscs-radius);
+    border-bottom-right-radius: var(--cscs-radius);
+    padding-left: 1rem;
+    padding-right: 1rem;
+}
+
+html[data-tenant="cscs"] .editor-home .form-check {
+    margin-bottom: 0;
+    font-size: 0.8125rem;
+    color: var(--cscs-text-body);
+}
+
+html[data-tenant="cscs"] .editor-home .form-check-label {
+    cursor: pointer;
+}
+
+/* Active filters: removable pills in the neutral pill style instead of solid gray badges */
+html[data-tenant="cscs"] .editor-home .badge.bg-secondary {
+    background-color: var(--cscs-brand-tint) !important;
+    color: var(--cscs-brand-tint-text) !important;
+    border: 1px solid #cfe1c6;
+    border-radius: 999px;
+    font-weight: 400;
+}
+
+/* The result count sits right above the list as a quiet caption */
+html[data-tenant="cscs"] .instances-result-count {
+    margin: 0.25rem 0 0.5rem;
+    font-size: 0.8125rem;
+    color: var(--cscs-text-muted) !important;
+}
+
+/* The list is a white card (like the tables of the console) - the header row is a light band inside it */
+/* (not on a phone - there the list is made of cards that bring their own frame) */
+@media (min-width: 769px) {
+    html[data-tenant="cscs"] .editor-home-body > .table-scroll-container {
+        background-color: var(--cscs-surface);
+        border: 1px solid var(--cscs-table-edge);
+        border-radius: var(--cscs-radius-card);
+        box-shadow: 0 1px 2px rgba(16, 24, 40, 0.04);
+    }
+
+    html[data-tenant="cscs"] .editor-home-body > .table-scroll-container .table {
+        margin-bottom: 0;
+    }
+}
+
+/* The filters are a white card like the list beside them */
+@media (min-width: 769px) {
+    html[data-tenant="cscs"] .instance-filters {
+        padding: 1rem;
+        background-color: var(--cscs-surface);
+        border: 1px solid var(--cscs-table-edge);
+        border-radius: var(--cscs-radius-card);
+        box-shadow: 0 1px 2px rgba(16, 24, 40, 0.04);
+    }
+
+    html[data-tenant="cscs"] .instance-filters-title,
+    html[data-tenant="cscs"] .instance-filter-sheet-title {
+        color: var(--cscs-text-faint);
+    }
+
+    html[data-tenant="cscs"] .instance-filters-clear.btn {
+        color: var(--cscs-brand);
+    }
+}
+
+html[data-tenant="cscs"] .instance-filter-section-count {
+    background-color: var(--cscs-page);
+    color: var(--cscs-text-muted);
+}
+
+html[data-tenant="cscs"] .instance-filter-section-count--active {
+    background-color: var(--cscs-brand);
+    color: #fff;
+}
+
+html[data-tenant="cscs"] .instance-filter-section-clear {
+    color: var(--cscs-brand);
+}
+
+html[data-tenant="cscs"] .instance-filter-section-toggle:focus-visible,
+html[data-tenant="cscs"] .instance-filter-section-clear:focus-visible {
+    outline-color: var(--cscs-brand);
+}
+
+html[data-tenant="cscs"] .instance-preview {
+    border-color: var(--cscs-border);
+    border-radius: var(--cscs-radius-card);
+}
+
 /* ------------------------------------------------------------------ 5. Breadcrumbs */
 html[data-tenant="cscs"] .breadcrumb-link {
     color: var(--cscs-brand);
@@ -176,10 +299,6 @@ html[data-tenant="cscs"] .btn-outline-dark {
 html[data-tenant="cscs"] .btn:focus-visible,
 html[data-tenant="cscs"] .btn-check:focus-visible + .btn {
     box-shadow: 0 0 0 3px var(--cscs-brand-ring);
-}
-
-html[data-tenant="cscs"] .edit-icon-btn:hover {
-    background-color: var(--cscs-hover);
 }
 
 /* ------------------------------------------------------------------ 7. Forms */
@@ -234,36 +353,52 @@ html[data-tenant="cscs"] .shared-queries-table thead th {
 
 html[data-tenant="cscs"] .instances-table.shared-queries-table thead th {
     background-color: var(--cscs-page) !important;
-    box-shadow: inset 0 -1px 0 var(--cscs-border);
+    box-shadow: inset 0 -1px 0 var(--cscs-table-edge);
+}
+
+/* Rows are plain white with only a hairline between them - no gray zebra stripes */
+html[data-tenant="cscs"] .instances-table.shared-queries-table.table-striped > tbody > tr > * {
+    --bs-table-bg-type: transparent;
+    --bs-table-striped-bg: transparent;
 }
 
 html[data-tenant="cscs"] .shared-queries-table tbody td {
-    border-top: 1px solid var(--cscs-border);
+    border-top: 1px solid var(--cscs-table-line);
     color: var(--cscs-text-body);
     font-size: 0.8125rem;
     padding: 0.875rem 1rem;
 }
 
-html[data-tenant="cscs"] .shared-queries-table tbody td:nth-child(2),
-html[data-tenant="cscs"] .shared-queries-table tbody td:last-child {
+html[data-tenant="cscs"] .shared-queries-table tbody td:nth-child(2) {
     color: var(--cscs-text-muted);
 }
 
 /* Hover and selection: neutral gray and the light green tint with a green bar - no purple */
 html[data-tenant="cscs"] .shared-queries-table tbody tr:hover {
-    background-color: var(--cscs-hover) !important;
+    background-color: var(--cscs-page) !important;
     border-left-color: var(--cscs-brand);
 }
 
-html[data-tenant="cscs"] .instances-table.shared-queries-table tbody tr.instance-row-selected,
-html[data-tenant="cscs"] .instances-table.shared-queries-table tbody tr.instance-row-selected:hover {
+/* (the two rows of an instance are one group - see the default style) */
+html[data-tenant="cscs"] .instances-table.shared-queries-table tbody:hover > tr {
+    background-color: var(--cscs-page) !important;
+    border-left-color: var(--cscs-brand);
+}
+
+html[data-tenant="cscs"] .instances-table.shared-queries-table tbody.instance-row-selected > tr,
+html[data-tenant="cscs"] .instances-table.shared-queries-table tbody.instance-row-selected:hover > tr {
     background-color: var(--cscs-brand-tint) !important;
     border-left-color: var(--cscs-brand);
 }
 
 @media (hover: none) {
-    html[data-tenant="cscs"] .instances-table.shared-queries-table tbody tr.instance-row-selected,
-    html[data-tenant="cscs"] .instances-table.shared-queries-table tbody tr.instance-row-selected:hover {
+    html[data-tenant="cscs"] .instances-table.shared-queries-table tbody:hover > tr {
+        background-color: transparent !important;
+        border-left-color: transparent;
+    }
+
+    html[data-tenant="cscs"] .instances-table.shared-queries-table tbody.instance-row-selected > tr,
+    html[data-tenant="cscs"] .instances-table.shared-queries-table tbody.instance-row-selected:hover > tr {
         background-color: var(--cscs-brand-tint) !important;
         border-left-color: var(--cscs-brand);
     }
@@ -273,6 +408,133 @@ html[data-tenant="cscs"] .bulk-actions-bar {
     background-color: var(--cscs-brand-tint);
     border-color: #cfe1c6;
     border-radius: var(--cscs-radius);
+}
+
+/*
+ * Spacing between the columns: the small leading columns (select, favorite, type) sit close together and the cells get
+ * less side padding when the list is narrow, so the text columns keep more room and rows don't grow tall.
+ */
+html[data-tenant="cscs"] .instances-table.shared-queries-table :is(thead th, tbody td):nth-child(1) {
+    width: 1%;
+    padding-left: 0.75rem;
+    padding-right: 0.25rem;
+}
+
+html[data-tenant="cscs"] .instances-table.shared-queries-table :is(thead th, tbody td):nth-child(2) {
+    width: 1%;
+    padding-left: 0.25rem;
+    padding-right: 0.25rem;
+}
+
+html[data-tenant="cscs"] .instances-table.shared-queries-table :is(thead th, tbody td):nth-child(3) {
+    padding-left: 0.5rem;
+}
+
+@container cscs-list (max-width: 900px) {
+    html[data-tenant="cscs"] .instances-table.shared-queries-table :is(thead th, tbody td):nth-child(n + 3) {
+        padding-left: 0.5rem;
+        padding-right: 0.5rem;
+    }
+
+    html[data-tenant="cscs"] .instances-table.shared-queries-table tbody td {
+        padding-top: 0.75rem;
+        padding-bottom: 0.75rem;
+    }
+}
+
+/*
+ * Permission buttons (view, edit, annotate, release). They are a tidy grid wherever the room is limited - the card and the
+ * preview of an instance (3 per row when the list is narrow). In the list they are a line of their own under the name of
+ * the instance, in one row, so they cost no column.
+ */
+html[data-tenant="cscs"] .editor-home-body > .table-scroll-container {
+    container: cscs-list / inline-size;
+}
+
+html[data-tenant="cscs"] .instance-permissions {
+    display: grid;
+    grid-template-columns: repeat(5, 32px);
+    justify-content: end;
+    gap: 6px;
+}
+
+@container cscs-list (max-width: 900px) {
+    html[data-tenant="cscs"] .instance-permissions {
+        grid-template-columns: repeat(3, 32px);
+    }
+}
+
+html[data-tenant="cscs"] .instances-table .instance-permissions {
+    display: flex;
+    flex-wrap: nowrap;
+    justify-content: flex-start;
+}
+
+/* The line of the actions: no rule above it, and under the type (same inset as the cells above) */
+html[data-tenant="cscs"] .instances-table.shared-queries-table .instance-actions-row > td.instance-actions-cell {
+    width: auto;
+    padding: 0 1rem 0.75rem 0.5rem;
+    border-top: none;
+}
+
+html[data-tenant="cscs"] .instances-table.shared-queries-table .instance-main-row > td:not([rowspan]) {
+    padding-bottom: 0.25rem;
+}
+
+html[data-tenant="cscs"] .instance-permission-btn {
+    width: 32px;
+    height: 32px;
+    border-color: var(--cscs-border-strong);
+    border-radius: var(--cscs-radius);
+    background-color: var(--cscs-surface);
+    color: var(--cscs-text-body);
+    font-size: 0.8125rem;
+}
+
+html[data-tenant="cscs"] .instance-permission-btn--labeled {
+    width: auto;
+}
+
+/* The mode shown by the preview */
+html[data-tenant="cscs"] .instance-permission-btn--active,
+html[data-tenant="cscs"] .instance-permission-btn--active:hover {
+    background-color: var(--cscs-brand-tint);
+    border-color: var(--cscs-brand);
+    color: var(--cscs-brand);
+}
+
+html[data-tenant="cscs"] .instance-permission-btn:hover {
+    background-color: var(--cscs-brand-tint);
+    border-color: #cfe1c6;
+    color: var(--cscs-brand);
+}
+
+html[data-tenant="cscs"] .instance-permission-btn:focus-visible {
+    outline: 2px solid var(--cscs-brand);
+    outline-offset: 2px;
+}
+
+/* Not permitted: stays in place so the icons line up from row to row, but clearly inactive */
+html[data-tenant="cscs"] .instance-permission-btn:disabled {
+    background-color: var(--cscs-page);
+    border-color: var(--cscs-border);
+    color: #c3c8cf;
+}
+
+/* The favorite star (list, preview and detail): neutral until it is a favorite, then the brand green */
+html[data-tenant="cscs"] .favorite-toggle {
+    border-radius: var(--cscs-radius);
+    color: #b4bac3;
+}
+
+html[data-tenant="cscs"] .favorite-toggle:hover {
+    background-color: var(--cscs-hover);
+    color: var(--cscs-text);
+}
+
+html[data-tenant="cscs"] .favorite-toggle--active,
+html[data-tenant="cscs"] .favorite-toggle--active:hover {
+    color: var(--cscs-brand);
 }
 
 /* ------------------------------------------------------------------ 9. Tags and pills */
@@ -289,7 +551,7 @@ html[data-tenant="cscs"] .view-badge {
 /* ------------------------------------------------------------------ 10. Cards */
 html[data-tenant="cscs"] .instance-focus-panel {
     border-color: var(--cscs-border);
-    border-radius: 12px;
+    border-radius: var(--cscs-radius-card);
     box-shadow: 0 1px 2px rgba(16, 24, 40, 0.04);
 }
 
@@ -312,7 +574,7 @@ html[data-tenant="cscs"] .suite-home-title {
 
 html[data-tenant="cscs"] .suite-home-card {
     border-color: var(--cscs-border);
-    border-radius: 12px;
+    border-radius: var(--cscs-radius-card);
     box-shadow: 0 1px 2px rgba(16, 24, 40, 0.04);
 }
 
@@ -332,7 +594,7 @@ html[data-tenant="cscs"] .suite-home-card-icon {
 html[data-tenant="cscs"] .suite-home-docs {
     background-color: var(--cscs-surface);
     border-color: var(--cscs-border);
-    border-radius: 12px;
+    border-radius: var(--cscs-radius-card);
 }
 
 html[data-tenant="cscs"] .suite-home-docs-icon {

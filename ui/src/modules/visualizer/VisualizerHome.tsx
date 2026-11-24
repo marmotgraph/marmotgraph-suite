@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Alert, Button, Form, Modal, Spinner } from "react-bootstrap";
-import { useSearchParams } from "react-router-dom";
+import { useLocation, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { ChevronLeft, ChevronRight, CircleDot, Hexagon, Maximize, Network, Orbit, Sparkles, Trash, ZoomIn, ZoomOut } from "lucide-react";
 import { useAuth } from "../../contexts/AuthContext";
 import { SearchBar } from "../../components/SearchBar";
@@ -38,6 +38,7 @@ import {
   updateNode,
 } from "./graphModel";
 import { HIVE_AXIS_LABELS, HIVE_RANK_LABELS, HiveAxisBy, HiveOptions, HiveRankBy, LayoutKind } from "./layouts";
+import { DEFAULT_HIVE, instanceFromRest, viewFromSearch, visualizerPath } from "./visualizerUrl";
 import "./Visualizer.css";
 
 /** The most links of an instance added at once - a hub would bury the graph otherwise. */
@@ -129,14 +130,19 @@ export default function VisualizerHome() {
   const { getAccessToken } = useAuth();
   const isMobile = useMediaQuery(MOBILE_VIEWPORT_QUERY);
   const knownTypes = useTypes();
-  const [searchParams, setSearchParams] = useSearchParams();
+  const [searchParams] = useSearchParams();
+  const location = useLocation();
+  const navigate = useNavigate();
+  const rest = useParams()["*"];
   const canvasRef = useRef<GraphCanvasHandle>(null);
 
   const [stored] = useState(restore);
   const [graph, setGraph] = useState<Graph>(() => toGraph(stored));
   const [selectedId, setSelectedId] = useState<string | undefined>(stored?.selected);
-  const [layout, setLayout] = useState<LayoutKind>(stored?.layout ?? "network");
-  const [hive, setHive] = useState<HiveOptions>(stored?.hive ?? { axisBy: "type", rankBy: "connections" });
+  // The address wins over what this tab remembers - a link shows what it was made to show
+  const [fromAddress] = useState(() => viewFromSearch(searchParams));
+  const [layout, setLayout] = useState<LayoutKind>(fromAddress.layout ?? stored?.layout ?? "network");
+  const [hive, setHive] = useState<HiveOptions>({ ...(stored?.hive ?? DEFAULT_HIVE), ...fromAddress.hive });
   const [hiddenTypes, setHiddenTypes] = useState<ReadonlySet<string>>(new Set());
   const [showLabels, setShowLabels] = useState(true);
   const [showLinkLabels, setShowLinkLabels] = useState(false);
@@ -394,20 +400,54 @@ export default function VisualizerHome() {
     );
   }, [loadingBulk]);
 
-  // Opened with an instance (?instance=<id>), e.g. from a link
-  const seeded = useRef(false);
+  // ---- The address: /visualizer/instances/:id?layout=... ----
+
+  const urlInstance = instanceFromRest(rest);
+  /** The instance of the address which has been taken up (or written by us) - so it is not taken up twice */
+  const takenUp = useRef<string>();
+  /** The instance of the address which is not selected yet - the address must not be rewritten meanwhile */
+  const awaited = useRef<string>();
+
+  // Opened with an instance, e.g. from a link in the editor: it is put in focus and its links are loaded
   useEffect(() => {
-    const instanceId = searchParams.get("instance");
-    if (!instanceId || seeded.current) {
+    if (!urlInstance || takenUp.current === urlInstance) {
       return;
     }
-    seeded.current = true;
-    setSearchParams({}, { replace: true });
-    withBusy(setExpanding, instanceId, async () => {
-      const detail = await fetchInstance(await getAccessToken(), instanceId);
+    takenUp.current = urlInstance;
+    awaited.current = urlInstance;
+    const known = graphRef.current.nodes.get(urlInstance);
+    if (known) {
+      select(urlInstance);
+      if (known.status === "resolved" && !known.expanded) {
+        expand(urlInstance);
+      }
+      return;
+    }
+    withBusy(setExpanding, urlInstance, async () => {
+      const detail = await fetchInstance(await getAccessToken(), urlInstance);
       focusOn(nodeOfDetail(detail, false));
+    }).finally(() => {
+      // Not found, or not allowed: the address stays as it is, the error says why
+      if (awaited.current === urlInstance) awaited.current = undefined;
     });
-  }, [searchParams, setSearchParams, getAccessToken, focusOn, withBusy]);
+  }, [urlInstance, select, expand, focusOn, withBusy, getAccessToken]);
+
+  // The address follows the view, so it can be copied or linked at any time (replacing, not adding to the history)
+  useEffect(() => {
+    if (awaited.current) {
+      if (selectedId !== awaited.current) {
+        return;
+      }
+      awaited.current = undefined;
+    }
+    const target = visualizerPath(selectedId, { layout, hive });
+    if (target !== location.pathname + location.search) {
+      takenUp.current = selectedId;
+      navigate(target, { replace: true });
+    }
+    // The location is left out on purpose: following it would fight the user's own navigation
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedId, layout, hive, navigate]);
 
   // ---- Actions on the graph ----
 

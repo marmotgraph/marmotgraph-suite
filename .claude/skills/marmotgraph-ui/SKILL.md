@@ -4,7 +4,7 @@ description: >-
   Keeps the MarmotGraph UI on the Editor visual system and on core UX
   principles. Use when adding or changing screens, components, layout, or CSS
   in ui/, when reviewing an interface, or when the user mentions UI, UX,
-  design, layout, styling, or CSS.
+  design, layout, styling, or CSS, or a tenant style such as CSCS.
 ---
 
 # MarmotGraph UI
@@ -23,6 +23,8 @@ If this skill and the Editor CSS disagree, follow the CSS and update the skill i
 4. Put presentation in that stylesheet. Keep the component free of one-off color, radius, and shadow.
 5. Use the type color the instance or type already carries. Fall back to `#6c757d`.
 6. Build controls with React-Bootstrap (`Button`, `Form`, `Table`, `Modal`). Match the icon set already on that surface: Lucide in the sidebar, Font Awesome on editor search and the instance toolbar.
+
+Tenants can have their own style on top of this one (today: CSCS). The default style described here stays the default and is never changed for a tenant. Rules, tokens, and what is covered are in [cscs.md](cscs.md). When you add a color, a card, or an interactive state to an app, check whether the CSCS files need the matching override.
 
 Leave `ui/src/styles/theme.css` alone. Editor screens paint their own light surfaces. Those variables are an older theme layer.
 
@@ -67,6 +69,7 @@ Complete this checklist before you finish:
 - [ ] Each new control has an accessible name and a focus ring
 - [ ] A column or shell change still works below 768px
 - [ ] The changed flow was exercised in the browser
+- [ ] CSCS: new purple, blue, or 10px+ radius has its override in ui/src/tenants/cscs/apps.css (see cscs.md)
 ```
 
 Open the app and use the change the way a person would: the new control, a second screen that shares the component, and the empty or error path. Check a phone-width viewport when layout changed. A single screenshot does not finish the task.

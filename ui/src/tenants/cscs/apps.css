@@ -48,6 +48,7 @@ html[data-tenant="cscs"] .modeler-color-swatch:focus-within {
 html[data-tenant="cscs"] :is(
     .breadcrumb-menu-item,
     .comment-add.btn,
+    .links-load-more-btn.btn,
     .modeler-type-link,
     .statistics-show-all,
     .viz-more,
@@ -60,6 +61,7 @@ html[data-tenant="cscs"] :is(
 html[data-tenant="cscs"] :is(
     .breadcrumb-menu-item,
     .comment-add.btn,
+    .links-load-more-btn.btn,
     .modeler-type-link,
     .statistics-show-all,
     .viz-more,
@@ -111,16 +113,9 @@ html[data-tenant="cscs"] .viz-layout-option.active svg {
     color: var(--cscs-brand);
 }
 
-html[data-tenant="cscs"] .link-item--highlighted,
-html[data-tenant="cscs"] .link-item--highlighted:hover {
+html[data-tenant="cscs"] .link-item:hover {
     background-color: var(--cscs-brand-tint);
     border-color: var(--cscs-brand);
-    box-shadow: 0 0 0 2px var(--cscs-brand-ring);
-}
-
-html[data-tenant="cscs"] :is(.view-badge, .tag-badge).linked-instance-badge--highlighted {
-    background-color: var(--cscs-brand-tint) !important;
-    border-color: var(--cscs-brand) !important;
     box-shadow: 0 0 0 2px var(--cscs-brand-ring);
 }
 

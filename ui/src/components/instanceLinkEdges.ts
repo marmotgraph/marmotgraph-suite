@@ -145,10 +145,8 @@ export function readLinkEdgeInputs(layout: HTMLElement): LinkEdgeInput[] {
       main: sectionAnchor ?? ports[side],
       link,
       active:
-        item.dataset.linkHighlighted === "true" ||
         item.dataset.linkHot === "true" ||
-        item.querySelector("[data-link-highlighted='true'], [data-link-hot='true']") !==
-          null,
+        item.querySelector("[data-link-hot='true']") !== null,
       color: linkColor(item.dataset.linkColor),
       dashed: item.dataset.linkDashed === "true",
     });

@@ -28,6 +28,8 @@ Source of truth: the CSS below. Use these values when the stylesheet does not al
 | Unsaved | `ui/src/components/UnsavedInstancesPanel.css` | `unsaved-instances-panel` |
 | Footer | `ui/src/views/PoweredBy.tsx` | leave the credit line as it is |
 
+The values on this page are the default style. The CSCS tenant has its own tokens and overrides in `ui/src/tenants/cscs/` - see [cscs.md](cscs.md). Do not change the values here to suit a tenant.
+
 `ui/src/styles/theme.css` is not the editor palette. Do not retint editor screens with `--bg-primary` or `--accent-color`.
 
 ## Color
@@ -118,7 +120,7 @@ The mode switch is the icon row on the type line: read (eye), edit (pencil), raw
 
 ### Links and connectors
 
-Outgoing links are grouped by type beside the field they come from (`instance-links-panel--aligned`). The panel title is a kicker, "Outgoing links (n)", with a collapse chevron. Each `type-group` has a tinted header (`#f8f9fb`), the type dot and name, and a count. Rows inside the group are flat, separated by `#f1f3f5`.
+Outgoing links are grouped by type beside the field they come from (`instance-links-panel--aligned`). The panel title is a kicker, "Outgoing links (n)", with a collapse chevron. Each `type-group` has a tinted header (`#f8f9fb`), the type dot and name, and a count. Rows inside the group are flat, separated by `#f1f3f5`. A type group lists five links. With up to ten, "Show x more" unfolds the rest in place and "Show less" folds it again. With more than ten, there is no unfolding: "Show all n" opens them in a dialog (`LinksModal`), which loads further incoming links as it scrolls. The same rule holds for outgoing and incoming links (`InstanceLinksPanel`, `IncomingLinksPanel`; the limits are `LINKS_PAGE` and `LINKS_INLINE_MAX`).
 
 Connectors: default stroke `#b7c0cc` at 1.5px; active stroke `var(--edge-color, #4f78ad)` at 2.25px; dimmed opacity 0.35; unresolved dash `4 4`. Ports are white with a 2px `#7f93ad` stroke. Handles are 9px circles, 2px accent border, white ring. The connector layer does not take clicks (`pointer-events: none`).
 

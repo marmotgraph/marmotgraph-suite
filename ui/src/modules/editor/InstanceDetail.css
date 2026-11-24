@@ -1,13 +1,32 @@
 /* Layout */
 .instance-detail-layout {
     --instance-side-width: 300px;
+    /* A link panel reduced to a rail gives its width to the instance */
+    --instance-incoming-width: var(--instance-side-width);
+    --instance-outgoing-width: var(--instance-side-width);
+    --instance-rail-width: 48px;
+    --instance-main-max: 900px;
     display: grid;
-    grid-template-columns: var(--instance-side-width) minmax(0, 900px) var(--instance-side-width);
+    grid-template-columns: var(--instance-incoming-width) minmax(0, var(--instance-main-max)) var(--instance-outgoing-width);
     column-gap: 40px;
     justify-content: start;
     width: 100%;
     padding: 4px 56px 24px 0;
     position: relative;
+}
+
+.instance-detail-layout--incoming-collapsed {
+    --instance-incoming-width: var(--instance-rail-width);
+    --instance-main-max: 1180px;
+}
+
+.instance-detail-layout--outgoing-collapsed {
+    --instance-outgoing-width: var(--instance-rail-width);
+    --instance-main-max: 1180px;
+}
+
+.instance-detail-layout--incoming-collapsed.instance-detail-layout--outgoing-collapsed {
+    --instance-main-max: 1460px;
 }
 
 .instance-detail-breadcrumbs {
@@ -26,11 +45,13 @@
 .instance-detail-side--reverse {
     grid-column: 1;
     grid-row: 2;
+    width: var(--instance-incoming-width);
 }
 
 .instance-detail-side--direct {
     grid-column: 3;
     grid-row: 2;
+    width: var(--instance-outgoing-width);
 }
 
 @media (min-width: 1400px) {
@@ -49,7 +70,7 @@
     grid-column: 2;
     grid-row: 2;
     min-width: 0;
-    max-width: 900px;
+    max-width: var(--instance-main-max);
     position: relative;
     z-index: 1;
 }
@@ -194,6 +215,11 @@
     align-self: center;
 }
 
+.instance-header-type-row .instance-header-visualizer-link {
+    align-self: center;
+    flex: 0 0 auto;
+}
+
 .instance-header-title-row {
     display: grid;
     grid-template-columns: minmax(66%, 1fr) minmax(0, calc(34% - 16px));
@@ -214,6 +240,19 @@
     min-width: 0;
 }
 
+/* The star sits right after the name */
+.instance-name-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    min-width: 0;
+}
+
+.instance-name-favorite {
+    flex: 0 0 auto;
+    font-size: 1.1rem;
+}
+
 .instance-header-status .instance-status {
     width: 100%;
     justify-content: flex-end;
@@ -231,6 +270,32 @@
 
 .instance-header-modes {
     align-self: center;
+}
+
+.instance-header-title-row {
+    display: grid;
+    grid-template-columns: minmax(66%, 1fr) minmax(0, calc(34% - 16px));
+    column-gap: 16px;
+    align-items: start;
+    min-width: 0;
+}
+
+.instance-header-title-column {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    min-width: 0;
+}
+
+.instance-header-title-column .instance-name {
+    margin: 0;
+    min-width: 0;
+}
+
+
+.instance-header-status .instance-status {
+    width: 100%;
+    justify-content: flex-end;
 }
 
 .instance-header-status {

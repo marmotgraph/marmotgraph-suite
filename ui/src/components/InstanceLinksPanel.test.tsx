@@ -1,62 +1,67 @@
 import React from "react";
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, within } from "@testing-library/react";
+import { describe, expect, it, vi } from "vitest";
 import { LinkedInstance } from "../modules/editor/editorMockData";
-import InstanceLinksPanel, { FieldGroup, TypeGroup } from "./InstanceLinksPanel";
+import InstanceLinksPanel from "./InstanceLinksPanel";
 
-describe("link groups", () => {
-  it("lets a property hide its instances and keeps the type attached to them", () => {
-    render(
-      <FieldGroup label="Contains" count={2}>
-        <TypeGroup type="Cabinet" typeColor="#f44336" count={2}>
-          <div>Rack A</div>
-        </TypeGroup>
-      </FieldGroup>,
-    );
+const links = (count: number): LinkedInstance[] =>
+  Array.from({ length: count }, (_, i) => ({
+    instanceId: `id-${i + 1}`,
+    instanceName: `Person ${i + 1}`,
+    type: "Person",
+    space: "demo",
+    fieldLabel: "Authors",
+  }));
 
-    const property = screen.getByRole("button", { name: /Contains/ });
-    expect(property).toHaveAttribute("aria-expanded", "true");
-    expect(screen.getByText("Cabinet")).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: /Cabinet/ })).not.toBeInTheDocument();
-    expect(screen.getByText("Rack A")).toBeInTheDocument();
+const renderPanel = (count: number, onLinkClick = vi.fn()) =>
+  render(<InstanceLinksPanel links={links(count)} onLinkClick={onLinkClick} title="Outgoing Links" />);
 
-    fireEvent.click(property);
+describe("outgoing link pages", () => {
+  it("shows up to five links without any option to show more", () => {
+    renderPanel(5);
 
-    expect(property).toHaveAttribute("aria-expanded", "false");
-    expect(screen.queryByText("Cabinet")).not.toBeInTheDocument();
-    expect(screen.queryByText("Rack A")).not.toBeInTheDocument();
+    expect(screen.getByText("Person 5")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Show/ })).not.toBeInTheDocument();
   });
 
-  it("shows a first page of outgoing links and reveals the rest on request", () => {
-    const links: LinkedInstance[] = Array.from({ length: 7 }, (_, index) => ({
-      instanceId: `id-${index}`,
-      instanceName: `Rack ${index}`,
-      type: "Cabinet",
-      space: "demo",
-      fieldLabel: "Contains",
-    }));
+  it("shows the first five and unfolds the rest of up to ten links", () => {
+    renderPanel(8);
 
-    render(
-      <InstanceLinksPanel
-        links={links}
-        onLinkClick={() => undefined}
-        title="Outgoing Links"
-      />,
-    );
+    expect(screen.getByText("Person 5")).toBeInTheDocument();
+    expect(screen.queryByText("Person 6")).not.toBeInTheDocument();
 
-    expect(screen.getAllByText(/Rack /)).toHaveLength(5);
-    expect(screen.queryByText("Rack 5")).not.toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "Edit instance" })).not.toBeInTheDocument();
-
-    fireEvent.click(screen.getByRole("button", { name: "Show 2 more" }));
-
-    expect(screen.getAllByText(/Rack /)).toHaveLength(7);
+    fireEvent.click(screen.getByRole("button", { name: "Show 3 more" }));
+    expect(screen.getByText("Person 8")).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /Show .* more/ })).not.toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "Show less" }));
+    expect(screen.queryByText("Person 6")).not.toBeInTheDocument();
+  });
 
-    expect(screen.getAllByText(/Rack /)).toHaveLength(5);
-    expect(screen.queryByText("Rack 5")).not.toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Show 2 more" })).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "Show less" })).not.toBeInTheDocument();
+  it("unfolds exactly ten links in the panel", () => {
+    renderPanel(10);
+
+    fireEvent.click(screen.getByRole("button", { name: "Show 5 more" }));
+
+    expect(screen.getByText("Person 10")).toBeInTheDocument();
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+  });
+
+  it("lists more than ten links in a dialog and does not unfold them", () => {
+    const onLinkClick = vi.fn();
+    renderPanel(12, onLinkClick);
+
+    expect(screen.queryByRole("button", { name: /Show .* more/ })).not.toBeInTheDocument();
+    expect(screen.queryByText("Person 6")).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Show all 12 Person links in Authors" }));
+
+    const dialog = screen.getByRole("dialog", { name: /Outgoing links · Authors/ });
+    expect(within(dialog).getByText("12")).toBeInTheDocument();
+    expect(within(dialog).getByText("Person 12")).toBeInTheDocument();
+
+    // Opening one of them leaves the dialog
+    fireEvent.click(within(dialog).getByText("Person 12"));
+    expect(onLinkClick).toHaveBeenCalledWith("id-12");
   });
 });
