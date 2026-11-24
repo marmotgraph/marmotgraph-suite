@@ -31,10 +31,10 @@ import {
   KeyRound,
   Network,
   PanelLeftClose,
-  // PanelRightOpenIcon,
-  Wrench,
   PanelLeftOpen,
+  PanelRightOpenIcon,
   ShieldCheck,
+  Wrench,
 } from "lucide-react";
 
 const ADMIN_SECTION_ICONS: Record<AdminSection, React.ReactNode> = {

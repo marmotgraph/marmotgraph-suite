@@ -59,8 +59,6 @@ export default function InstanceLinksPanel({
   title,
   collapsed,
   onToggleCollapsed,
-  // highlightedLink,
-  // onLinkHover,
 }: Readonly<InstanceLinksPanelProps>) {
   // Group links by field label - and within a field by the type of the linked instance
   const groupedLinks = links.reduce(
@@ -119,16 +117,13 @@ function OutgoingTypeLinks({
   fieldLabel,
   typeLinks,
   onLinkClick,
-  // onLinkHover,
 }: Readonly<{
   fieldLabel: string;
   typeLinks: LinkedInstance[];
   onLinkClick: (instanceId: string) => void;
-  onLinkHover?: (link: HoveredLink | undefined) => void;
 }>) {
   const [expanded, setExpanded] = useState(false);
   const [showAll, setShowAll] = useState(false);
-  const [limit, setLimit] = useState(LINKS_PAGE);
   const first = typeLinks[0];
   const unresolved = first.linkStatus === "unresolved";
   const typeColor = first.typeColor || typeColors[first.type] || undefined;
@@ -564,6 +559,7 @@ export function LinkItem({
       data-link-hot={hot ? "true" : undefined}
       onMouseEnter={() => setHot(true)}
       onMouseLeave={() => setHot(false)}
+      tabIndex={resolved ? 0 : undefined}
       onClick={resolved ? () => onLinkClick(link.instanceId) : undefined}
       onKeyDown={
         resolved
