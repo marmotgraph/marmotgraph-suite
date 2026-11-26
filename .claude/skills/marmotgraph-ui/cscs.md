@@ -57,7 +57,7 @@ The values come from the CSCS console screenshots. If a new screenshot disagrees
 
 | App | Covered |
 | --- | --- |
-| Home | boxes, documentation strip (`cscs.css`) |
+| Home | boxes, documentation strip, outage page (`cscs.css`) |
 | Editor | list card, rows, permission buttons, filters and pills, preview, cards of the mobile list, detail header card, mode buttons, links panel, highlighted link, unsaved rail focus, dialogs |
 | Query Builder | table, tree rows (hover and selected), alias link, focus |
 | Visualizer | panels, layout picker, results, neighbours, chips, "more" link, canvas focus, empty state |

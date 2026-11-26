@@ -32,6 +32,7 @@ import io.swagger.v3.oas.models.security.OAuthFlows;
 import io.swagger.v3.oas.models.security.SecurityRequirement;
 import io.swagger.v3.oas.models.security.SecurityScheme;
 import org.marmotgraph.sdk.auth.AuthenticationInformation;
+import org.springdoc.core.customizers.OpenApiCustomizer;
 import org.springdoc.core.properties.SwaggerUiOAuthProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -43,15 +44,26 @@ public class OpenAPI {
     private static final String AUTHORIZATION = "Authorization";
 
     @Bean
-    public io.swagger.v3.oas.models.OpenAPI customOpenAPI(AuthenticationInformation authenticationInformation, SwaggerUiOAuthProperties swaggerUiOAuthProperties, Variables variables) {
-        swaggerUiOAuthProperties.setClientId(authenticationInformation.loginClientId());
-        OAuthFlow oAuthFlow = new OAuthFlow().authorizationUrl(authenticationInformation.authorizationEndpoint()).tokenUrl(authenticationInformation.tokenEndpoint());
-        SecurityScheme userToken = new SecurityScheme().name(AUTHORIZATION).type(SecurityScheme.Type.OAUTH2).flows(new OAuthFlows().authorizationCode(oAuthFlow)).description("The user authentication");
+    public io.swagger.v3.oas.models.OpenAPI customOpenAPI(Variables variables) {
         String description = String.format("This is the API of the MarmotGraph Suite (commit %s)", variables.shortCommitId().orElse("unknown"));
         return new io.swagger.v3.oas.models.OpenAPI()
                 .info(new Info().title("MarmotGraph Suite API").description(description).license(new License().name("Apache 2.0").url("https://www.apache.org/licenses/LICENSE-2.0.html")))
-                .components(new Components().addSecuritySchemes(AUTHORIZATION, userToken))
                 .addSecurityItem(new SecurityRequirement().addList(AUTHORIZATION));
+    }
+
+    /**
+     * The OIDC flow is only known once the core is reachable - the documentation fails (503) until then. Since springdoc
+     * only caches a successfully built documentation, it is completed as soon as the core is back.
+     */
+    @Bean
+    public OpenApiCustomizer authenticationCustomizer(CoreConnection coreConnection, SwaggerUiOAuthProperties swaggerUiOAuthProperties) {
+        return openApi -> {
+            AuthenticationInformation authenticationInformation = coreConnection.authenticationInformation();
+            swaggerUiOAuthProperties.setClientId(authenticationInformation.loginClientId());
+            OAuthFlow oAuthFlow = new OAuthFlow().authorizationUrl(authenticationInformation.authorizationEndpoint()).tokenUrl(authenticationInformation.tokenEndpoint());
+            SecurityScheme userToken = new SecurityScheme().name(AUTHORIZATION).type(SecurityScheme.Type.OAUTH2).flows(new OAuthFlows().authorizationCode(oAuthFlow)).description("The user authentication");
+            openApi.components((openApi.getComponents() != null ? openApi.getComponents() : new Components()).addSecuritySchemes(AUTHORIZATION, userToken));
+        };
     }
 
 }

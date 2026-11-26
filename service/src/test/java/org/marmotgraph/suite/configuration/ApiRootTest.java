@@ -2,7 +2,7 @@ package org.marmotgraph.suite.configuration;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.marmotgraph.sdk.auth.AuthenticationInformation;
+import org.marmotgraph.suite.api.ApiExceptionHandler;
 import org.marmotgraph.suite.api.Config;
 import org.mockito.Mockito;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -23,11 +23,11 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 class ApiRootTest {
 
     @EnableWebMvc
-    @Import({ApiRoot.class, Config.class})
+    @Import({ApiRoot.class, Config.class, ApiExceptionHandler.class})
     static class TestConfig {
         @Bean
-        AuthenticationInformation authenticationInformation() {
-            return Mockito.mock(AuthenticationInformation.class);
+        CoreConnection coreConnection() {
+            return Mockito.mock(CoreConnection.class, Mockito.RETURNS_DEEP_STUBS);
         }
 
         @Bean

@@ -603,6 +603,26 @@ html[data-tenant="cscs"] .suite-home-docs-icon {
     color: var(--cscs-brand);
 }
 
+/* Outage page (core or suite backend unreachable): the status card follows the cards of the console */
+html[data-tenant="cscs"] .outage-card {
+    background-color: var(--cscs-surface);
+    border-color: var(--cscs-border);
+    border-radius: var(--cscs-radius-card);
+    box-shadow: 0 1px 2px rgba(16, 24, 40, 0.04);
+}
+
+html[data-tenant="cscs"] .outage-title {
+    color: var(--cscs-text);
+}
+
+html[data-tenant="cscs"] .outage-text {
+    color: var(--cscs-text-body);
+}
+
+html[data-tenant="cscs"] .outage-details summary:focus-visible {
+    outline-color: var(--cscs-brand);
+}
+
 /* ------------------------------------------------------------------ 11. Footer */
 html[data-tenant="cscs"] .layout-footer-wrapper {
     background-color: var(--cscs-surface);
