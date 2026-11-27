@@ -37,6 +37,7 @@ import {
   fetchIncomingLinks,
   fetchInstance,
   IDENTIFIER,
+  moveInstance,
   IncomingLinks,
   IncomingLinksOfType,
   InstanceDetail as InstanceDetailData,
@@ -63,6 +64,7 @@ import RawInstanceEditor from "../../components/RawInstanceEditor";
 import InstanceRelease from "../../components/InstanceRelease";
 import InstanceInfo from "../../components/InstanceInfo";
 import { DisabledHint, noPermission } from "../../components/DisabledHint";
+import { InstanceSpaceEditor } from "../../components/SpacePicker";
 import InstanceReview from "../../components/InstanceReview";
 import { FieldComments, InstanceCommentsOverview } from "../../components/InstanceComments";
 import { useInstanceComments } from "../../hooks/useInstanceComments";
@@ -236,6 +238,18 @@ function InstanceDetailView({ instanceId }: Readonly<{ instanceId: string }>) {
   /** The space the new instance is created in (chosen when it was created for a link) */
   const [newInstanceSpace] = useState(() => getDraft(instanceId)?.space);
   /**
+   * The space chosen while editing. Cleared as soon as another instance is shown, so a choice does not
+   * follow the user to the next one.
+   */
+  const [spaceState, setSpaceState] = useState<{ id: string; space?: string }>(() => ({ id: instanceId }));
+  if (spaceState.id !== instanceId) {
+    setSpaceState({ id: instanceId });
+  }
+  const spaceOverride = spaceState.id === instanceId ? spaceState.space : undefined;
+  const setSpaceOverride = useCallback((space: string | undefined) => {
+    setSpaceState({ id: instanceId, space });
+  }, [instanceId]);
+  /**
    * The mode asked for by the URL - a new instance always shows its form. It is kept when navigating between instances
    * and stays even if the user lacks the permission for it on one of them (see mode): the next instance they are allowed
    * to use it on shows it again.
@@ -312,6 +326,9 @@ function InstanceDetailView({ instanceId }: Readonly<{ instanceId: string }>) {
   // A new instance is created by the user - an existing one is only edited with the right to edit it (also when
   // requested by the URL or an unsaved draft)
   const isEditMode = requestedMode === "edit" && (isNewInstance || canEdit);
+  const savedSpace = isNewInstance ? (newInstanceSpace ?? "") : (instance?.space ?? "");
+  const selectedSpace = spaceOverride ?? savedSpace;
+  const spaceChanged = isEditMode && spaceOverride !== undefined && spaceOverride !== savedSpace;
   const canRelease = permissions.includes("Release");
   /** Whether the user may read and write comments (reviewers and above) */
   const canComment = permissions.includes("Comment");
@@ -569,10 +586,11 @@ function InstanceDetailView({ instanceId }: Readonly<{ instanceId: string }>) {
 
   const resetToSaved = useCallback(() => {
     setCurrentFieldValues(savedFieldValues);
+    setSpaceOverride(undefined);
     if (requestedMode === "edit") {
       requestMode("read");
     }
-  }, [requestedMode, requestMode, savedFieldValues]);
+  }, [requestedMode, requestMode, savedFieldValues, setSpaceOverride]);
 
   useEffect(() => {
     if (!instanceId) {
@@ -593,6 +611,9 @@ function InstanceDetailView({ instanceId }: Readonly<{ instanceId: string }>) {
       // Drafts kept before the identifiers were editable don't change them
       setCurrentFieldValues({ [IDENTIFIER]: savedFieldValues[IDENTIFIER], ...draft.fieldValues });
       setBaseline(savedFieldValues);
+      if (draft.moveToSpace) {
+        setSpaceOverride(draft.moveToSpace);
+      }
       requestMode("edit");
       return;
     }
@@ -616,6 +637,10 @@ function InstanceDetailView({ instanceId }: Readonly<{ instanceId: string }>) {
     () => getChangedInstanceFieldLabels(currentFieldValues, baseline, changeLabels),
     [baseline, currentFieldValues, changeLabels],
   );
+  const pendingChangeLabels = useMemo(
+    () => [...(spaceChanged ? ["Space"] : []), ...changedFieldLabels],
+    [changedFieldLabels, spaceChanged],
+  );
 
   const rawDraft = getDraft(instanceId)?.rawJson;
   const validationResults =
@@ -623,9 +648,9 @@ function InstanceDetailView({ instanceId }: Readonly<{ instanceId: string }>) {
       ? instance.validation
       : undefined;
   const hasUnsavedChanges =
-    (isEditMode && changedFieldKeys.size > 0) || rawDraft !== undefined;
+    (isEditMode && (changedFieldKeys.size > 0 || spaceChanged)) || rawDraft !== undefined;
   const unsavedChangeLabels =
-    rawDraft !== undefined ? [RAW_JSON_LABEL] : changedFieldLabels;
+    rawDraft !== undefined ? [RAW_JSON_LABEL] : pendingChangeLabels;
   const hasReverseLinks = incomingLinksLoading
     ? getDraft(instanceId)?.hasReverseLinks
     : incomingLinks.some((group) =>
@@ -643,7 +668,7 @@ function InstanceDetailView({ instanceId }: Readonly<{ instanceId: string }>) {
       return;
     }
 
-    if (!areInstanceFieldValuesEqual(currentFieldValues, baseline)) {
+    if (!areInstanceFieldValuesEqual(currentFieldValues, baseline) || spaceChanged) {
       upsertDraft({
         instanceId,
         instanceName: instanceName ?? instance.instanceName,
@@ -653,21 +678,39 @@ function InstanceDetailView({ instanceId }: Readonly<{ instanceId: string }>) {
         updatedAt: Date.now(),
         isNew: isNewInstance,
         typeIdentifier: isNewInstance ? newInstanceType : undefined,
-        space: isNewInstance ? newInstanceSpace : undefined,
-        changedFieldLabels,
+        space: isNewInstance ? (spaceChanged ? selectedSpace : newInstanceSpace) : undefined,
+        moveToSpace: !isNewInstance && spaceChanged ? selectedSpace : undefined,
+        changedFieldLabels: pendingChangeLabels,
         hasReverseLinks,
       });
       return;
     }
 
-    // An instance created for a link is kept even if nothing is filled in yet - it is linked already
+    // A reverted space change must not stay on the draft. An instance created for a link is kept even if
+    // nothing is filled in yet - it is linked already.
+    const storedDraft = getDraft(instanceId);
+    if (storedDraft?.moveToSpace || (isNewInstance && storedDraft && storedDraft.space !== newInstanceSpace)) {
+      if (!newInstanceSpace && !storedDraft.rawJson) {
+        removeDraft(instanceId);
+        return;
+      }
+      upsertDraft({
+        ...storedDraft,
+        space: isNewInstance ? newInstanceSpace : undefined,
+        moveToSpace: undefined,
+        changedFieldLabels: pendingChangeLabels,
+      });
+      return;
+    }
     if (!newInstanceSpace) {
       removeDraft(instanceId);
     }
   }, [
     baseline,
-    changedFieldLabels,
+    pendingChangeLabels,
     currentFieldValues,
+    selectedSpace,
+    spaceChanged,
     instance,
     instanceId,
     hasReverseLinks,
@@ -813,14 +856,35 @@ function InstanceDetailView({ instanceId }: Readonly<{ instanceId: string }>) {
     setSaving(true);
     setSaveError(undefined);
     return getAccessToken()
-      .then((token) =>
-        isNewInstance
-          ? createInstance(token, instanceId, newInstanceType, changes, newInstanceSpace)
-          : updateInstance(token, instanceId, changes),
-      )
+      .then(async (token) => {
+        if (isNewInstance) {
+          return createInstance(
+            token,
+            instanceId,
+            newInstanceType,
+            changes,
+            spaceChanged ? selectedSpace : newInstanceSpace,
+          );
+        }
+        // Fields first, then the move, so the instance that lands in the new space already has them
+        if (changedFieldKeys.size > 0) {
+          const updated = await updateInstance(token, instanceId, changes);
+          if (!spaceChanged) {
+            return updated;
+          }
+        }
+        if (spaceChanged) {
+          return moveInstance(token, instanceId, selectedSpace);
+        }
+        return updateInstance(token, instanceId, changes);
+      })
       .then((stored) => {
         removeDraft(instanceId);
+        setSpaceOverride(undefined);
         setInstance(stored);
+        if (!isNewInstance) {
+          updateListedInstance(instanceId, { space: stored.space });
+        }
         // Stays in the edit mode with nothing unsaved - the saved values must not be kept as a draft again until they
         // are replaced by the stored ones
         setBaseline(currentFieldValues);
@@ -858,11 +922,12 @@ function InstanceDetailView({ instanceId }: Readonly<{ instanceId: string }>) {
       type: instance.type,
       fieldValues: currentFieldValues,
       baseline,
-      changedFieldLabels,
+      changedFieldLabels: pendingChangeLabels,
       updatedAt: 0,
       isNew: isNewInstance,
       typeIdentifier: isNewInstance ? newInstanceType : undefined,
-      space: isNewInstance ? newInstanceSpace : instance.space,
+      space: isNewInstance ? (spaceChanged ? selectedSpace : newInstanceSpace) : selectedSpace,
+      moveToSpace: !isNewInstance && spaceChanged ? selectedSpace : undefined,
     };
     const catalog = [
       currentDraft,
@@ -945,6 +1010,7 @@ function InstanceDetailView({ instanceId }: Readonly<{ instanceId: string }>) {
     removeDraft(instanceId || "");
     setSaveError(undefined);
     setCurrentFieldValues(baseline);
+    setSpaceOverride(undefined);
   };
 
   const hasOutgoingLinks = (instance.directLinks?.length ?? 0) > 0;
@@ -1097,9 +1163,22 @@ function InstanceDetailView({ instanceId }: Readonly<{ instanceId: string }>) {
                           <FontAwesomeIcon icon={faCopy} />
                         </Button>
                       </div>
-                      <div>
-                        <strong>Space:</strong> {instance.space}
-                      </div>
+                      {isEditMode && !isReleasedInstance ? (
+                        <InstanceSpaceEditor value={selectedSpace} onChange={setSpaceOverride} />
+                      ) : (
+                        <div className="instance-space-block">
+                          <div className="instance-space-line">
+                            <span className="instance-space-value" title={instance.space}>
+                              <strong>Space:</strong> {instance.space}
+                            </span>
+                          </div>
+                          {isEditMode && isReleasedInstance && (
+                            <p className="instance-space-note">
+                              Unrelease this instance before changing its space.
+                            </p>
+                          )}
+                        </div>
+                      )}
                     </div>
                   </div>
                   <div className="instance-header-status">
@@ -1228,7 +1307,7 @@ function InstanceDetailView({ instanceId }: Readonly<{ instanceId: string }>) {
                           isEditMode
                           onInstanceClick={handleLinkClick}
                           currentInstanceId={instanceId}
-                          parentSpace={instance.space}
+                          parentSpace={selectedSpace || instance.space}
                         />
                         <FieldErrors errors={fieldErrors.get(field.identifier)} />
                         {fieldAlternatives.panel(field)}
@@ -1266,14 +1345,14 @@ function InstanceDetailView({ instanceId }: Readonly<{ instanceId: string }>) {
                         </Button>
                       )}
                       <div
-                        className={`instance-form-actions-commit${changedFieldKeys.size === 0 ? " instance-form-actions-commit--unchanged" : ""}`}
-                        title={changedFieldKeys.size === 0 ? "Nothing to change" : undefined}
+                        className={`instance-form-actions-commit${changedFieldKeys.size === 0 && !spaceChanged ? " instance-form-actions-commit--unchanged" : ""}`}
+                        title={changedFieldKeys.size === 0 && !spaceChanged ? "Nothing to change" : undefined}
                       >
                         <Button
                           type="button"
                           variant="outline-secondary"
                           onClick={handleReset}
-                          disabled={changedFieldKeys.size === 0 || saving}
+                          disabled={(changedFieldKeys.size === 0 && !spaceChanged) || saving}
                         >
                           Cancel
                         </Button>
@@ -1284,7 +1363,7 @@ function InstanceDetailView({ instanceId }: Readonly<{ instanceId: string }>) {
                             setSaveIncludedIds([instanceId]);
                             setConfirmSave(true);
                           }}
-                          disabled={changedFieldKeys.size === 0 || saving}
+                          disabled={(changedFieldKeys.size === 0 && !spaceChanged) || saving}
                         >
                           {saving && (
                             <Spinner animation="border" size="sm" className="me-2" />
@@ -1362,11 +1441,12 @@ function InstanceDetailView({ instanceId }: Readonly<{ instanceId: string }>) {
             type: instance.type,
             fieldValues: currentFieldValues,
             baseline,
-            changedFieldLabels,
+            changedFieldLabels: pendingChangeLabels,
             updatedAt: 0,
             isNew: isNewInstance,
             typeIdentifier: isNewInstance ? newInstanceType : undefined,
-            space: isNewInstance ? newInstanceSpace : instance.space,
+            space: isNewInstance ? (spaceChanged ? selectedSpace : newInstanceSpace) : selectedSpace,
+            moveToSpace: !isNewInstance && spaceChanged ? selectedSpace : undefined,
           },
           ...unsavedDrafts.filter((draft) => draft.instanceId !== instanceId),
         ]}

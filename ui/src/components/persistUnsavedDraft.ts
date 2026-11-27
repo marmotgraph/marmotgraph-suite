@@ -3,6 +3,7 @@ import { getChangedInstanceFieldKeys } from "../modules/editor/editorMockData";
 import {
   createInstance,
   InstanceDetail,
+  moveInstance,
   RawInstance,
   replaceRawInstance,
   updateInstance,
@@ -43,7 +44,7 @@ export function isCreatedInstance(
 }
 
 /** Writes one draft. A new instance is created; a raw draft replaces the document. */
-export function persistUnsavedDraft(
+export async function persistUnsavedDraft(
   token: string,
   draft: UnsavedInstanceDraft,
 ): Promise<InstanceDetail | RawInstance> {
@@ -56,6 +57,12 @@ export function persistUnsavedDraft(
       return Promise.reject(new Error("Open this instance to save it."));
     }
     return createInstance(token, draft.instanceId, draft.typeIdentifier, changes, draft.space);
+  }
+  if (draft.moveToSpace) {
+    if (Object.keys(changes).length > 0) {
+      await updateInstance(token, draft.instanceId, changes);
+    }
+    return moveInstance(token, draft.instanceId, draft.moveToSpace);
   }
   return updateInstance(token, draft.instanceId, changes);
 }

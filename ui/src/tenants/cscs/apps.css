@@ -288,3 +288,14 @@ html[data-tenant="cscs"] .statistics-card {
 html[data-tenant="cscs"] .admin-list-item:focus-visible {
     outline-color: var(--cscs-brand);
 }
+
+/* The space picker on an instance: field focus and list selection follow the console, not the default purple and blue */
+html[data-tenant="cscs"] .instance-space-picker-toggle:focus-visible {
+    border-color: var(--cscs-brand);
+    box-shadow: 0 0 0 3px var(--cscs-brand-ring);
+}
+
+html[data-tenant="cscs"] .instance-space-menu {
+    border-color: var(--cscs-border);
+    border-radius: var(--cscs-radius);
+}

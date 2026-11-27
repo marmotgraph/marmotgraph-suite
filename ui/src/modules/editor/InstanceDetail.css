@@ -412,6 +412,149 @@
     font-weight: 500;
 }
 
+.instance-space,
+.instance-space-line {
+    display: flex;
+    flex-wrap: nowrap;
+    align-items: center;
+    min-width: 0;
+    max-width: 100%;
+}
+
+.instance-space {
+    gap: 8px;
+}
+
+.instance-space-block {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 2px;
+    min-width: 0;
+    max-width: 100%;
+}
+
+.instance-space-value {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.instance-space-label {
+    flex: 0 0 auto;
+}
+
+.instance-space-picker {
+    position: relative;
+    min-width: 0;
+    max-width: 100%;
+}
+
+.instance-space-picker-toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    max-width: 100%;
+    min-height: 32px;
+    padding: 2px 8px;
+    border: 1px solid #dee2e6;
+    border-radius: 6px;
+    background: #fff;
+    color: #212529;
+    font: inherit;
+    font-size: 0.9rem;
+    line-height: 1.4;
+    text-align: left;
+    cursor: pointer;
+}
+
+.instance-space-picker-toggle:disabled {
+    color: #6c757d;
+    background: #f8f9fa;
+    cursor: not-allowed;
+}
+
+.instance-space-picker-toggle:focus-visible {
+    outline: none;
+    border-color: #6c8ebf;
+    box-shadow: 0 0 0 3px rgba(108, 142, 191, 0.25);
+}
+
+.instance-space-picker-value {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.instance-space-menu {
+    position: absolute;
+    top: calc(100% + 4px);
+    left: 0;
+    z-index: 30;
+    width: min(280px, calc(100vw - 32px));
+    padding: 6px;
+    border: 1px solid #E2E8F0;
+    border-radius: 8px;
+    background: #fff;
+    box-shadow: 0 8px 24px rgba(15, 23, 42, 0.12);
+}
+
+.instance-space-menu-search {
+    margin-bottom: 6px;
+}
+
+.instance-space-menu-status,
+.instance-space-note {
+    margin: 0 2px 6px;
+    color: #6c757d;
+    font-size: 0.75rem;
+}
+
+.instance-space-note {
+    margin: 0;
+    font-size: 0.8rem;
+}
+
+.instance-space-menu-list {
+    list-style: none;
+    max-height: 240px;
+    margin: 0;
+    padding: 0;
+    overflow-y: auto;
+}
+
+.instance-space-menu-option {
+    display: block;
+    width: 100%;
+    padding: 7px 12px;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+    color: #212529;
+    font: inherit;
+    font-size: 0.9rem;
+    text-align: left;
+    cursor: pointer;
+    overflow-wrap: anywhere;
+}
+
+.instance-space-menu-option:hover,
+.instance-space-menu-option:focus,
+.instance-space-menu-option[data-active="true"],
+.instance-space-menu-option[aria-selected="true"] {
+    background: #f8f9fa;
+    outline: none;
+}
+
+@media (max-width: 767px) {
+    .instance-space-picker,
+    .instance-space-picker-toggle {
+        max-width: 100%;
+    }
+}
+
 /* Form Section */
 .instance-form {
     padding: 4px 0 8px;

@@ -13,6 +13,7 @@ import {
   IncomingLinks,
   InstanceDetail as InstanceDetailData,
   InstanceField,
+  moveInstance,
   replaceRawInstance,
   removeIdentifier,
   updateInstance,
@@ -36,8 +37,17 @@ async function confirmInstanceSave() {
 }
 
 vi.mock("../../contexts/InstancesContext", () => ({
-  useInstances: () => ({ addInstance: vi.fn(), deleteInstances, instances: [] }),
+  useInstances: () => ({ addInstance: vi.fn(), updateInstance: vi.fn(), deleteInstances, instances: [] }),
 }));
+
+const querySpaces = vi.hoisted(() => ({
+  current: { data: [] as import("../../services/queries").QuerySpace[], error: undefined as string | undefined },
+}));
+
+vi.mock("../query-builder/useQueryBuilderData", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../query-builder/useQueryBuilderData")>();
+  return { ...actual, useQuerySpaces: () => querySpaces.current };
+});
 
 vi.mock("../../services/instances", () => ({
   IDENTIFIER: "http://schema.org/identifier",
@@ -53,6 +63,7 @@ vi.mock("../../services/instances", () => ({
   removeIdentifier: vi.fn(),
   appendIncomingLinks: vi.fn(),
   replaceRawInstance: vi.fn(),
+  moveInstance: vi.fn(),
   updateInstance: vi.fn(),
 }));
 
@@ -171,6 +182,7 @@ describe("InstanceDetail", () => {
 
   beforeEach(() => {
     sessionStorage.clear();
+    querySpaces.current = { data: [], error: undefined };
   });
 
   it("keeps unsaved instances from the session after a refresh", async () => {
@@ -1742,5 +1754,60 @@ describe("InstanceDetail", () => {
     expect(await screen.findByRole("alert")).toHaveTextContent("403 Forbidden");
     expect(screen.getByRole("dialog", { name: "Delete instance?" })).toBeInTheDocument();
     expect(deleteInstances).not.toHaveBeenCalled();
+  });
+
+  describe("the space an instance is saved in", () => {
+    const spaces = [
+      { identifier: "private-1", isPrivate: true, canCreate: true, canWrite: true, canDelete: true },
+      { identifier: "shared", name: "Shared project", isPrivate: false, canCreate: true, canWrite: true, canDelete: false },
+      { identifier: "locked", isPrivate: false, canCreate: false, canWrite: false, canDelete: false },
+    ];
+
+    it("stays text without the edit permission", async () => {
+      querySpaces.current = { data: spaces };
+      renderDetail("?edit=1", [], "inst-1", { permissions: "View", releaseStatus: "in progress", space: "shared" });
+
+      expect(await screen.findByText("shared")).toBeInTheDocument();
+      expect(screen.queryByRole("button", { name: "Change space" })).not.toBeInTheDocument();
+    });
+
+    it("explains that a released instance has to be unreleased first", async () => {
+      querySpaces.current = { data: spaces };
+      renderDetail("?edit=1", [], "inst-1", { releaseStatus: "released", space: "shared" });
+
+      expect(await screen.findByText("Unrelease this instance before changing its space.")).toBeInTheDocument();
+      expect(screen.queryByRole("button", { name: "Change space" })).not.toBeInTheDocument();
+    });
+
+    it("moves an unreleased instance into a space the user can create in", async () => {
+      querySpaces.current = { data: spaces };
+      vi.mocked(moveInstance).mockResolvedValue({
+        instanceId: "inst-1",
+        type: "Building",
+        instanceName: "Headquarters",
+        space: "shared",
+        permissions: "View, Edit",
+        releaseStatus: "in progress",
+        fields: [],
+        directLinks: [],
+      });
+      renderDetail("?edit=1", [], "inst-1", { releaseStatus: "in progress", space: "private-1" });
+
+      fireEvent.click(await screen.findByRole("button", { name: /Space:/ }));
+      expect(screen.queryByRole("option", { name: "locked" })).not.toBeInTheDocument();
+      fireEvent.click(screen.getByRole("option", { name: "Shared project" }));
+      const dialog = await screen.findByRole("dialog", { name: "Change space" });
+      expect(dialog).toHaveTextContent(
+        "The space changes from My private space to Shared project. Save the instance to apply this change.",
+      );
+      fireEvent.click(within(dialog).getByRole("button", { name: "Change space" }));
+      expect(screen.queryByRole("dialog", { name: "Change space" })).not.toBeInTheDocument();
+      expect(screen.getByRole("status")).toHaveTextContent("Space");
+      await confirmInstanceSave();
+
+      await waitFor(() => expect(moveInstance).toHaveBeenCalledWith("token", "inst-1", "shared"));
+      expect(updateInstance).not.toHaveBeenCalled();
+      expect(screen.getByRole("button", { name: "Save" })).toBeDisabled();
+    });
   });
 });

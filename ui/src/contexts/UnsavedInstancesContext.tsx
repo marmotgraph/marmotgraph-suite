@@ -23,6 +23,8 @@ export type UnsavedInstanceDraft = {
   typeIdentifier?: string;
   /** The space a new instance is created in - the private space of the user if there is none */
   space?: string;
+  /** The space an existing instance is moved to when the draft is saved */
+  moveToSpace?: string;
   /** The stored field values the draft was edited from, so a save sends only the changes */
   baseline?: InstanceFieldValues;
   changedFieldLabels?: string[];
