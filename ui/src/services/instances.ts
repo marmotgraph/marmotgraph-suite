@@ -300,6 +300,24 @@ export function updateInstance(
 }
 
 /**
+ * Moves an instance to another space. The core rejects it when the instance is released, or when the user may not
+ * edit the instance or create instances in the target space.
+ */
+export function moveInstance(
+  accessToken: string,
+  instanceId: string,
+  space: string,
+): Promise<InstanceDetail> {
+  return send(
+    "PUT",
+    `/api/instances/${encodeURIComponent(instanceId)}/space`,
+    "move the instance",
+    accessToken,
+    { space },
+  );
+}
+
+/**
  * Removes a stored identifier of an instance - the core rejects it (409) if a relation targets the identifier. The
  * instance as stored by the core is returned.
  */

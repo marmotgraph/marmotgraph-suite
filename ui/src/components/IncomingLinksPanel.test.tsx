@@ -160,3 +160,72 @@ describe("incoming link pages", () => {
     ).toBeInTheDocument();
   });
 });
+
+describe("incoming links in the dialog", () => {
+  const names = (count: number) => Array.from({ length: count }, (_, i) => `Instance ${i + 1}`);
+  const roots: (Element | null | undefined)[] = [];
+
+  /** An observer which reports the sentinel as visible as soon as it is observed - the end of the list is in view. */
+  beforeEach(() => {
+    roots.length = 0;
+    vi.stubGlobal(
+      "IntersectionObserver",
+      class {
+        constructor(
+          private readonly callback: IntersectionObserverCallback,
+          options?: IntersectionObserverInit,
+        ) {
+          roots.push(options?.root as Element | null | undefined);
+        }
+        observe() {
+          this.callback([{ isIntersecting: true } as IntersectionObserverEntry], this as never);
+        }
+        disconnect() {}
+      },
+    );
+  });
+
+  afterEach(() => vi.unstubAllGlobals());
+
+  const panel = (incomingLinks: IncomingLinks[], onLoadMore = vi.fn(), loading = false) => (
+    <IncomingLinksPanel incomingLinks={incomingLinks} onLinkClick={() => undefined} onLoadMore={onLoadMore} isLoadingMore={() => loading} />
+  );
+  const open = () => fireEvent.click(screen.getByRole("button", { name: "Show all 25 Dataset links in Author of" }));
+
+  it("loads the next page when the end of the list is reached, and the one after", () => {
+    const onLoadMore = vi.fn();
+    const { rerender } = render(panel(links(names(5), 25, "m1"), onLoadMore));
+    open();
+
+    const dialog = screen.getByRole("dialog");
+    expect(onLoadMore).toHaveBeenCalledTimes(1);
+    expect(onLoadMore).toHaveBeenLastCalledWith("https://example.org/author", expect.objectContaining({ nextMarker: "m1" }));
+    // The list scrolls in the body of the dialog
+    expect(roots.at(-1)).toBe(dialog.querySelector(".modal-body"));
+
+    rerender(panel(links(names(10), 25, "m2"), onLoadMore));
+    expect(within(dialog).getByText("10 of 25")).toBeInTheDocument();
+    expect(within(dialog).getByText("Instance 10")).toBeInTheDocument();
+    expect(onLoadMore).toHaveBeenLastCalledWith("https://example.org/author", expect.objectContaining({ nextMarker: "m2" }));
+  });
+
+  it("does not ask for a page while one is loading", () => {
+    const onLoadMore = vi.fn();
+    render(panel(links(names(5), 25, "m1"), onLoadMore, true));
+    open();
+
+    expect(screen.getByRole("dialog")).toHaveTextContent("Loading more...");
+    expect(onLoadMore).not.toHaveBeenCalled();
+  });
+
+  it("stops when everything is loaded", () => {
+    const onLoadMore = vi.fn();
+    render(panel(links(names(25), 25), onLoadMore));
+    open();
+
+    const dialog = screen.getByRole("dialog");
+    expect(within(dialog).getByText("Instance 25")).toBeInTheDocument();
+    expect(dialog).not.toHaveTextContent("Loading more...");
+    expect(onLoadMore).not.toHaveBeenCalled();
+  });
+});

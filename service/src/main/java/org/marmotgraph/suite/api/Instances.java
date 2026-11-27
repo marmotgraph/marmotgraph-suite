@@ -457,6 +457,36 @@ public class Instances {
         return get(client, id);
     }
 
+    /** The space an instance is moved to. */
+    public record MoveSpace(String space) {
+    }
+
+    /**
+     * Moves the instance to another space. Refused when the user may not edit the instance. The core also rejects
+     * the move when the instance is released, or when the user may not create instances in the target space. Moving
+     * it to the space it is already in changes nothing.
+     *
+     * @param id the uuid of the instance as known by the core
+     * @return the instance as stored by the core
+     */
+    @PutMapping("/{id}/space")
+    public InstanceDetail move(@AuthenticatedClient MarmotGraphClient client, @PathVariable UUID id,
+                               @RequestBody MoveSpace move) {
+        if (move.space() == null || move.space().isBlank()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "The space is missing");
+        }
+        org.marmotgraph.sdk.model.Instance current = client.instances().get(id, Stage.IN_PROGRESS,
+                ResponseOptions.builder().returnPermissions(true).build());
+        if (!permissions(current.getPermissions()).contains("Edit")) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "You are not allowed to edit this instance");
+        }
+        String target = move.space().trim();
+        if (!target.equals(current.getSpace())) {
+            client.instances().move(id, target);
+        }
+        return get(client, id);
+    }
+
     /**
      * A new instance as created in the editor - the values of its fields (by their identifier) are expected in the
      * shape of the kind of their field, the identifiers (if any) as a list of strings by the {@link FieldCache#IDENTIFIER}.

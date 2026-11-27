@@ -1275,6 +1275,60 @@ class InstancesTest {
     }
 
     @Test
+    void moveSendsTheTargetSpaceWhenTheUserCanEdit() throws Exception {
+        when(instancesResource.get(any(UUID.class), any(), any()))
+                .thenReturn(instance(UNRELEASED_ID, DEVICE, Map.of(NAME, "Server", "_permissions", List.of("READ", "WRITE"), "_space", "myspace")))
+                .thenReturn(instance(UNRELEASED_ID, DEVICE, Map.of(NAME, "Server", "_permissions", List.of("READ", "WRITE"), "_space", "project")));
+        when(typesResource.getByNames(List.of(DEVICE), Stage.IN_PROGRESS, null, false, false))
+                .thenReturn(Map.of(DEVICE, new TypeInformation(DEVICE, null, "Device", null, NAME, null, null, List.of(), List.of(), List.of())));
+        when(instancesResource.releaseStatus(UNRELEASED_ID, ReleaseTreeScope.TOP_INSTANCE_ONLY)).thenReturn(ReleaseStatus.UNRELEASED);
+
+        mockMvc.perform(put("/instances/" + UNRELEASED_ID + "/space").header(HttpHeaders.AUTHORIZATION, "Bearer theToken")
+                        .contentType(MediaType.APPLICATION_JSON).content("{\"space\": \" project \"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.space").value("project"));
+
+        verify(instancesResource).move(UNRELEASED_ID, "project");
+    }
+
+    @Test
+    void moveOfTheCurrentSpaceDoesNotCallTheCore() throws Exception {
+        when(instancesResource.get(any(UUID.class), any(), any())).thenReturn(
+                instance(UNRELEASED_ID, DEVICE, Map.of("_permissions", List.of("WRITE"), "_space", "project")));
+        when(typesResource.getByNames(List.of(DEVICE), Stage.IN_PROGRESS, null, false, false))
+                .thenReturn(Map.of(DEVICE, new TypeInformation(DEVICE, null, "Device", null, null, null, null, List.of(), List.of(), List.of())));
+        when(instancesResource.releaseStatus(UNRELEASED_ID, ReleaseTreeScope.TOP_INSTANCE_ONLY)).thenReturn(ReleaseStatus.UNRELEASED);
+
+        mockMvc.perform(put("/instances/" + UNRELEASED_ID + "/space").header(HttpHeaders.AUTHORIZATION, "Bearer theToken")
+                        .contentType(MediaType.APPLICATION_JSON).content("{\"space\": \"project\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.space").value("project"));
+
+        verify(instancesResource, never()).move(any(), any());
+    }
+
+    @Test
+    void moveIsRefusedWithoutTheEditPermission() throws Exception {
+        when(instancesResource.get(any(UUID.class), any(), any())).thenReturn(
+                instance(UNRELEASED_ID, DEVICE, Map.of("_permissions", List.of("READ"), "_space", "myspace")));
+
+        mockMvc.perform(put("/instances/" + UNRELEASED_ID + "/space").header(HttpHeaders.AUTHORIZATION, "Bearer theToken")
+                        .contentType(MediaType.APPLICATION_JSON).content("{\"space\": \"project\"}"))
+                .andExpect(status().isForbidden());
+
+        verify(instancesResource, never()).move(any(), any());
+    }
+
+    @Test
+    void moveRequiresASpace() throws Exception {
+        mockMvc.perform(put("/instances/" + UNRELEASED_ID + "/space").header(HttpHeaders.AUTHORIZATION, "Bearer theToken")
+                        .contentType(MediaType.APPLICATION_JSON).content("{\"space\": \" \"}"))
+                .andExpect(status().isBadRequest());
+
+        verifyNoInteractions(instancesResource);
+    }
+
+    @Test
     void listWithoutBearerTokenIsUnauthorized() throws Exception {
         mockMvc.perform(get("/instances")).andExpect(status().isUnauthorized());
         verify(client, never()).withToken(Mockito.anyString());
