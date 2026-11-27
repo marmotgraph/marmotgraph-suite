@@ -18,6 +18,7 @@ import {
   updateInstance,
 } from "../../services/instances";
 import { fetchTypeFields, fetchTypes } from "../../services/types";
+import { HttpError } from "../../services/http";
 import { addComment, deleteComment, fetchComments, InstanceComment, updateComment } from "../../services/comments";
 import { UNSAVED_INSTANCES_STORAGE_KEY, UnsavedInstanceDraft, UnsavedInstancesProvider, useUnsavedInstances } from "../../contexts/UnsavedInstancesContext";
 
@@ -145,6 +146,29 @@ function WithDraft({ draft, children }: { draft: UnsavedInstanceDraft; children:
 }
 
 describe("InstanceDetail", () => {
+  describe("an instance which can't be shown", () => {
+    it("is reported as not found with the way back to the instances", async () => {
+      renderDetail("", [], "missing-1");
+      vi.mocked(fetchInstance).mockRejectedValue(new HttpError("Failed to load the instance (404 Not Found)", 404));
+
+      expect(await screen.findByRole("heading", { level: 1, name: "Instance not found" })).toBeInTheDocument();
+      expect(screen.getByText("missing-1")).toBeInTheDocument();
+      expect(screen.getByRole("link", { name: "Go to the instances" })).toHaveAttribute("href", "/editor");
+      expect(document.querySelector(".layout-not-found-illustration svg")).toBeInTheDocument();
+    });
+
+    it("reports other failures with their reason instead of as not found", async () => {
+      renderDetail("", [], "secret-1");
+      vi.mocked(fetchInstance).mockRejectedValue(new HttpError("Failed to load the instance (403 Forbidden)", 403));
+
+      expect(await screen.findByRole("heading", { level: 1, name: "The instance could not be loaded" })).toBeInTheDocument();
+      expect(screen.getByText("Error 403")).toBeInTheDocument();
+      expect(screen.getByText("Failed to load the instance (403 Forbidden)")).toBeInTheDocument();
+      // A refused request (4xx) shows the eagle - not the outage or the lost marmot
+      expect(document.querySelector(".layout-not-found-illustration title")).toHaveTextContent("An eagle snatches a marmot");
+    });
+  });
+
   beforeEach(() => {
     sessionStorage.clear();
   });

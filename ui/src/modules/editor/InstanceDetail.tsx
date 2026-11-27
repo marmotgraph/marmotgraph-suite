@@ -78,6 +78,8 @@ import DirLinkIcon from "../../assets/icons/DirLink.svg";
 import RevLinkIcon from "../../assets/icons/RevLink.svg";
 import RevDirLinkIcon from "../../assets/icons/RevDirLink.svg";
 import NoLinksIcon from "../../assets/icons/NoLinks.svg";
+import ProblemMessage, { illustrationForStatus } from "../../components/ProblemMessage";
+import { HttpError, isNotFoundStatus } from "../../services/http";
 import "./InstanceDetail.css";
 
 const typeColors: Record<string, string> = {
@@ -119,16 +121,50 @@ const RAW_JSON_LABEL = "Raw JSON";
 /** Names the change of the identifiers (which are no field) */
 const IDENTIFIERS_LABEL = "Identifiers";
 
+/**
+ * Shown instead of the instance if it can't be shown - "lost" if it doesn't exist (404, 400 for an id which is no UUID,
+ * or no id at all), the error otherwise (e.g. no access, the backend failed).
+ */
+function InstanceUnavailable({ instanceId, error, status }: Readonly<{ instanceId?: string; error?: string; status?: number }>) {
+  const notFound = !error || isNotFoundStatus(status);
+  const backToList = (
+    // Quiet: the dark page action is the one of the sub navigation ("Create new instance")
+    <Link className="btn btn-outline-secondary btn-sm" to="/editor">
+      Go to the instances
+    </Link>
+  );
+  if (notFound) {
+    return (
+      <ProblemMessage illustration="lost" kicker="Error 404" title="Instance not found" actions={backToList}>
+        {instanceId ? (
+          <>
+            <p>There is no instance with this ID - it might have been deleted.</p>
+            <code className="layout-not-found-id">{instanceId}</code>
+          </>
+        ) : (
+          <p>No instance ID was provided.</p>
+        )}
+      </ProblemMessage>
+    );
+  }
+  return (
+    <ProblemMessage
+      illustration={illustrationForStatus(status)}
+      kicker={status ? `Error ${status}` : "Error"}
+      title="The instance could not be loaded"
+      actions={backToList}
+    >
+      {instanceId && <code className="layout-not-found-id">{instanceId}</code>}
+      <p>{error}</p>
+    </ProblemMessage>
+  );
+}
+
 export default function InstanceDetail() {
   const { instanceId } = useParams<{ instanceId: string }>();
 
   if (!instanceId) {
-    return (
-      <div>
-        <h2>Instance not found</h2>
-        <p>No instance ID provided.</p>
-      </div>
-    );
+    return <InstanceUnavailable />;
   }
 
   return <InstanceDetailView key={instanceId} instanceId={instanceId} />;
@@ -310,6 +346,8 @@ function InstanceDetailView({ instanceId }: Readonly<{ instanceId: string }>) {
   // New instances are only loading while the fields of their type are fetched
   const [loading, setLoading] = useState(!isNewInstance || Boolean(newInstanceType));
   const [loadError, setLoadError] = useState<string>();
+  /** The HTTP status the instance was refused with - to tell a missing instance (404) apart from other failures */
+  const [loadErrorStatus, setLoadErrorStatus] = useState<number>();
   const [incomingLinks, setIncomingLinks] = useState<IncomingLinks[]>([]);
   const [incomingLinksLoading, setIncomingLinksLoading] =
     useState(!isNewInstance);
@@ -337,6 +375,7 @@ function InstanceDetailView({ instanceId }: Readonly<{ instanceId: string }>) {
         console.error("Failed to load the instance", e);
         if (!cancelled) {
           setLoadError(e instanceof Error ? e.message : String(e));
+          setLoadErrorStatus(e instanceof HttpError ? e.status : undefined);
         }
       })
       .finally(() => !cancelled && setLoading(false));
@@ -669,15 +708,13 @@ function InstanceDetailView({ instanceId }: Readonly<{ instanceId: string }>) {
 
   if (!instance) {
     return (
-      <div>
-        <h2>Instance not found</h2>
-        <p>No instance found with ID: {instanceId}</p>
-        {loadError && <p className="text-muted">{loadError}</p>}
+      <>
+        <InstanceUnavailable instanceId={instanceId} error={loadError} status={loadErrorStatus} />
         <UnsavedInstancesPanel
           currentInstanceId={instanceId}
           onDiscardCurrent={resetToSaved}
         />
-      </div>
+      </>
     );
   }
 

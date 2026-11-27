@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Alert, Button, Spinner } from "react-bootstrap";
-import { useNavigate, useParams, useSearchParams } from "react-router-dom";
+import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
   faCircle,
@@ -13,6 +13,8 @@ import {
   faTrashAlt,
 } from "@fortawesome/free-solid-svg-icons";
 import { useAuth } from "../../contexts/AuthContext";
+import ProblemMessage, { illustrationForStatus } from "../../components/ProblemMessage";
+import { HttpError, isNotFoundStatus } from "../../services/http";
 import { Breadcrumbs } from "../../components/Breadcrumbs";
 import {
   deleteQuery,
@@ -68,6 +70,50 @@ function message(e: unknown): string {
   return e instanceof Error ? e.message : String(e);
 }
 
+/** Why a query can't be shown - the status tells a missing query (404) apart from other failures */
+interface LoadFailure {
+  message: string;
+  status?: number;
+  /** The link itself is broken (e.g. a new query without type) - nothing was loaded */
+  invalidLink?: boolean;
+}
+
+/** Shown instead of the query if it can't be shown - "lost" if it doesn't exist, the error otherwise (e.g. no access). */
+function QueryUnavailable({ queryId, failure }: Readonly<{ queryId?: string; failure: LoadFailure }>) {
+  const backToList = (
+    // Quiet: the dark page action is the one of the sub navigation ("Create new query")
+    <Link className="btn btn-outline-secondary btn-sm" to="/queries">
+      Go to the queries
+    </Link>
+  );
+  if (failure.invalidLink) {
+    return (
+      <ProblemMessage illustration="lost" kicker="Invalid link" title="The query can't be created" actions={backToList}>
+        <p>{failure.message}</p>
+      </ProblemMessage>
+    );
+  }
+  if (isNotFoundStatus(failure.status)) {
+    return (
+      <ProblemMessage illustration="lost" kicker="Error 404" title="Query not found" actions={backToList}>
+        <p>There is no query with this ID - it might have been deleted.</p>
+        {queryId && <code className="layout-not-found-id">{queryId}</code>}
+      </ProblemMessage>
+    );
+  }
+  return (
+    <ProblemMessage
+      illustration={illustrationForStatus(failure.status)}
+      kicker={failure.status ? `Error ${failure.status}` : "Error"}
+      title="The query could not be loaded"
+      actions={backToList}
+    >
+      {queryId && <code className="layout-not-found-id">{queryId}</code>}
+      <p>{failure.message}</p>
+    </ProblemMessage>
+  );
+}
+
 function withMeta(specification: QuerySpecification, label: string, description: string): QuerySpecification {
   return {
     ...specification,
@@ -91,7 +137,7 @@ export function QueryDetail() {
   const [model, setModel] = useState<QueryModel>();
   /** The specification as loaded / stored - undefined for a query which isn't stored yet */
   const [baseline, setBaseline] = useState<string>();
-  const [loadError, setLoadError] = useState<string>();
+  const [loadError, setLoadError] = useState<LoadFailure>();
   const [mode, setMode] = useState<Mode>("build");
   const [selectedKey, setSelectedKey] = useState("");
   const [dialog, setDialog] = useState<Dialog>();
@@ -122,7 +168,7 @@ export function QueryDetail() {
     setRun({ page: 1, markers: [undefined] });
     if (isNewRoute) {
       if (!newType) {
-        setLoadError("No type is given to create the query for.");
+        setLoadError({ message: "No type is given to create the query for.", invalidLink: true });
         return;
       }
       apply(newQuery(newType, types), undefined, undefined);
@@ -138,7 +184,7 @@ export function QueryDetail() {
           apply(loaded, document, specificationText(loaded));
         }
       })
-      .catch((e: unknown) => !cancelled && setLoadError(message(e)));
+      .catch((e: unknown) => !cancelled && setLoadError({ message: message(e), status: e instanceof HttpError ? e.status : undefined }));
     return () => {
       cancelled = true;
     };
@@ -165,14 +211,7 @@ export function QueryDetail() {
   const creatableSpaces = spaces.filter((s) => s.canCreate);
 
   if (typesError || loadError) {
-    return (
-      <div className="query-detail">
-        <Alert variant="danger">{typesError ?? loadError}</Alert>
-        <Button variant="outline-dark" size="sm" onClick={() => navigate("/queries")}>
-          Back to the queries
-        </Button>
-      </div>
-    );
+    return <QueryUnavailable queryId={queryId} failure={loadError ?? { message: typesError as string }} />;
   }
 
   if (!types || !model || !specification) {

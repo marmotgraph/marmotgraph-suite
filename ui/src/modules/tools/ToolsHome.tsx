@@ -1,9 +1,10 @@
 import React from "react";
 import { Spinner } from "react-bootstrap";
-import { useParams } from "react-router-dom";
+import { Link, useParams } from "react-router-dom";
 import { ExternalLink } from "lucide-react";
 import { useTools } from "../../contexts/ToolsContext";
 import ToolCategoryIcon from "../../components/ToolCategoryIcon";
+import ProblemMessage from "../../components/ProblemMessage";
 import "../home/SuiteHome.css";
 
 /** The overview of the tools of a category - each opens on its own in a new tab. */
@@ -21,7 +22,21 @@ export default function ToolsHome() {
 
   const category = categories.find((c) => c.id === categoryId);
   if (!category) {
-    return <p className="suite-home-status">{error ?? "This category doesn't exist or has no tools available to you."}</p>;
+    const backHome = (
+      // A link styled as the dark page action - it navigates, so it keeps the role of a link
+      <Link className="btn btn-dark btn-sm" to="/">
+        Go to the suite
+      </Link>
+    );
+    return error ? (
+      <ProblemMessage illustration="error" kicker="Error" title="The tools could not be loaded" actions={backHome}>
+        <p>{error}</p>
+      </ProblemMessage>
+    ) : (
+      <ProblemMessage illustration="lost" kicker="Error 404" title="Category not found" actions={backHome}>
+        <p>This category doesn't exist or has no tools available to you.</p>
+      </ProblemMessage>
+    );
   }
 
   return (

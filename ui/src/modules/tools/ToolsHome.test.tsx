@@ -57,7 +57,17 @@ describe("ToolsHome", () => {
   it("tells if the category is unknown", () => {
     renderAt("unknown");
 
+    expect(screen.getByRole("heading", { level: 1, name: "Category not found" })).toBeInTheDocument();
     expect(screen.getByText(/doesn't exist or has no tools/)).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Go to the suite" })).toHaveAttribute("href", "/");
+  });
+
+  it("reports tools which could not be loaded instead of an unknown category", () => {
+    vi.mocked(useTools).mockReturnValue({ categories: [], error: "Failed to load the tools (500 Internal Server Error)", reload: vi.fn() });
+    renderAt("search");
+
+    expect(screen.getByRole("heading", { level: 1, name: "The tools could not be loaded" })).toBeInTheDocument();
+    expect(screen.getByText("Failed to load the tools (500 Internal Server Error)")).toBeInTheDocument();
   });
 
   it("shows the loading state until the tools are available", () => {

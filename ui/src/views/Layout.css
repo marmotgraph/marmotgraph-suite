@@ -127,6 +127,18 @@
     text-align: center;
 }
 
+.layout-not-found-illustration {
+    width: 100%;
+    max-width: 400px;
+    margin-bottom: 16px;
+}
+
+.layout-not-found-illustration svg {
+    display: block;
+    width: 100%;
+    height: auto;
+}
+
 .layout-not-found-kicker {
     margin: 0 0 8px;
     font-size: 0.75rem;
@@ -147,6 +159,21 @@
 .layout-not-found-text {
     margin: 0 0 24px;
     max-width: 32rem;
+    color: #6c757d;
+    overflow-wrap: anywhere;
+}
+
+.layout-not-found-text p {
+    margin: 0 0 8px;
+}
+
+.layout-not-found-text p:last-child {
+    margin-bottom: 0;
+}
+
+/* An identifier named in the message (e.g. of an instance) - monospace like the ids everywhere else */
+.layout-not-found-id {
+    font-size: 0.75rem;
     color: #6c757d;
     overflow-wrap: anywhere;
 }

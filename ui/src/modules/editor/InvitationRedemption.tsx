@@ -1,8 +1,10 @@
 import React, { useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
-import { Alert, Spinner } from "react-bootstrap";
+import { Spinner } from "react-bootstrap";
 import { useAuth } from "../../contexts/AuthContext";
 import { redeemInvitation } from "../../services/invitations";
+import { HttpError } from "../../services/http";
+import ProblemMessage, { illustrationForStatus } from "../../components/ProblemMessage";
 
 /**
  * The page an invitation link opens: The user is signed in already (the whole app requires it - an existing session
@@ -13,6 +15,7 @@ export default function InvitationRedemption() {
   const { getAccessToken } = useAuth();
   const navigate = useNavigate();
   const [error, setError] = useState<string>();
+  const [errorStatus, setErrorStatus] = useState<number>();
 
   useEffect(() => {
     if (!token) {
@@ -31,6 +34,7 @@ export default function InvitationRedemption() {
         console.error("Failed to accept the invitation", e);
         if (!cancelled) {
           setError(e instanceof Error ? e.message : String(e));
+          setErrorStatus(e instanceof HttpError ? e.status : undefined);
         }
       });
     return () => {
@@ -41,14 +45,23 @@ export default function InvitationRedemption() {
   return (
     <div className="d-flex flex-column justify-content-center align-items-center h-100 gap-3 p-4 text-center">
       {!token || error ? (
-        <Alert variant="danger" className="mb-0" style={{ maxWidth: 520 }}>
-          <p className="fw-semibold mb-2">The invitation could not be accepted.</p>
-          <p className="mb-2">
+        <ProblemMessage
+          // Without token, the link is incomplete - as refused (4xx) as a used, revoked or expired one
+          illustration={token ? illustrationForStatus(errorStatus) : "refused"}
+          kicker={errorStatus ? `Error ${errorStatus}` : token ? "Error" : "Invalid link"}
+          title="The invitation could not be accepted"
+          actions={
+            // A link styled as the dark page action - it navigates, so it keeps the role of a link
+            <Link className="btn btn-dark btn-sm" to="/editor">
+              Go to the editor
+            </Link>
+          }
+        >
+          <p>
             The link may be incomplete, already used, revoked or expired. Ask the person who invited you for a new link.
           </p>
-          {error && <p className="small mb-2">{error}</p>}
-          <Link to="/editor">Go to the editor</Link>
-        </Alert>
+          {error && <p>{error}</p>}
+        </ProblemMessage>
       ) : (
         <>
           <Spinner animation="border" role="status" />

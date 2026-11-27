@@ -1,44 +1,15 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useState } from "react";
 import { Button, Spinner } from "react-bootstrap";
 import { ServiceUnavailableError, UnavailableService } from "../services/config";
 import Footer from "./composites/Footer";
-import { useMediaQuery } from "../hooks/useMediaQuery";
+import AnimatedIllustration from "./AnimatedIllustration";
 import MarmotError from "../assets/marmot-error.svg?react";
 import "../views/Layout.css";
 import "../modules/home/SuiteHome.css";
 import "./Outage.css";
 
-/** A moment of the (6s) animation where the cable is cut - shown as still image if reduced motion is asked for */
+/** A moment of the (6s) animation where the cable is cut - the still image if reduced motion is asked for */
 const STILL_FRAME_S = 3.6;
-
-/**
- * The marmot biting through the cable. It is inlined (instead of an <img>) so its animation can be stopped. Decorative:
- * the heading next to it says what happened.
- */
-function OutageIllustration() {
-  const container = useRef<HTMLDivElement>(null);
-  const reducedMotion = useMediaQuery("(prefers-reduced-motion: reduce)");
-
-  useEffect(() => {
-    const svg = container.current?.querySelector("svg");
-    // Not available in every environment (e.g. jsdom)
-    if (!svg || typeof svg.pauseAnimations !== "function") {
-      return;
-    }
-    if (reducedMotion) {
-      svg.pauseAnimations();
-      svg.setCurrentTime(STILL_FRAME_S);
-    } else {
-      svg.unpauseAnimations();
-    }
-  }, [reducedMotion]);
-
-  return (
-    <div ref={container} className="outage-illustration" aria-hidden="true">
-      <MarmotError focusable="false" />
-    </div>
-  );
-}
 
 const DESCRIPTIONS: Record<UnavailableService, { title: string; text: string }> = {
   core: {
@@ -104,7 +75,7 @@ export default function Outage({ outage, checking, onRetry }: Readonly<OutagePro
               <h1 className="suite-home-title">{tenant ? `${tenant} Knowledge Graph Suite` : "Knowledge Graph Suite"}</h1>
             </header>
             <section className="outage-card" aria-labelledby="outage-title">
-              <OutageIllustration />
+              <AnimatedIllustration svg={MarmotError} stillFrame={STILL_FRAME_S} className="outage-illustration" />
               <div className="outage-kicker">
                 <span className="outage-status">
                   <span className="outage-status-dot" aria-hidden="true" />

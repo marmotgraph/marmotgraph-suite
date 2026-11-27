@@ -1,3 +1,22 @@
+/** A request answered with an error status - e.g. to tell a missing resource (404) apart from other failures */
+export class HttpError extends Error {
+  constructor(
+    message: string,
+    readonly status: number,
+  ) {
+    super(message);
+    this.name = "HttpError";
+  }
+}
+
+/**
+ * Whether a resource requested by its id doesn't exist - 404, or 400 if the id isn't even valid (e.g. no UUID). Takes
+ * the status of an {@link HttpError}.
+ */
+export function isNotFoundStatus(status: number | undefined): boolean {
+  return status === 404 || status === 400;
+}
+
 /** The requests currently in flight - identified by their url and the access token they are issued with. */
 const pending = new Map<string, Promise<unknown>>();
 
@@ -35,8 +54,9 @@ async function load<T>(
   }
   const response = await fetch(url, { headers });
   if (!response.ok) {
-    throw new Error(
+    throw new HttpError(
       `Failed to load ${what} (${response.status} ${response.statusText})`,
+      response.status,
     );
   }
   return (await response.json()) as T;
@@ -75,8 +95,9 @@ export async function send<T = void>(
   const json = text ? safeParse(text) : undefined;
   if (!response.ok) {
     const detail = (json as { detail?: string } | undefined)?.detail;
-    throw new Error(
+    throw new HttpError(
       `Failed to ${what} (${response.status} ${response.statusText})${detail ? `: ${detail}` : ""}`,
+      response.status,
     );
   }
   return json as T;

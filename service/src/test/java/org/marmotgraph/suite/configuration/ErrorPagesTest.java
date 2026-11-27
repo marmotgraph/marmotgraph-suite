@@ -6,6 +6,10 @@ import org.springframework.boot.autoconfigure.EnableAutoConfiguration;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.web.server.LocalServerPort;
 import org.springframework.context.annotation.Import;
+import org.springframework.http.HttpStatus;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.net.URI;
 import java.net.http.HttpClient;
@@ -24,9 +28,25 @@ class ErrorPagesTest {
 
     @SpringBootConfiguration
     @EnableAutoConfiguration
-    @Import({ApiRoot.class, SinglePageApplication.class, Documentation.class})
+    @Import({ApiRoot.class, SinglePageApplication.class, Documentation.class, Failing.class})
     static class TestApplication {
     }
+
+    /** Fails on purpose - for the error pages of the other statuses */
+    @RestController
+    static class Failing {
+        @GetMapping("/failing/refused")
+        String refused() {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN);
+        }
+
+        @GetMapping("/failing/broken")
+        String broken() {
+            throw new IllegalStateException("broken on purpose");
+        }
+    }
+
+    private static final String BROWSER = "text/html,application/xhtml+xml,*/*;q=0.8";
 
     @LocalServerPort
     private int port;
@@ -44,6 +64,30 @@ class ErrorPagesTest {
         assertEquals(404, response.statusCode());
         assertTrue(response.headers().firstValue("Content-Type").orElseThrow().startsWith("text/html"));
         assertTrue(response.body().contains("Page not found"));
+    }
+
+    @Test
+    void browsersGetTheRefusedPageForOtherClientErrors() throws Exception {
+        HttpResponse<String> response = get("/failing/refused", BROWSER);
+        assertEquals(403, response.statusCode());
+        assertTrue(response.headers().firstValue("Content-Type").orElseThrow().startsWith("text/html"));
+        assertTrue(response.body().contains("This request can't be served"));
+    }
+
+    @Test
+    void browsersGetTheServerErrorPage() throws Exception {
+        HttpResponse<String> response = get("/failing/broken", BROWSER);
+        assertEquals(500, response.statusCode());
+        assertTrue(response.headers().firstValue("Content-Type").orElseThrow().startsWith("text/html"));
+        assertTrue(response.body().contains("Something went wrong on our side"));
+        assertFalse(response.body().contains("broken on purpose"));
+    }
+
+    @Test
+    void apiClientsKeepTheJsonErrorOfAServerError() throws Exception {
+        HttpResponse<String> response = get("/failing/broken", "application/json");
+        assertEquals(500, response.statusCode());
+        assertTrue(response.headers().firstValue("Content-Type").orElseThrow().startsWith("application/json"));
     }
 
     @Test
